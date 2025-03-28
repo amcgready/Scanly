@@ -1,3 +1,5 @@
+[![Join us on Discord](https://img.shields.io/badge/Chat-Join%20us%20on%20Discord-7289da?logo=discord&logoColor=white)](https://discord.gg/hdDj4aZTVf)
+![GitHub all releases](https://img.shields.io/github/downloads/amcgready/Scanly/total)
 # Scanly
 
 Scanly is a media file organizer that monitors directories for new files and creates an organized library using symbolic links.
@@ -114,6 +116,5 @@ When using Docker, you can set these environment variables either in the `.env` 
 - `LOG_LEVEL`: Logging level
 - `AUTO_EXTRACT_EPISODES`: Whether to extract episode numbers automatically
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/PhtmRaven?country.x=US&locale.x=en_US)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-💖%20GitHub%20Sponsors-orange?logo=github)](https://github.com/sponsors/amcgready)
