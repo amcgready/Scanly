@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  scanly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scanly
+    environment:
+      - TMDB_API_KEY=${TMDB_API_KEY:-your_tmdb_api_key_here}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - AUTO_EXTRACT_EPISODES=${AUTO_EXTRACT_EPISODES:-True}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ${MEDIA_SOURCE_DIR:-/path/to/your/media}:/media/source:ro
+      - ${MEDIA_LIBRARY_DIR:-/path/to/your/library}:/media/library
+    stdin_open: true  # Keep STDIN open
+    tty: true         # Allocate a pseudo-TTY
+    restart: unless-stopped
