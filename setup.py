@@ -5,7 +5,7 @@ setup(
     version='0.1.0',
     author='Adam McGready',
     author_email='amcgreadyfreelance@gmail.com',
-    description='A media file monitoring and organization tool',
+    description='A media file monitoring and organization tool with symlink and hardlink support',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/amcgready/Scanly',

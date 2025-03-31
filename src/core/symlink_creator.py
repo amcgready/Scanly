@@ -1,7 +1,7 @@
 """
-Creates symlinks for media files.
+Creates links (symbolic or hard) for media files.
 
-This module provides functionality for creating organized symlinks
+This module provides functionality for creating organized links
 to media files in the destination directory.
 """
 
@@ -10,14 +10,14 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from src.config import DESTINATION_DIRECTORY, RELATIVE_SYMLINK
+from src.config import DESTINATION_DIRECTORY, RELATIVE_SYMLINK, LINK_TYPE
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 class SymlinkCreator:
     """
-    Creates organized symlinks for media files.
+    Creates organized links (symbolic or hard) for media files.
     """
     
     def __init__(self, destination_directory: Optional[str] = None):
@@ -25,11 +25,12 @@ class SymlinkCreator:
         Initialize a SymlinkCreator.
         
         Args:
-            destination_directory: Directory where symlinks will be created.
+            destination_directory: Directory where links will be created.
                                   If None, uses the value from settings.
         """
         self.destination_dir = destination_directory or DESTINATION_DIRECTORY
-        logger.debug(f"SymlinkCreator initialized with destination directory: {self.destination_dir}")
+        self.link_type = os.getenv('LINK_TYPE', 'symlink').lower()
+        logger.debug(f"SymlinkCreator initialized with destination directory: {self.destination_dir}, link type: {self.link_type}")
     
     def ensure_directory_exists(self, directory_path: str) -> bool:
         """
@@ -60,14 +61,14 @@ class SymlinkCreator:
     
     def create_symlink(self, source_path: str, rel_destination_path: str) -> bool:
         """
-        Create a symlink from source_path to destination_path.
+        Create a link (symbolic or hard) from source_path to destination_path.
         
         Args:
             source_path: Path to the source file
             rel_destination_path: Relative path within destination directory
             
         Returns:
-            True if symlink was created successfully, False otherwise
+            True if link was created successfully, False otherwise
         """
         source_path = os.path.abspath(source_path)
         full_dest_path = os.path.join(self.destination_dir, rel_destination_path)
@@ -75,39 +76,51 @@ class SymlinkCreator:
         
         # First make sure destination directory exists
         if not self.ensure_directory_exists(dest_dir):
-            logger.error(f"Cannot create symlink because destination directory could not be created: {dest_dir}")
+            logger.error(f"Cannot create link because destination directory could not be created: {dest_dir}")
             print(f"\nError: Cannot create destination directory: {dest_dir}")
             print("Check permissions or update the destination directory in your configuration.")
             return False
         
         try:
-            # Remove existing symlink if it exists
+            # Remove existing link if it exists
             if os.path.exists(full_dest_path):
                 if os.path.islink(full_dest_path):
                     os.unlink(full_dest_path)
                 else:
-                    logger.warning(f"Destination exists and is not a symlink: {full_dest_path}")
+                    logger.warning(f"Destination exists and is not a link: {full_dest_path}")
                     return False
             
-            # Create the symlink
-            if RELATIVE_SYMLINK:
-                # Create a relative symlink
-                source_rel_path = os.path.relpath(source_path, os.path.dirname(full_dest_path))
-                os.symlink(source_rel_path, full_dest_path)
+            # Create the appropriate link type
+            if self.link_type == 'hardlink':
+                # Create a hard link
+                os.link(source_path, full_dest_path)
+                logger.info(f"Created hardlink: {source_path} -> {full_dest_path}")
             else:
-                # Create an absolute symlink
-                os.symlink(source_path, full_dest_path)
+                # Create a symbolic link (default)
+                if RELATIVE_SYMLINK:
+                    # Create a relative symlink
+                    source_rel_path = os.path.relpath(source_path, os.path.dirname(full_dest_path))
+                    os.symlink(source_rel_path, full_dest_path)
+                else:
+                    # Create an absolute symlink
+                    os.symlink(source_path, full_dest_path)
+                logger.info(f"Created symlink: {source_path} -> {full_dest_path}")
                 
-            logger.info(f"Created symlink: {source_path} -> {full_dest_path}")
             return True
             
         except PermissionError:
-            logger.error(f"Permission denied creating symlink to {full_dest_path}")
-            print(f"\nError: Permission denied creating symlink to {full_dest_path}")
+            logger.error(f"Permission denied creating link to {full_dest_path}")
+            print(f"\nError: Permission denied creating link to {full_dest_path}")
             print("You may need to run the application with elevated permissions or choose a different destination directory.")
             return False
-        except Exception as e:
-            logger.error(f"Error creating symlink from {source_path} to {full_dest_path}: {e}")
+        except OSError as e:
+            if self.link_type == 'hardlink' and 'Invalid cross-device link' in str(e):
+                logger.error(f"Cannot create hardlink across different filesystems: {source_path} -> {full_dest_path}")
+                print(f"\nError: Cannot create hardlink between different filesystems.")
+                print("Source and destination must be on the same filesystem for hardlinks.")
+                print("Consider using symlinks instead by setting LINK_TYPE=symlink in your .env file.")
+            else:
+                logger.error(f"Error creating link from {source_path} to {full_dest_path}: {e}")
             return False
     
     def create_movie_symlink(self, movie_file: str, movie_name: str, 
@@ -117,7 +130,7 @@ class SymlinkCreator:
                             collection: Optional[str] = None,
                             is_anime: bool = False) -> bool:
         """
-        Create a symlink for a movie file.
+        Create a link for a movie file.
         
         Args:
             movie_file: Path to the movie file
@@ -129,7 +142,7 @@ class SymlinkCreator:
             is_anime: Whether the movie is anime
             
         Returns:
-            True if symlink was created successfully, False otherwise
+            True if link was created successfully, False otherwise
         """
         from src.utils.media_info import get_resolution_folder
         from src.utils.anime_utils import get_anime_folder
@@ -172,7 +185,7 @@ class SymlinkCreator:
                          year: Optional[str] = None,
                          is_anime: bool = False) -> bool:
         """
-        Create a symlink for a TV episode file.
+        Create a link for a TV episode file.
         
         Args:
             episode_file: Path to the episode file
@@ -185,7 +198,7 @@ class SymlinkCreator:
             is_anime: Whether the show is anime
             
         Returns:
-            True if symlink was created successfully, False otherwise
+            True if link was created successfully, False otherwise
         """
         from src.utils.media_info import get_resolution_folder
         from src.utils.anime_utils import get_anime_folder

@@ -39,5 +39,9 @@ if [ ! -z "$AUTO_EXTRACT_EPISODES" ]; then
     sed -i "s|AUTO_EXTRACT_EPISODES=.*|AUTO_EXTRACT_EPISODES=$AUTO_EXTRACT_EPISODES|g" /app/.env
 fi
 
+if [ ! -z "$LINK_TYPE" ]; then
+    sed -i "s|LINK_TYPE=.*|LINK_TYPE=$LINK_TYPE|g" /app/.env
+fi
+
 # Run the provided command
 exec "$@"

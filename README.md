@@ -10,7 +10,7 @@ Scanly is a media file organizer that monitors directories for new files and cre
 - Extract show or movie information from filenames
 - Extract season and episode numbers for TV shows
 - Integration with TMDB for accurate metadata
-- Create organized symbolic links to your media files
+- Create organized library using symbolic links or hard links
 - Resume interrupted scans
 - Track skipped items
 
@@ -20,7 +20,7 @@ Scanly is a media file organizer that monitors directories for new files and cre
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/username/scanly.git
+git clone https://github.com/amcgready/scanly.git
 cd scanly
 ```
 
@@ -40,7 +40,7 @@ cp .env.template .env
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/username/scanly.git
+git clone https://github.com/amcgready/scanly.git
 cd scanly
 ```
 
@@ -103,6 +103,8 @@ Scanly can be configured using the `.env` file or through the Settings menu. Key
 - `TMDB_API_KEY`: Your TMDB API key (required)
 - `ORIGIN_DIRECTORY`: Default directory to monitor for media files
 - `DESTINATION_DIRECTORY`: Destination directory for the organized library
+- `LINK_TYPE`: Type of links to create - 'symlink' (default) or 'hardlink'
+- `RELATIVE_SYMLINK`: Use relative paths for symlinks ('true' or 'false')
 - `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `AUTO_EXTRACT_EPISODES`: Automatically extract episode numbers without prompting
 

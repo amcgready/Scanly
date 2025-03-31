@@ -134,7 +134,12 @@ def setup_logging(log_level=logging.INFO, console_level=logging.WARNING):
     logging.info("Log file: %s", log_file)
 
 def display_ascii_art():
-    """Display ASCII art from file."""
+    """Display ASCII art from art.txt with encoding error handling."""
+    # List of encodings to try, in order of preference
+    encodings = ['utf-8', 'latin-1', 'cp1252', 'ascii']
+    art_displayed = False
+    logger = logging.getLogger(__name__)
+    
     try:
         # Clear any existing output first
         print("\033[H\033[J", end="")  # ANSI escape sequence to clear screen
@@ -142,14 +147,40 @@ def display_ascii_art():
         # Add exactly one line of space above everything
         print()
         
-        # Open and display the ASCII art
-        with open(ART_FILE, 'r') as file:
-            art = file.read()
-            print(art, end="")  # No newline after art
-            
+        # Try to read the art file with different encodings
+        if os.path.exists(ART_FILE):
+            for encoding in encodings:
+                try:
+                    with open(ART_FILE, 'r', encoding=encoding) as file:
+                        art = file.read()
+                        print(art, end="")  # No newline after art
+                        art_displayed = True
+                        logger.debug(f"Successfully displayed ASCII art using {encoding} encoding")
+                        break  # Successfully read the file, exit the loop
+                except UnicodeDecodeError:
+                    continue  # Try the next encoding
+                except Exception as e:
+                    logger.warning(f"Error reading art file with {encoding} encoding: {e}")
+                    continue
+        
+        # If we couldn't display the art with any encoding, use the fallback art
+        if not art_displayed:
+            logger.warning("Could not display ASCII art from file, using fallback")
+            # Simple ASCII-only fallback that should work on any terminal
+            print("""
+   _____                   _       
+  / ____|                 | |      
+ | (___   ___ __ _ _ __   | |_   _ 
+  \___ \ / __/ _` | '_ \  | | | | |
+  ____) | (_| (_| | | | |_| | |_| |
+ |_____/ \___\__,_|_| |_(_)_|\__, |
+                              __/ |
+                             |___/ 
+            """)
     except Exception as e:
-        # Just add a blank line if art can't be displayed
-        print("\n")
+        logger.error(f"Unexpected error in display_ascii_art: {e}")
+        # Emergency fallback - just add blank lines to keep layout consistent
+        print("\n\n")
 
 def clear_screen():
     """Clear the terminal screen."""
