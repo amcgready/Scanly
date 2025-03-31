@@ -301,9 +301,10 @@ def display_help():
     print("=" * 60)
     
     print("\nBASIC USAGE:")
-    print("  1. New Scan - Scan a directory containing movies or TV shows")
-    print("  2. Resume Scan - Continue a previously interrupted scan")
-    print("  3. Review Skipped Items - Process items that were skipped during scanning")
+    print("  1. Individual Scan - Scan a single directory or file")
+    print("  2. Multi Scan - Process multiple directories in one session")
+    print("  3. Resume Scan - Continue a previously interrupted scan")
+    print("  4. Review Skipped Items - Process items that were skipped during scanning")
     
     print("\nDIRECTORY STRUCTURE:")
     print("  Scanly can process various directory structures including:")
@@ -733,7 +734,8 @@ class DirectoryProcessor:
                 content_type_result = main_menu._show_content_type_menu(content_type_display, 
                                                                       auto_content_type == "tv", 
                                                                       is_anime,
-                                                                      detected_name=search_term)
+                                                                      detected_name=search_term,
+                                                                      file_count=len(files))  # Add file count here
                 
                 # Check if user chose to change search term
                 if content_type_result == "CHANGE_SEARCH":
@@ -1718,30 +1720,20 @@ def review_skipped_items():
         if choice == 'c':
             # Allow changing content type before processing
             main_menu = MainMenu()
-            content_type_result = main_menu._show_content_type_menu(content_type_display, is_tv, is_anime, detected_name=suggested_name)
+            content_type_result = main_menu._show_content_type_menu(
+                content_type_display, 
+                is_tv, 
+                is_anime, 
+                detected_name=suggested_name,
+                file_count=len(files))  # Add file count here
             
             if content_type_result is None or content_type_result == "QUIT":
                 # User chose to skip or quit
-                if content_type_result == "QUIT":
-                    break
-                print("Keeping item in skipped registry.")
-                time.sleep(1)
-                continue
+                continue  # Skip to the next iteration of the loop
             
             # Update content type flags in the item
             is_tv, is_anime = content_type_result
             item['is_tv'] = is_tv
-            item['is_anime'] = is_anime
-            
-            # Update content type display for feedback
-            content_type_display = "TV Series" if is_tv and not is_anime else \
-                                  "Anime Series" if is_tv and is_anime else \
-                                  "Anime Movie" if not is_tv and is_anime else \
-                                  "Movie"
-            
-            print(f"Content type changed to: {content_type_display}")
-            time.sleep(1)
-            continue
         
         if choice == 'p':
             # Process this item
@@ -1843,7 +1835,7 @@ class MainMenu:
         # Initialize menu class
         self.logger = get_logger(__name__)
         
-    def new_scan(self):
+    def individual_scan(self):
         """Scan a directory or file for media processing."""
         # Clear screen first
         clear_screen()
@@ -1934,7 +1926,11 @@ class MainMenu:
 
                             # Show content type selection menu with ability to change search term
                             while True:
-                                content_type_result = self._show_content_type_menu(content_type_display, is_tv, is_anime, detected_name=search_term)
+                                content_type_result = self._show_content_type_menu(content_type_display, 
+                                                                                   is_tv, 
+                                                                                   is_anime, 
+                                                                                   detected_name=search_term,
+                                                                                   file_count=1)  # Always 1 for individual files
                                 
                                 # Check if user chose to change search term
                                 if content_type_result == "CHANGE_SEARCH":
@@ -2053,7 +2049,203 @@ class MainMenu:
                     self.logger.error(f"Error checking path: {e}", exc_info=True)
                     input("\nPress Enter to try again...")
 
-    def _show_content_type_menu(self, detected_type, is_tv, is_anime, detected_name=None):
+    def multi_scan(self):
+        """Scan multiple directories for media processing."""
+        # Clear screen first
+        clear_screen()
+        
+        # Display ASCII art at the top
+        display_ascii_art()
+        print("=" * 60)
+        print("Multi Scan")
+        print("=" * 60)
+        
+        print("\nThis feature allows you to scan multiple directories at once.")
+        print("Enter one directory per line. When finished, enter a blank line.")
+        print("Type 'c' to cancel at any time.")
+        
+        scan_paths = []
+        
+        # Collect multiple paths
+        print("\nEnter directories to scan:")
+        while True:
+            path_input = input(f"{len(scan_paths) + 1}> ").strip()
+            
+            if path_input.lower() == 'c':
+                return
+            
+            if not path_input:
+                if scan_paths:  # If we have at least one path, break to start processing
+                    break
+                else:  # Otherwise, remind the user we need at least one path
+                    print("Please enter at least one directory, or 'c' to cancel.")
+                    continue
+            
+            # Clean the path
+            cleaned_path = _clean_directory_path(path_input)
+            
+            # Validate the path
+            if not os.path.exists(cleaned_path):
+                print(f"Invalid path: '{cleaned_path}'")
+                continue
+                
+            if not os.path.isdir(cleaned_path):
+                print(f"Not a directory: '{cleaned_path}'")
+                print("Only directories are supported in Multi Scan mode.")
+                continue
+                
+            # Add valid path to our list
+            scan_paths.append(cleaned_path)
+            print(f"Added: {cleaned_path}")
+        
+        # If we have paths to process
+        if scan_paths:
+            # Show summary and confirm
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print(f"Ready to scan {len(scan_paths)} directories:")
+            print("=" * 60)
+            
+            for i, path in enumerate(scan_paths, 1):
+                print(f"{i}. {path}")
+            
+            # Ask if they want to use multiple destinations
+            print("\nCurrent destination directory:")
+            print(DESTINATION_DIRECTORY)
+            use_multiple_destinations = input("\nUse multiple destinations? (y/N): ").strip().lower() == 'y'
+            
+            destination_dirs = []
+            if use_multiple_destinations:
+                # Get multiple destination directories
+                clear_screen()
+                display_ascii_art()
+                print("=" * 60)
+                print("Multiple Destinations")
+                print("=" * 60)
+                print("\nEnter destination directories (one per line).")
+                print("When finished, enter a blank line.")
+                
+                # Collect destination paths, with the default as the first one
+                destination_dirs.append(DESTINATION_DIRECTORY)
+                print(f"1> {DESTINATION_DIRECTORY} (default)")
+                
+                while True:
+                    dest_input = input(f"{len(destination_dirs) + 1}> ").strip()
+                    
+                    if not dest_input:
+                        break
+                    
+                    # Clean and validate the destination path
+                    dest_path = _clean_directory_path(dest_input)
+                    
+                    # Check if the directory exists, if not offer to create it
+                    if not os.path.exists(dest_path):
+                        create_dir = input(f"Directory doesn't exist: {dest_path}. Create it? (y/N): ").strip().lower()
+                        if create_dir == 'y':
+                            try:
+                                os.makedirs(dest_path, exist_ok=True)
+                                print(f"Created directory: {dest_path}")
+                            except Exception as e:
+                                print(f"Error creating directory: {e}")
+                                continue
+                        else:
+                            print("Skipping this destination.")
+                            continue
+                    
+                    # Test if we can write to this directory
+                    if not os.access(dest_path, os.W_OK):
+                        print(f"Warning: No write permissions to {dest_path}")
+                        use_anyway = input("Use this destination anyway? (y/N): ").strip().lower()
+                        if use_anyway != 'y':
+                            continue
+                    
+                    destination_dirs.append(dest_path)
+                    print(f"Added destination: {dest_path}")
+                
+                # If no additional destinations were added, use the default
+                if len(destination_dirs) == 1:
+                    print("\nNo additional destinations added. Using the default.")
+                    use_multiple_destinations = False
+            
+            # Confirm final setup
+            if use_multiple_destinations:
+                clear_screen()
+                display_ascii_art()
+                print("=" * 60)
+                print("Multi Scan Configuration")
+                print("=" * 60)
+                
+                print("\nSources:")
+                for i, path in enumerate(scan_paths, 1):
+                    print(f"{i}. {path}")
+                
+                print("\nDestinations:")
+                for i, path in enumerate(destination_dirs, 1):
+                    print(f"{i}. {path}")
+                
+                confirm = input("\nProceed with scanning? (Y/n): ").strip().lower()
+                if confirm == 'n':
+                    return
+            else:
+                confirm = input("\nProceed with scanning? (Y/n): ").strip().lower()
+                if confirm == 'n':
+                    return
+            
+            # Process each path
+            total_paths = len(scan_paths)
+            for i, path in enumerate(scan_paths, 1):
+                clear_screen()
+                display_ascii_art()
+                print("=" * 60)
+                print(f"Processing directory {i}/{total_paths}: {path}")
+                print("=" * 60)
+                
+                try:
+                    # Save the initial scan info
+                    save_scan_history(path)
+                    
+                    # If using multiple destinations, select one for this source
+                    if use_multiple_destinations and len(destination_dirs) > 1:
+                        print("\nSelect destination for this source:")
+                        for j, dest in enumerate(destination_dirs, 1):
+                            print(f"{j}. {dest}")
+                        
+                        while True:
+                            dest_choice = input(f"\nSelect destination (1-{len(destination_dirs)}): ").strip()
+                            if dest_choice.isdigit() and 1 <= int(dest_choice) <= len(destination_dirs):
+                                selected_dest = destination_dirs[int(dest_choice) - 1]
+                                # Temporarily override the global destination directory
+                                original_dest = os.environ.get('DESTINATION_DIRECTORY')
+                                os.environ['DESTINATION_DIRECTORY'] = selected_dest
+                                print(f"\nUsing destination: {selected_dest}")
+                                break
+                            else:
+                                print("Invalid choice.")
+                    
+                    # Create and use our DirectoryProcessor
+                    processor = DirectoryProcessor(path)
+                    processor.process()
+                    
+                    # Restore the original destination if we changed it
+                    if use_multiple_destinations and len(destination_dirs) > 1:
+                        os.environ['DESTINATION_DIRECTORY'] = original_dest
+                    
+                except Exception as e:
+                    print(f"Error processing {path}: {e}")
+                    self.logger.error(f"Error in multi scan for {path}: {e}", exc_info=True)
+                    
+                    # Ask if user wants to continue with next path
+                    if i < total_paths:  # Only ask if there are more paths to process
+                        choice = input("\nContinue with next directory? (Y/n): ").strip().lower()
+                        if choice == 'n':
+                            break
+            
+            # Final message
+            print("\nMulti scan complete.")
+            input("Press Enter to return to the main menu...")
+
+    def _show_content_type_menu(self, detected_type, is_tv, is_anime, detected_name=None, file_count=None):
         """
         Show content type selection menu and return updated is_tv and is_anime values.
         
@@ -2062,6 +2254,7 @@ class MainMenu:
             is_tv: Current TV flag
             is_anime: Current anime flag
             detected_name: The detected/cleaned name of the content (optional)
+            file_count: Number of media files (optional)
             
         Returns:
             Tuple of (is_tv, is_anime) potentially updated based on user selection,
@@ -2079,11 +2272,15 @@ class MainMenu:
                                   "Anime Movie" if not is_tv and is_anime else \
                                   "Movie"
             
-            print(f"\nDetected content type: {content_type_display}")
+            print(f"Detected content type: {content_type_display}")
             
             # Show the detected name if provided
             if detected_name:
                 print(f"Detected title: {detected_name}")
+            
+            # Show file count if provided
+            if file_count is not None:
+                print(f"Media files: {file_count}")
             
             # Show destination folder based on content type
             from dotenv import load_dotenv
@@ -2213,14 +2410,15 @@ class MainMenu:
             # No extra spacing between art and menu options
             print("=" * 60)  # Add just a separator line
             print("Select an option:")
-            print("1. New Scan")  # Renamed from "Directory Scan"
+            print("1. Individual Scan")  # Renamed from "New Scan"
+            print("2. Multi Scan")  # New option
             
             # Dynamic menu options based on history existence
             has_history = history_exists()
             
             has_skipped = len(globals().get('skipped_items_registry', [])) > 0
             
-            next_option = 2  # Start at 2 since we removed option 2 (Individual Scan)
+            next_option = 3  # Start at 3 since we added Multi Scan as option 2
             
             if has_history:
                 print(f"{next_option}. Resume Scan")
@@ -2244,11 +2442,14 @@ class MainMenu:
             # Handle menu choices
             if choice == '1':
                 clear_screen()
-                self.new_scan()  # Updated from self.directory_scan()
-            elif choice == '2' and has_history:
+                self.individual_scan()  # Renamed from new_scan
+            elif choice == '2':
+                clear_screen()
+                self.multi_scan()  # New multi scan function
+            elif choice == '3' and has_history:
                 clear_screen()
                 self.resume_scan()
-            elif choice == '3' and has_history:
+            elif choice == '4' and has_history:
                 # Clear both scan history and skipped items registry
                 clear_scan_history()
                 
