@@ -2397,7 +2397,238 @@ class MainMenu:
         # Create a DirectoryProcessor with resume flag and process
         processor = DirectoryProcessor(history['path'], resume=True)
         processor.process()
-    
+
+    def settings_menu(self):
+        """Display and modify application settings."""
+        # Clear screen first
+        clear_screen()
+        
+        # Display ASCII art at the top
+        display_ascii_art()
+        print("=" * 60)
+        print("Settings")
+        print("=" * 60)
+        
+        # Get current environment variables
+        from dotenv import load_dotenv, set_key
+        load_dotenv()
+        
+        # Define the path to the .env file
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+        
+        # Create the .env file if it doesn't exist
+        if not os.path.exists(env_path):
+            with open(env_path, 'w') as f:
+                f.write("# Scanly Environment Configuration\n")
+            print(f"Created new configuration file: {env_path}")
+        
+        # Dictionary of settings categories and their settings
+        settings = {
+            "Directory Settings": [
+                {"name": "DESTINATION_DIRECTORY", "display": "Main Library Destination", 
+                 "description": "Root directory where organized media will be placed"},
+                {"name": "CUSTOM_MOVIE_FOLDER", "display": "Movies Folder Name", 
+                 "description": "Folder name for regular movies", "default": "Movies"},
+                {"name": "CUSTOM_SHOW_FOLDER", "display": "TV Shows Folder Name", 
+                 "description": "Folder name for TV series", "default": "TV Shows"},
+                {"name": "CUSTOM_ANIME_MOVIE_FOLDER", "display": "Anime Movies Folder Name", 
+                 "description": "Folder name for anime movies", "default": "Anime Movies"},
+                {"name": "CUSTOM_ANIME_SHOW_FOLDER", "display": "Anime Shows Folder Name", 
+                 "description": "Folder name for anime series", "default": "Anime Shows"}
+            ],
+            "Linking Options": [
+                {"name": "RELATIVE_SYMLINK", "display": "Use Relative Symlinks", 
+                 "description": "Use relative instead of absolute paths in symlinks (useful for portable drives)",
+                 "default": "false", "type": "boolean"}
+            ],
+            "Organization Options": [
+                {"name": "MOVIE_RESOLUTION_STRUCTURE", "display": "Organize Movies by Resolution", 
+                 "description": "Create subfolders for different video resolutions in Movies",
+                 "default": "false", "type": "boolean"},
+                {"name": "SHOW_RESOLUTION_STRUCTURE", "display": "Organize Shows by Resolution", 
+                 "description": "Create subfolders for different video resolutions in TV Shows",
+                 "default": "false", "type": "boolean"}
+            ],
+            "API Settings": [
+                {"name": "TMDB_API_KEY", "display": "TMDB API Key", 
+                 "description": "API key for The Movie Database",
+                 "default": "3b5df02338c403dad189e661d57e351f"}
+            ]
+        }
+        
+        while True:
+            # Clear screen for each view of the menu
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("Settings")
+            print("=" * 60)
+            
+            # Display settings categories
+            print("\nSelect a settings category:")
+            categories = list(settings.keys())
+            for i, category in enumerate(categories, 1):
+                print(f"{i}. {category}")
+            
+            print("\n0. Return to Main Menu")
+            
+            category_choice = input("\nEnter choice (0-{}): ".format(len(categories))).strip()
+            
+            if category_choice == '0':
+                return
+            
+            # Check if the choice is valid
+            if not category_choice.isdigit() or int(category_choice) < 1 or int(category_choice) > len(categories):
+                print("Invalid choice.")
+                input("\nPress Enter to continue...")
+                continue
+            
+            # Get the selected category
+            selected_category = categories[int(category_choice) - 1]
+            category_settings = settings[selected_category]
+            
+            # Show settings for the selected category
+            while True:
+                clear_screen()
+                display_ascii_art()
+                print("=" * 60)
+                print(f"Settings > {selected_category}")
+                print("=" * 60)
+                
+                print("\nCurrent settings:")
+                for i, setting in enumerate(category_settings, 1):
+                    env_var = setting["name"]
+                    default_value = setting.get("default", "")
+                    current_value = os.environ.get(env_var, default_value)
+                    
+                    # Show a placeholder if the value is empty
+                    display_value = current_value if current_value else "(not set)"
+                    
+                    # For boolean settings, make the display clearer
+                    if setting.get("type") == "boolean":
+                        display_value = "Enabled" if current_value.lower() == "true" else "Disabled"
+                    
+                    print(f"{i}. {setting['display']}: {display_value}")
+                    print(f"   {setting['description']}")
+                
+                print("\n0. Back to Settings Menu")
+                
+                setting_choice = input("\nEnter setting number to modify (0 to go back): ").strip()
+                
+                if setting_choice == '0':
+                    break
+                
+                # Check if the choice is valid
+                if not setting_choice.isdigit() or int(setting_choice) < 1 or int(setting_choice) > len(category_settings):
+                    print("Invalid choice.")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                # Get the selected setting
+                selected_setting = category_settings[int(setting_choice) - 1]
+                env_var = selected_setting["name"]
+                default_value = selected_setting.get("default", "")
+                current_value = os.environ.get(env_var, default_value)
+                
+                # Handle different types of settings
+                if selected_setting.get("type") == "boolean":
+                    # For boolean settings, toggle between true and false
+                    new_value = "false" if current_value.lower() == "true" else "true"
+                    print(f"\nToggling {selected_setting['display']} to: {new_value}")
+                else:
+                    # For directory settings, offer path selection
+                    if "DIRECTORY" in env_var and env_var != "DESTINATION_DIRECTORY":
+                        print("\nCurrent value: " + (current_value if current_value else "(not set)"))
+                        new_value = input(f"Enter new value for {selected_setting['display']} (or press Enter to keep current): ").strip()
+                        if not new_value:
+                            new_value = current_value
+                    elif env_var == "DESTINATION_DIRECTORY":
+                        # For the main destination directory, offer more options
+                        print("\nCurrent value: " + (current_value if current_value else "(not set)"))
+                        print("\nOptions:")
+                        print("1. Enter path manually")
+                        print("2. Browse for folder")
+                        print("3. Keep current value")
+                        
+                        browse_choice = input("\nEnter choice (1-3): ").strip()
+                        
+                        if browse_choice == '1':
+                            new_value = input("Enter new path: ").strip()
+                            new_value = _clean_directory_path(new_value)
+                            
+                            # Validate the path
+                            if not os.path.exists(new_value):
+                                create_dir = input(f"Directory doesn't exist: {new_value}. Create it? (y/N): ").strip().lower()
+                                if create_dir == 'y':
+                                    try:
+                                        os.makedirs(new_value, exist_ok=True)
+                                        print(f"Created directory: {new_value}")
+                                    except Exception as e:
+                                        print(f"Error creating directory: {e}")
+                                        input("\nPress Enter to continue...")
+                                        continue
+                        elif browse_choice == '2':
+                            print("\nNOTE: In terminal mode, you'll need to enter the path manually.")
+                            print("For GUI environments, a file dialog would normally appear.")
+                            
+                            # Simplified directory selection for terminal interface
+                            current_dir = current_value if current_value and os.path.exists(current_value) else os.path.expanduser("~")
+                            
+                            print(f"\nNavigating from: {current_dir}")
+                            while True:
+                                print("\nContents of current directory:")
+                                dirs = [d for d in os.listdir(current_dir) if os.path.isdir(os.path.join(current_dir, d))]
+                                
+                                # Show parent directory option
+                                print("0. Select this directory")
+                                print("00. Go up to parent directory")
+                                
+                                # Show subdirectories
+                                for i, d in enumerate(dirs, 1):
+                                    print(f"{i}. {d}/")
+                                
+                                dir_choice = input("\nEnter choice (0=select current, 00=parent): ").strip()
+                                
+                                if dir_choice == '0':
+                                    new_value = current_dir
+                                    break
+                                elif dir_choice == '00':
+                                    current_dir = os.path.dirname(current_dir)
+                                    continue
+                                
+                                if dir_choice.isdigit() and 1 <= int(dir_choice) <= len(dirs):
+                                    current_dir = os.path.join(current_dir, dirs[int(dir_choice) - 1])
+                                else:
+                                    print("Invalid choice.")
+                                    input("\nPress Enter to continue...")
+                        else:
+                            new_value = current_value
+                    else:
+                        # For other settings, simply prompt for a new value
+                        print("\nCurrent value: " + (current_value if current_value else "(not set)"))
+                        new_value = input(f"Enter new value for {selected_setting['display']} (or press Enter to keep current): ").strip()
+                        if not new_value:
+                            new_value = current_value
+                
+                # Save the updated setting to the .env file
+                try:
+                    if env_var and new_value is not None:
+                        set_key(env_path, env_var, new_value)
+                        os.environ[env_var] = new_value
+                        print(f"\nSetting updated successfully.")
+                        
+                        # Special handling for DESTINATION_DIRECTORY
+                        if env_var == "DESTINATION_DIRECTORY" and not os.path.exists(new_value):
+                            try:
+                                os.makedirs(new_value, exist_ok=True)
+                                print(f"Created directory: {new_value}")
+                            except Exception as e:
+                                print(f"Warning: Could not create directory: {e}")
+                except Exception as e:
+                    print(f"\nError saving setting: {e}")
+                
+                input("\nPress Enter to continue...")
+
     def show(self):
         """Show the main menu and handle user input."""
         while True:
@@ -2431,6 +2662,10 @@ class MainMenu:
                 print(f"{next_option}. Review Skipped Items ({len(skipped_items_registry)})")
                 next_option += 1
             
+            # Add the Settings option
+            print(f"{next_option}. Settings")
+            next_option += 1
+            
             print("0. Quit")
             print("h. Help")
             
@@ -2460,9 +2695,16 @@ class MainMenu:
                 print("Scan history and skipped items cleared.")
                 input("\nPress Enter to continue...")
             # Fix the condition to properly check skipped items
-            elif (has_skipped and choice == str(next_option - 1)):
+            elif (has_skipped and ((has_history and choice == '5') or (not has_history and choice == '3'))):
                 clear_screen()
                 review_skipped_items()
+            # Add the settings menu option
+            elif (has_history and has_skipped and choice == '6') or \
+                 (has_history and not has_skipped and choice == '5') or \
+                 (not has_history and has_skipped and choice == '4') or \
+                 (not has_history and not has_skipped and choice == '3'):
+                clear_screen()
+                self.settings_menu()
             elif choice == '0':
                 clear_screen()
                 break
