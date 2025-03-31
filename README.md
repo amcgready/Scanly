@@ -11,7 +11,7 @@
 
 # Scanly
 
-Scanly is a media file organizer that monitors directories for new files and creates an organized library using symbolic links.
+Scanly is a media file organizer that monitors directories for new files and creates an organized library using symbolic or hard links.
 
 ## Features
 
