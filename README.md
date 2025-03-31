@@ -1,5 +1,14 @@
-[![Join us on Discord](https://img.shields.io/badge/Chat-Join%20us%20on%20Discord-7289da?logo=discord&logoColor=white)](https://discord.gg/hdDj4aZTVf)
-![GitHub all releases](https://img.shields.io/github/downloads/amcgready/Scanly/total)
+<p align="center">
+  <img src="https://i.imgur.com/nUa5M6m.png" alt="Project Banner">
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/hdDj4aZTVf">
+    <img src="https://img.shields.io/badge/Chat-Join%20us%20on%20Discord-7289da?logo=discord&logoColor=white" alt="Join us on Discord">
+  </a>
+  <img src="https://img.shields.io/github/downloads/amcgready/Scanly/total" alt="GitHub all releases">
+</p>
+
 # Scanly
 
 Scanly is a media file organizer that monitors directories for new files and creates an organized library using symbolic links.
