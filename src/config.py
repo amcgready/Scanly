@@ -23,12 +23,6 @@ def get_settings():
     settings['CUSTOM_ANIME_SHOW_FOLDER'] = os.getenv('CUSTOM_ANIME_SHOW_FOLDER', 'Anime')
     settings['CUSTOM_ANIME_MOVIE_FOLDER'] = os.getenv('CUSTOM_ANIME_MOVIE_FOLDER', 'Anime Movies')
     
-    # AniDB Settings - properly convert string to boolean
-    settings['ANIDB_API_ENABLED'] = os.getenv('ANIDB_API_ENABLED', '').lower() in ['true', '1', 'yes', 'y', 't']
-    settings['ANIDB_API_KEY'] = os.getenv('ANIDB_API_KEY', '')
-    settings['ANIDB_CLIENT_NAME'] = os.getenv('ANIDB_CLIENT_NAME', 'scanly')
-    settings['ANIDB_CLIENT_VERSION'] = os.getenv('ANIDB_CLIENT_VERSION', '1')
-    
     # Anime Detection Settings
     settings['ANIME_SCAN'] = os.getenv('ANIME_SCAN', '').lower() not in ['false', '0', 'no', 'n', 'f']
     settings['ANIME_SEPARATION'] = os.getenv('ANIME_SEPARATION', '').lower() not in ['false', '0', 'no', 'n', 'f']
@@ -39,6 +33,10 @@ def get_settings():
         if key in settings:
             continue
         
+        # Skip AniDB-related keys
+        if key.startswith('ANIDB_'):
+            continue
+            
         # Convert string boolean values to Python booleans
         if isinstance(value, str):
             if value.lower() in ('true', 'yes', 'y', 't', '1'):
