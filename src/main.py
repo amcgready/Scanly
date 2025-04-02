@@ -37,6 +37,15 @@ import io
 from pathlib import Path
 from datetime import datetime
 
+try:
+    from src.mdblist_handler import get_mdblist_handler
+    mdblist_handler = get_mdblist_handler()
+    mdblist_enabled = True
+except ImportError:
+    mdblist_enabled = False
+    # Log that the feature is unavailable
+    logging.getLogger(__name__).warning("MDBlist handler not available, related features will be disabled")
+
 def load_env_file():
     """Load environment variables from .env file if it exists."""
     env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
@@ -1327,6 +1336,24 @@ class DirectoryProcessor:
             path_lower = directory_path.lower()
             dirname = os.path.basename(directory_path).lower()
             
+            # First, try to detect from MDBlist if available
+            if 'mdblist_enabled' in globals() and mdblist_enabled:
+                # Extract name from directory for MDBlist lookup
+                clean_name = self._clean_name_for_search(os.path.basename(directory_path))
+                
+                # Try to extract year from dirname if present
+                year_match = re.search(r'\((\d{4})\)', dirname)
+                year = year_match.group(1) if year_match else None
+                
+                # Check if this title is in any configured MDBlist
+                mdblist_result = mdblist_handler.get_content_type_from_list(clean_name, year)
+                
+                if mdblist_result:
+                    self.logger.info(f"Detected content type from MDBlist '{mdblist_result['list_name']}': "
+                                   f"is_tv={mdblist_result['is_tv']}, is_anime={mdblist_result['is_anime']}")
+                    return 'tv' if mdblist_result['is_tv'] else 'movie', mdblist_result['is_anime']
+            
+            # Continue with current detection logic if MDBlist didn't match
             # First, check for anime indicators (regardless of TV or movie)
             anime_indicators = ['anime', 'animation', 'animated', 'japanese', 'japan', 
                                'jp', 'jdrama', 'j-drama', 'dorama', 'donghua',
@@ -2452,7 +2479,18 @@ class MainMenu:
             "API Settings": [
                 {"name": "TMDB_API_KEY", "display": "TMDB API Key", 
                  "description": "API key for The Movie Database",
-                 "default": "3b5df02338c403dad189e661d57e351f"}
+                 "default": "3b5df02338c403dad189e661d57e351f"},
+                {"name": "MDBLIST_API_KEY", "display": "MDBlist API Key", 
+                 "description": "API key for MDBlist (used for content type detection)",
+                 "default": ""}
+            ],
+            "MDBlist Settings": [
+                {"name": "MDBLIST_ENABLED", "display": "Enable MDBlist Integration",
+                 "description": "Use MDBlist for content type detection",
+                 "default": "true", "type": "boolean"},
+                {"name": "_MDBLIST_MANAGER", "display": "Manage MDBlist Configurations",
+                 "description": "Add, edit, or remove MDBlist configurations",
+                 "type": "custom_handler", "handler": "_manage_mdblist_configs"}
             ]
         }
         
@@ -2529,6 +2567,17 @@ class MainMenu:
                 env_var = selected_setting["name"]
                 default_value = selected_setting.get("default", "")
                 current_value = os.environ.get(env_var, default_value)
+                
+                # Handle custom handlers
+                if selected_setting.get("type") == "custom_handler" and "handler" in selected_setting:
+                    handler_name = selected_setting["handler"]
+                    if hasattr(self, handler_name):
+                        # Call the custom handler method
+                        getattr(self, handler_name)()
+                    else:
+                        print(f"\nError: Handler {handler_name} not found.")
+                        input("\nPress Enter to continue...")
+                    continue  # Skip the regular setting handling
                 
                 # Handle different types of settings
                 if selected_setting.get("type") == "boolean":
@@ -2628,6 +2677,203 @@ class MainMenu:
                     print(f"\nError saving setting: {e}")
                 
                 input("\nPress Enter to continue...")
+
+    def _manage_mdblist_configs(self):
+        """Manage MDBlist configurations"""
+        try:
+            # Import the mdblist_handler
+            from src.mdblist_handler import get_mdblist_handler
+            mdblist_handler = get_mdblist_handler()
+        except ImportError:
+            print("\nMDBlist integration is not available.")
+            print("Please ensure the mdblist_handler.py file is properly installed.\n")
+            input("Press Enter to continue...")
+            return
+        
+        # Create the data directory if it doesn't exist
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        while True:
+            clear_screen()
+            print("=" * 60)
+            print("MDBlist Configuration Manager".center(60))
+            print("=" * 60)
+            
+            # Get current API key
+            api_key = os.environ.get('MDBLIST_API_KEY', '')
+            if api_key:
+                print(f"MDBlist API Key: {'*' * (len(api_key) - 4) + api_key[-4:]}")
+            else:
+                print("MDBlist API Key: Not set")
+            
+            # Display all list configs
+            configs = mdblist_handler.get_list_configs()
+            print("\nConfigured Lists:")
+            if not configs:
+                print("No lists configured yet.")
+            else:
+                for i, (name, config) in enumerate(configs.items(), 1):
+                    status = "Enabled" if config.get('enabled', True) else "Disabled"
+                    
+                    # Map content type to readable format
+                    content_type = config.get('content_type', 'unknown')
+                    if content_type == 'anime_series':
+                        content_type_display = "Anime Series"
+                    elif content_type == 'anime_movies':
+                        content_type_display = "Anime Movies"
+                    elif content_type == 'tv_shows':
+                        content_type_display = "TV Shows"
+                    elif content_type == 'movies':
+                        content_type_display = "Movies"
+                    else:
+                        content_type_display = content_type
+                    
+                    print(f"{i}. {name} - [{content_type_display}] - {status}")
+                    print(f"   ID: {config.get('list_id', 'unknown')}")
+            
+            print("\nOptions:")
+            print("1. Add new list")
+            print("2. Remove list")
+            print("3. Set MDBlist API Key")
+            print("0. Back to settings")
+            
+            choice = input("\nEnter your choice: ")
+            
+            if choice == '0':
+                break
+            elif choice == '1':
+                # Add new configuration
+                clear_screen()
+                print("=" * 60)
+                print("Add MDBlist Configuration".center(60))
+                print("=" * 60)
+                
+                name = input("\nEnter name for this configuration (e.g., 'Anime List'): ").strip()
+                if not name:
+                    print("Name cannot be empty")
+                    input("\nPress Enter to continue...")
+                    continue
+                    
+                list_id_or_url = input("Enter MDBlist URL or ID: ").strip()
+                if not list_id_or_url:
+                    print("MDBlist URL or ID cannot be empty")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                # Try to extract list ID from URL if needed
+                list_id = mdblist_handler.extract_list_id_from_url(list_id_or_url)
+                if not list_id:
+                    print("Invalid MDBlist URL or ID")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                # Choose content type
+                print("\nContent type this list identifies:")
+                print("1. Anime Series")
+                print("2. Anime Movies")
+                print("3. TV Shows")
+                print("4. Movies")
+                
+                type_choice = input("\nEnter choice (1-4): ").strip()
+                
+                if type_choice == "1":
+                    content_type = "anime_series"
+                elif type_choice == "2":
+                    content_type = "anime_movies"
+                elif type_choice == "3":
+                    content_type = "tv_shows"
+                elif type_choice == "4":
+                    content_type = "movies"
+                else:
+                    print("Invalid choice")
+                    input("\nPress Enter to continue...")
+                    continue
+                    
+                enabled = input("Enable this configuration? (Y/n): ").strip().lower() != "n"
+                
+                # Add the configuration
+                success = mdblist_handler.add_list(name, list_id, content_type, enabled)
+                
+                if success:
+                    print(f"\nSuccessfully added configuration '{name}'")
+                else:
+                    print("\nFailed to add configuration")
+                
+                input("\nPress Enter to continue...")
+                
+            elif choice == '2':
+                # Remove list
+                if not configs:
+                    print("No lists to remove.")
+                    input("Press Enter to continue...")
+                    continue
+                    
+                print("\nSelect a list to remove:")
+                for i, name in enumerate(configs.keys(), 1):
+                    print(f"{i}. {name}")
+                
+                remove_choice = input("\nEnter number (or 0 to cancel): ").strip()
+                
+                if remove_choice == '0':
+                    continue
+                    
+                try:
+                    remove_index = int(remove_choice) - 1
+                    if 0 <= remove_index < len(configs):
+                        list_name = list(configs.keys())[remove_index]
+                        
+                        # Confirm deletion
+                        confirm = input(f"Are you sure you want to remove '{list_name}'? (y/N): ").strip().lower() == 'y'
+                        
+                        if confirm:
+                            if mdblist_handler.delete_list(list_name):
+                                print(f"Successfully removed list '{list_name}'")
+                            else:
+                                print(f"Failed to remove list '{list_name}'")
+                    else:
+                        print("Invalid selection")
+                except ValueError:
+                    print("Please enter a valid number")
+                
+                input("Press Enter to continue...")
+                
+            elif choice == '3':
+                # Set API key
+                new_api_key = input("Enter your MDBlist API key: ")
+                if not new_api_key:
+                    print("API key cannot be empty")
+                    input("Press Enter to continue...")
+                    continue
+                    
+                # Update the .env file
+                env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+                if os.path.exists(env_path):
+                    with open(env_path, 'r') as f:
+                        lines = f.readlines()
+                    
+                    # Check if MDBLIST_API_KEY is already in the file
+                    api_key_found = False
+                    with open(env_path, 'w') as f:
+                        for line in lines:
+                            if line.strip().startswith('MDBLIST_API_KEY='):
+                                f.write(f'MDBLIST_API_KEY={new_api_key}\n')
+                                api_key_found = True
+                            else:
+                                f.write(line)
+                        
+                        # Add the key if it wasn't found
+                        if not api_key_found:
+                            f.write(f'\nMDBLIST_API_KEY={new_api_key}\n')
+                    
+                    # Update the environment variable in the current process
+                    os.environ['MDBLIST_API_KEY'] = new_api_key
+                    mdblist_handler.api_key = new_api_key
+                    
+                    print("API key updated successfully")
+                else:
+                    print("Error: .env file not found")
+                input("Press Enter to continue...")
 
     def show(self):
         """Show the main menu and handle user input."""

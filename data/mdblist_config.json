@@ -1,0 +1,7 @@
+{
+    "Anime Series": {
+        "list_id": "amcgready/anime-series-list",
+        "content_type": "anime_series",
+        "enabled": true
+    }
+}
