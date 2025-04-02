@@ -10,6 +10,7 @@ services:
       # API Settings
       - TMDB_API_KEY=${TMDB_API_KEY:-your_tmdb_api_key_here}
       - TMDB_BASE_URL=${TMDB_BASE_URL:-https://api.themoviedb.org/3}
+      - MDBLIST_API_KEY=${MDBLIST_API_KEY:-your_mdblist_api_key_here}
       
       # File Settings
       - ORIGIN_DIRECTORY=/media/source

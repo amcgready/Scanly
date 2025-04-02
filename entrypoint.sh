@@ -43,5 +43,9 @@ if [ ! -z "$LINK_TYPE" ]; then
     sed -i "s|LINK_TYPE=.*|LINK_TYPE=$LINK_TYPE|g" /app/.env
 fi
 
+if [ ! -z "$MDBLIST_API_KEY" ]; then
+    sed -i "s|MDBLIST_API_KEY=.*|MDBLIST_API_KEY=$MDBLIST_API_KEY|g" /app/.env
+fi
+
 # Run the provided command
 exec "$@"
