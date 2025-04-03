@@ -306,6 +306,52 @@ class MDBListHandler:
                     return True, config['content_type']
         
         return False, None
+    
+    def get_content_type_from_list(self, title, year=None):
+        """
+        Check if a title exists in any configured MDBlist and get its content type.
+        
+        Args:
+            title: Title to check
+            year: Optional release year to improve matching
+            
+        Returns:
+            Dictionary with content type information or None if no match
+            {
+                'is_tv': True/False,
+                'is_anime': True/False,
+                'list_name': 'Name of the matched list'
+            }
+        """
+        if not title or not self.list_configs:
+            return None
+            
+        # Check all enabled lists
+        for name, config in self.list_configs.items():
+            if not config.get('enabled', True):
+                continue
+                
+            # Get the list items
+            list_items = self.fetch_mdblist(config['list_id'])
+            if not list_items:
+                continue
+                
+            # Check if title is in the list
+            for item in list_items:
+                if self._title_similarity(title, item) >= 0.85:  # Using default threshold
+                    content_type = config.get('content_type', 'unknown')
+                    
+                    # Determine content type flags
+                    is_tv = content_type in ('anime_series', 'tv_shows')
+                    is_anime = content_type in ('anime_series', 'anime_movies')
+                    
+                    return {
+                        'is_tv': is_tv,
+                        'is_anime': is_anime,
+                        'list_name': name
+                    }
+                    
+        return None
 
 
 # Module-level instance

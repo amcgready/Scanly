@@ -1321,72 +1321,88 @@ class DirectoryProcessor:
 
     def _detect_content_type_from_directory(self, directory_path):
         """
-        Detect content type (TV show or movie) and whether it's anime based on directory path.
+        Detect if a directory contains a TV show or movie.
         
         Args:
-            directory_path: Path to analyze
+            directory_path: Path to the directory
             
         Returns:
-            tuple of (content_type, is_anime) where:
-                content_type: 'tv', 'movie' or None if can't determine
-                is_anime: True, False or None if can't determine
+            Tuple of (content_type, is_anime)
+            where content_type is 'tv' or 'movie'
         """
-        try:
-            # Convert to lowercase for case-insensitive matching
-            path_lower = directory_path.lower()
-            dirname = os.path.basename(directory_path).lower()
-            
-            # First, try to detect from MDBlist if available
-            if 'mdblist_enabled' in globals() and mdblist_enabled:
-                # Extract name from directory for MDBlist lookup
-                clean_name = self._clean_name_for_search(os.path.basename(directory_path))
+        # Default to unknown
+        is_anime = False
+        content_type = None  # Default content type to None
+        
+        # Extract clean name for MDBlist check and other detection methods
+        directory_name = os.path.basename(directory_path)
+        clean_name = re.sub(r'\([^)]*\)', '', directory_name)  # Remove content in parentheses
+        clean_name = re.sub(r'^\s*|\s*$', '', clean_name)  # Trim whitespace
                 
-                # Try to extract year from dirname if present
-                year_match = re.search(r'\((\d{4})\)', dirname)
-                year = year_match.group(1) if year_match else None
-                
-                # Check if this title is in any configured MDBlist
-                mdblist_result = mdblist_handler.get_content_type_from_list(clean_name, year)
-                
-                if mdblist_result:
-                    self.logger.info(f"Detected content type from MDBlist '{mdblist_result['list_name']}': "
-                                   f"is_tv={mdblist_result['is_tv']}, is_anime={mdblist_result['is_anime']}")
-                    return 'tv' if mdblist_result['is_tv'] else 'movie', mdblist_result['is_anime']
-            
-            # Continue with current detection logic if MDBlist didn't match
-            # First, check for anime indicators (regardless of TV or movie)
-            anime_indicators = ['anime', 'animation', 'animated', 'japanese', 'japan', 
-                               'jp', 'jdrama', 'j-drama', 'dorama', 'donghua',
-                               'subbed', 'dubbed', '[sub]', '[dub]', '[jp]']
-            is_anime = False
-            for indicator in anime_indicators:
-                if indicator in path_lower:
-                    is_anime = True
-                    break
-            
-            # Check for TV show indicators in the path
-            tv_indicators = ['season', 'episode', 'tv show', 'series', 's01', 's02', 
-                            'show', 'ep', 'e01', 'complete', 'collection']
-            for indicator in tv_indicators:
-                if indicator in path_lower:
-                    # Found TV show indicator
-                    return 'tv', is_anime
-            
-            # Check for movie indicators
-            movie_indicators = ['movie', 'film', 'bluray', 'dvdrip', 'bdrip', 
-                               'theatrical', 'directors cut', 'extended', 'imax']
-            for indicator in movie_indicators:
-                if indicator in path_lower:
-                    # Found movie indicator
-                    return 'movie', is_anime
-            
-            # If we can't determine from path indicators, return the anime flag but None for content type
-            # This allows the calling code to use file count for TV/movie determination
-            return None, is_anime
-            
-        except Exception as e:
-            self.logger.error(f"Error detecting content type from directory '{directory_path}': {e}")
-            return None, None
+        # Look for year in the directory name - will help with matching
+        year_match = re.search(r'\((\d{4})\)', directory_name)
+        year = year_match.group(1) if year_match else None
+        
+        # Check if this title is in any configured MDBlist
+        if mdblist_enabled:
+            try:
+                # Call MDBlist handler's method to check content type
+                matched, mdb_content_type = mdblist_handler.get_content_type_from_list(clean_name, year)
+                if matched and mdb_content_type:
+                    if mdb_content_type in ['anime_series', 'anime_movies']:
+                        is_anime = True
+                        
+                    if mdb_content_type in ['anime_series', 'tv_shows']:
+                        content_type = 'tv'
+                    elif mdb_content_type in ['anime_movies', 'movies']:
+                        content_type = 'movie'
+                    
+                    self.logger.debug(f"MDBlist identified '{directory_name}' as {mdb_content_type}")
+                    return content_type, is_anime
+            except Exception as e:
+                self.logger.error(f"Error checking MDBlist: {e}")
+        
+        # Continue with current detection logic if MDBlist didn't match
+        # First, check for anime indicators (regardless of TV or movie)
+        anime_indicators = ['anime', 'animation', 'animated', 'japanese', 'japan', 
+                           'jp', 'jdrama', 'j-drama', 'dorama', 'donghua']
+                           
+        for indicator in anime_indicators:
+            if indicator in directory_name.lower() or indicator in directory_path.lower():
+                is_anime = True
+                break
+        
+        # Check for TV show indicators
+        tv_indicators = ['season', 's01', 's02', 's1', 's2', 'episode', 'series', 
+                         'tv', 'complete', 'collection', 'pack']
+        
+        # Check for movie indicators
+        movie_indicators = ['movie', 'film', 'feature', 'bluray', 'dvdrip', 
+                            'bdrip', 'brrip', 'webdl', 'web-dl']
+        
+        # Count indicators
+        tv_count = 0
+        movie_count = 0
+        
+        for indicator in tv_indicators:
+            if indicator in directory_name.lower() or indicator in directory_path.lower():
+                tv_count += 1
+        
+        for indicator in movie_indicators:
+            if indicator in directory_name.lower() or indicator in directory_path.lower():
+                movie_count += 1
+        
+        # Determine content type based on indicators
+        if tv_count > movie_count:
+            content_type = 'tv'
+        elif movie_count > 0:
+            content_type = 'movie'
+        else:
+            # If we can't determine, default to movie
+            content_type = 'movie'
+        
+        # Return the detected content type and anime flag
+        return content_type, is_anime
 
     def _get_episode_title_from_tmdb(self, show_id, season_num, episode_num):
         """
