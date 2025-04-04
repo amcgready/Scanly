@@ -36,5 +36,25 @@ def create_data_directories():
         except Exception as e:
             print(f"Error creating config file {config_file}: {e}", file=sys.stderr)
 
+def create_required_directories():
+    """Create all required directories for Scanly."""
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    
+    # Define directories to create
+    directories = [
+        os.path.join(base_dir, 'logs'),
+        os.path.join(base_dir, 'data'),
+        os.path.join(base_dir, 'data', 'list_cache'),
+        os.path.join(base_dir, 'data', 'mdblist_cache'),
+        os.path.join(base_dir, 'scanners')  # Add the scanners directory
+    ]
+    
+    # Create each directory if it doesn't exist
+    for directory in directories:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Created directory: {directory}")
+
 if __name__ == "__main__":
     create_data_directories()
+    create_required_directories()

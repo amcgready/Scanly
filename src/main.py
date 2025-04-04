@@ -654,7 +654,15 @@ class DirectoryProcessor:
             
             # Try to auto-detect content type from directory path
             full_subfolder_path = os.path.join(self.directory_path, subfolder)
-            auto_content_type, is_anime = self._detect_content_type_from_directory(full_subfolder_path)
+            
+            # First check scanner lists for override content types
+            scanner_result = check_scanner_lists(full_subfolder_path)
+            if scanner_result:
+                auto_content_type, is_anime = scanner_result
+                self.logger.info(f"Content type determined from scanner list: TV={auto_content_type=='tv'}, Anime={is_anime}")
+            else:
+                # If no match in scanner lists, continue with existing content type detection logic
+                auto_content_type, is_anime = self._detect_content_type_from_directory(full_subfolder_path)
             
             # Auto-detection of content type based on file analysis if needed
             if auto_content_type is None:
@@ -699,7 +707,7 @@ class DirectoryProcessor:
             raw_name = os.path.basename(subfolder)
             
             # If subfolder is root ('.'), extract name from the original directory path or files
-            if raw_name == '.':
+            if (raw_name == '.'):
                 # Try to extract from directory path first
                 raw_name = os.path.basename(self.directory_path)
                 
@@ -1321,29 +1329,70 @@ class DirectoryProcessor:
             Tuple of (content_type, is_anime)
             where content_type is 'tv' or 'movie'
         """
+        logger = logging.getLogger(__name__)
+        
+        # First check scanner lists - override any other detection
+        directory_name = os.path.basename(directory_path)
+        scanner_result = check_scanner_lists(directory_name)
+        if scanner_result:
+            logger.info(f"Directory name '{directory_name}' matched in scanner list with type: {scanner_result}")
+            return scanner_result
+        
         # Default to unknown
         is_anime = False
         content_type = None  # Default content type to None
         
+        # Get the directory name from the path
+        directory_name = os.path.basename(directory_path)
+        
         # Check for TV show indicators
         tv_indicators = ['season', 's01', 's02', 's1', 's2', 'episode', 'series', 
-                         'tv', 'complete', 'collection', 'pack']
+                        'tv', 'complete', 'collection', 'pack']
         
         # Check for movie indicators
         movie_indicators = ['movie', 'film', 'feature', 'bluray', 'dvdrip', 
-                            'bdrip', 'brrip', 'webdl', 'web-dl']
+                           'bdrip', 'brrip', 'webdl', 'web-dl']
+        
+        # Check for anime indicators
+        anime_indicators = ['anime', 'アニメ', 'japanese', 'japan', 'subs', 
+                           'subbed', 'jp', 'jpn', 'jap']
         
         # Count indicators
         tv_count = 0
         movie_count = 0
+        anime_count = 0
         
+        # Check directory name for indicators
         for indicator in tv_indicators:
-            if indicator in directory_name.lower() or indicator in directory_path.lower():
+            if indicator in directory_name.lower():
                 tv_count += 1
         
         for indicator in movie_indicators:
-            if indicator in directory_name.lower() or indicator in directory_path.lower():
+            if indicator in directory_name.lower():
                 movie_count += 1
+        
+        for indicator in anime_indicators:
+            if indicator in directory_name.lower():
+                anime_count += 1
+        
+        # Also check full path for indicators - this will help detect anime in folder paths like "/anime/"
+        full_path_lower = directory_path.lower()
+        
+        # Check for indicators in the full path
+        for indicator in tv_indicators:
+            if indicator in full_path_lower:
+                tv_count += 1
+        
+        for indicator in movie_indicators:
+            if indicator in full_path_lower:
+                movie_count += 1
+        
+        # Check for anime in the path components
+        path_components = full_path_lower.split(os.sep)
+        for component in path_components:
+            if 'anime' in component:
+                anime_count += 2  # Give extra weight to folder structure
+                logger.info(f"Detected anime from path component: {component}")
         
         # Determine content type based on indicators
         if tv_count > movie_count:
@@ -1351,10 +1400,15 @@ class DirectoryProcessor:
         elif movie_count > 0:
             content_type = 'movie'
         else:
-            # If we can't determine, default to movie
-            content_type = 'movie'
+            content_type = None  # Let other detection methods determine this
         
-        # Return the detected content type and anime flag
+        # Determine if it's anime
+        is_anime = anime_count > 0
+        
+        # Log the detection results
+        logger.info(f"Directory type detection for '{directory_path}': content_type={content_type}, is_anime={is_anime}")
+        logger.info(f"  - Indicators found: TV={tv_count}, Movie={movie_count}, Anime={anime_count}")
+        
         return content_type, is_anime
 
     def _get_episode_title_from_tmdb(self, show_id, season_num, episode_num):
@@ -2449,8 +2503,22 @@ class MainMenu:
                 {"name": "TMDB_API_KEY", "display": "TMDB API Key", 
                  "description": "API key for The Movie Database",
                  "default": "3b5df02338c403dad189e661d57e351f"}
-            ]  # Added closing bracket for the API Settings list
-        }  # Added closing brace for the entire settings dictionary
+            ],
+            "Scanner Lists": [
+                {"name": "EDIT_MOVIES_LIST", "display": "Edit Movies List", 
+                 "description": "Edit the list of movies titles for auto-classification",
+                 "type": "custom_handler", "handler": "_edit_scanner_list_movies"},
+                {"name": "EDIT_TV_SERIES_LIST", "display": "Edit TV Series List", 
+                 "description": "Edit the list of TV series titles for auto-classification",
+                 "type": "custom_handler", "handler": "_edit_scanner_list_tv_series"},
+                {"name": "EDIT_ANIME_MOVIES_LIST", "display": "Edit Anime Movies List", 
+                 "description": "Edit the list of anime movies titles for auto-classification",
+                 "type": "custom_handler", "handler": "_edit_scanner_list_anime_movies"},
+                {"name": "EDIT_ANIME_SERIES_LIST", "display": "Edit Anime Series List", 
+                 "description": "Edit the list of anime series titles for auto-classification",
+                 "type": "custom_handler", "handler": "_edit_scanner_list_anime_series"}
+            ]
+        }
         
         while True:
             # Clear screen for each view of the menu
@@ -2721,6 +2789,214 @@ class MainMenu:
                 print("Invalid choice. Please try again.")
                 input("\nPress Enter to continue...")
 
+    # Add these methods to the MainMenu class
+
+    def _edit_scanner_list_movies(self):
+        """Edit the movies scanner list."""
+        self._edit_scanner_list("movies.txt", "Movies")
+
+    def _edit_scanner_list_tv_series(self):
+        """Edit the TV series scanner list."""
+        self._edit_scanner_list("tv_series.txt", "TV Series")
+
+    def _edit_scanner_list_anime_movies(self):
+        """Edit the anime movies scanner list."""
+        self._edit_scanner_list("anime_movies.txt", "Anime Movies")
+
+    def _edit_scanner_list_anime_series(self):
+        """Edit the anime series scanner list."""
+        self._edit_scanner_list("anime_series.txt", "Anime Series")
+
+    def _edit_scanner_list(self, filename, list_type):
+        """
+        Edit a scanner list file.
+        
+        Args:
+            filename: Name of the file in the scanners directory
+            list_type: Human-readable name of the list type
+        """
+        # Import TMDB API for validation
+        from src.api.tmdb_api import TMDBApi
+        from src.utils.logger import get_logger
+        
+        logger = get_logger(__name__)
+        tmdb_api = TMDBApi()
+        
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print(f"Edit {list_type} Scanner List")
+        print("=" * 60)
+        
+        # Define path to scanner file
+        scanner_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners', filename)
+        
+        # Create the file if it doesn't exist
+        if not os.path.exists(os.path.dirname(scanner_file_path)):
+            os.makedirs(os.path.dirname(scanner_file_path))
+        
+        if not os.path.exists(scanner_file_path):
+            open(scanner_file_path, 'w').close()
+            print(f"Created new {list_type} scanner file.")
+        
+        # Read current entries
+        try:
+            with open(scanner_file_path, 'r', encoding='utf-8') as f:
+                entries = [line.strip() for line in f.readlines() if line.strip()]
+        except Exception as e:
+            print(f"Error reading scanner file: {e}")
+            entries = []
+        
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print(f"Edit {list_type} Scanner List")
+            print("=" * 60)
+            
+            # Display current entries with line numbers
+            print(f"\nCurrent {list_type} Entries ({len(entries)}):")
+            if entries:
+                for i, entry in enumerate(entries, 1):
+                    print(f"{i}. {entry}")
+            else:
+                print("No entries found.")
+            
+            print("\nOptions:")
+            print("1. Add new entry")
+            print("2. Remove entry")
+            print("3. Save and return to Settings")
+            print("0. Return without saving")
+            
+            choice = input("\nSelect option: ").strip()
+            
+            if choice == '1':
+                print("\nEnter a new title to add (format: Title (Year)):")
+                print("Example: 'The Matrix (1999)'")
+                new_entry = input("Title: ").strip()
+                
+                if not new_entry:
+                    print("Entry cannot be empty.")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                # Validate with TMDB
+                print(f"\nValidating '{new_entry}' with TMDB...")
+                
+                # Determine search type based on list type
+                search_type = "movie" if "Movie" in list_type else "tv"
+                
+                # Extract year if present
+                import re
+                year_match = re.search(r'\((\d{4})\)$', new_entry)
+                year = year_match.group(1) if year_match else None
+                title = re.sub(r'\s*\(\d{4}\)\s*$', '', new_entry) if year else new_entry
+                
+                # Search TMDB
+                try:
+                    search_results = tmdb_api.search(title, search_type, year)
+                    
+                    if search_results:
+                        # Show search results
+                        print("\nSearch results:")
+                        for i, result in enumerate(search_results[:5], 1):
+                            title = result.get('title', result.get('name', 'Unknown'))
+                            year_str = ""
+                            if search_type == "movie" and 'release_date' in result and result['release_date']:
+                                year_str = f" ({result['release_date'][:4]})"
+                            elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
+                                year_str = f" ({result['first_air_date'][:4]})"
+                            print(f"{i}. {title}{year_str} [TMDB ID: {result.get('id', 'Unknown')}]")
+                        
+                        print("\nSelect a match or enter 0 to add without validation:")
+                        match_choice = input("Choice: ").strip()
+                        
+                        if match_choice.isdigit() and 1 <= int(match_choice) <= len(search_results[:5]):
+                            result = search_results[int(match_choice) - 1]
+                            title = result.get('title', result.get('name', 'Unknown'))
+                            
+                            # Get year from result
+                            if search_type == "movie" and 'release_date' in result and result['release_date']:
+                                year_str = f" ({result['release_date'][:4]})"
+                            elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
+                                year_str = f" ({result['first_air_date'][:4]})"
+                            else:
+                                year_str = ""
+                            
+                            # Format entry
+                            new_entry = f"{title}{year_str}"
+                            print(f"\nAdding validated entry: {new_entry}")
+                        elif match_choice == '0':
+                            print(f"\nAdding unvalidated entry: {new_entry}")
+                        else:
+                            print("\nInvalid choice. Entry not added.")
+                            input("\nPress Enter to continue...")
+                            continue
+                    else:
+                        print("\nNo TMDB matches found.")
+                        add_anyway = input("Add entry anyway? (y/N): ").strip().lower()
+                        if add_anyway != 'y':
+                            print("Entry not added.")
+                            input("\nPress Enter to continue...")
+                            continue
+                except Exception as e:
+                    logger.error(f"Error searching TMDB: {e}")
+                    print(f"\nError validating with TMDB: {e}")
+                    add_anyway = input("Add entry anyway? (y/N): ").strip().lower()
+                    if add_anyway != 'y':
+                        print("Entry not added.")
+                        input("\nPress Enter to continue...")
+                        continue
+                
+                # Add the entry if it doesn't already exist
+                if new_entry not in entries:
+                    entries.append(new_entry)
+                    print(f"\nAdded: {new_entry}")
+                else:
+                    print(f"\nEntry '{new_entry}' already exists.")
+                
+                input("\nPress Enter to continue...")
+                
+            elif choice == '2':
+                if not entries:
+                    print("\nNo entries to remove.")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                remove_idx = input("\nEnter the number of the entry to remove: ").strip()
+                
+                if remove_idx.isdigit() and 1 <= int(remove_idx) <= len(entries):
+                    removed = entries.pop(int(remove_idx) - 1)
+                    print(f"\nRemoved: {removed}")
+                else:
+                    print("\nInvalid entry number.")
+                
+                input("\nPress Enter to continue...")
+                
+            elif choice == '3':
+                # Save changes
+                try:
+                    with open(scanner_file_path, 'w', encoding='utf-8') as f:
+                        for entry in entries:
+                            f.write(f"{entry}\n")
+                    print(f"\nSaved {len(entries)} entries to {filename}.")
+                except Exception as e:
+                    print(f"\nError saving scanner file: {e}")
+                
+                input("\nPress Enter to continue...")
+                return
+                
+            elif choice == '0':
+                confirm = input("\nAre you sure you want to discard changes? (y/N): ").strip().lower()
+                if confirm == 'y':
+                    print("\nChanges discarded.")
+                    input("\nPress Enter to continue...")
+                    return
+            
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+
 def main():
     """Main entry point for the application."""
     # Set up logging with file level INFO, but console level WARNING
@@ -2759,6 +3035,78 @@ def main():
         import sys
         import traceback
         traceback.print_exc(file=sys.stderr)
+
+# Add this function
+
+def check_scanner_lists(folder_path):
+    """
+    Check if a folder matches any entries in scanner lists to determine content type.
+    
+    Args:
+        folder_path: Path to check against scanner lists
+        
+    Returns:
+        Tuple of (content_type, is_anime) if matched, or None if no match
+    """
+    # Get the folder name without full path
+    folder_name = os.path.basename(folder_path)
+    
+    # Simple function to clean names for comparison (replacing the imported clean_name)
+    def clean_name(name):
+        # Remove common tokens, symbols, and normalize spacing
+        name = re.sub(r'[.\-_]', ' ', name)
+        name = re.sub(r'\s+', ' ', name).strip().lower()
+        return name
+    
+    # Clean the folder name for matching
+    cleaned_name = clean_name(folder_name)
+    
+    # Define paths to scanner list files
+    scanner_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+    movie_list = os.path.join(scanner_dir, 'movies.txt')
+    tv_list = os.path.join(scanner_dir, 'tv_series.txt')
+    anime_movie_list = os.path.join(scanner_dir, 'anime_movies.txt')
+    anime_tv_list = os.path.join(scanner_dir, 'anime_series.txt')
+    
+    # Check each list for matches
+    try:
+        # Check anime TV series list
+        if os.path.exists(anime_tv_list):
+            with open(anime_tv_list, 'r', encoding='utf-8') as f:
+                for line in f:
+                    title = line.strip()
+                    if title and clean_name(title) in cleaned_name:
+                        return 'tv', True
+        
+        # Check anime movies list
+        if os.path.exists(anime_movie_list):
+            with open(anime_movie_list, 'r', encoding='utf-8') as f:
+                for line in f:
+                    title = line.strip()
+                    if title and clean_name(title) in cleaned_name:
+                        return 'movie', True
+        
+        # Check TV series list
+        if os.path.exists(tv_list):
+            with open(tv_list, 'r', encoding='utf-8') as f:
+                for line in f:
+                    title = line.strip()
+                    if title and clean_name(title) in cleaned_name:
+                        return 'tv', False
+        
+        # Check movies list
+        if os.path.exists(movie_list):
+            with open(movie_list, 'r', encoding='utf-8') as f:
+                for line in f:
+                    title = line.strip()
+                    if title and clean_name(title) in cleaned_name:
+                        return 'movie', False
+        
+        # No match found in any list
+        return None
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Error checking scanner lists: {e}")
+        return None
 
 if __name__ == "__main__":
     main()
