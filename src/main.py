@@ -40,7 +40,7 @@ from datetime import datetime
 def load_env_file():
     """Load environment variables from .env file if it exists."""
     env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-    if os.path.exists(env_path):
+    if (os.path.exists(env_path)):
         from dotenv import load_dotenv
         load_dotenv(env_path)
 
@@ -232,7 +232,7 @@ def load_skipped_items():
     """Load the previously skipped items from file."""
     skipped_file = os.path.join(os.path.dirname(__file__), 'skipped_items.json')
     try:
-        if os.path.exists(skipped_file):
+        if (os.path.exists(skipped_file)):
             with open(skipped_file, 'r') as f:
                 return json.load(f)
         return []
@@ -347,6 +347,15 @@ def display_help():
     
     print("\nNOTE: The year is included in folder names but is not used in")
     print("      search queries to improve matching with TMDB database.")
+    
+    print("\nCUSTOM REGEX PATTERNS:")
+    print("  Scanly allows you to define custom regular expressions for:")
+    print("  • TV Episode Detection - Patterns to identify season and episode numbers")
+    print("  • TV Season Detection - Patterns to identify season numbers")
+    print("  • Anime Detection - Patterns that indicate anime content")
+    print("  • Movie Detection - Patterns that indicate movie content")
+    print("\n  These can be configured in Settings > Regular Expressions")
+    print("  Each pattern can include named groups to extract specific information.")
     
     input("\nPress Enter to return to the main menu...")
     clear_screen()
@@ -658,33 +667,50 @@ class DirectoryProcessor:
             # First check scanner lists for override content types
             scanner_result = check_scanner_lists(full_subfolder_path)
             if scanner_result:
-                auto_content_type, is_anime = scanner_result
-                self.logger.info(f"Content type determined from scanner list: TV={auto_content_type=='tv'}, Anime={is_anime}")
+                auto_content_type, is_anime = scanner_result[:2]
+                tmdb_id = scanner_result[2] if len(scanner_result) > 2 else None
+                self.logger.info(f"Content type determined from scanner list: TV={auto_content_type=='tv'}, Anime={is_anime}, TMDB ID={tmdb_id}")
+                
+                # If we have a TMDB ID, skip search and get the item directly
+                if tmdb_id:
+                    # Clear screen and show ASCII art before processing
+                    clear_screen()
+                    display_ascii_art()
+                    print("=" * 60)
+                    print(f"Using scanner list entry with TMDB ID: {tmdb_id}")
+                    print("=" * 60)
+                    
+                    # Get the item details based on content type
+                    try:
+                        if auto_content_type == "tv":
+                            tmdb_item = self.tmdb.get_tv_details(tmdb_id)
+                            if tmdb_item:
+                                # Add required fields that would normally be part of search results
+                                tmdb_item['id'] = tmdb_id
+                                tmdb_item['is_anime'] = is_anime
+                                
+                                # Process the TV show
+                                self.process_tv_show(subfolder, files, tmdb_item)
+                                continue
+                        else:  # movie
+                            tmdb_item = self.tmdb.get_movie_details(tmdb_id)
+                            if tmdb_item:
+                                # Add required fields that would normally be part of search results
+                                tmdb_item['id'] = tmdb_id
+                                tmdb_item['is_anime'] = is_anime
+                                
+                                # Process the movie
+                                self.process_movie(subfolder, files, tmdb_item)
+                                continue
+                                
+                    except Exception as e:
+                        self.logger.error(f"Error fetching TMDB item with ID {tmdb_id}: {e}")
+                        print(f"Error fetching TMDB item with ID {tmdb_id}: {e}")
+                        print("Continuing with standard search process...")
+                        # Fall back to standard search process
             else:
                 # If no match in scanner lists, continue with existing content type detection logic
                 auto_content_type, is_anime = self._detect_content_type_from_directory(full_subfolder_path)
-            
-            # Auto-detection of content type based on file analysis if needed
-            if auto_content_type is None:
-                # Count files with TV and movie indicators
-                tv_count = sum(1 for f in files if f.get('media_type') == 'tv')
-                movie_count = sum(1 for f in files if f.get('media_type') == 'movie')
-                
-                # Check for episode numbers in filenames
-                episode_pattern = r'[Ss]\d{1,2}[Ee]\d{1,3}|[Ee]pisode\s+\d+|\d+x\d+|/[Ss]eason\s*\d+/'
-                has_episode_patterns = any(re.search(episode_pattern, f['path']) for f in files)
-                
-                # The key change: if we have multiple files OR it's anime with multiple files, likely a TV show
-                if len(files) > 1 or has_episode_patterns or (is_anime and len(files) > 1):
-                    auto_content_type = "tv"
-                    if is_anime and len(files) > 1:
-                        self.logger.info(f"Auto-detected as Anime Series due to multiple files ({len(files)} files) and anime content")
-                    else:
-                        self.logger.info(f"Auto-detected as TV due to multiple files ({len(files)} files) or episode patterns")
-                else:
-                    # For single file, assume it's a movie unless we have strong TV indicators
-                    auto_content_type = "movie"
-                    self.logger.info(f"Auto-detected as {('Anime ' if is_anime else '')}Movie due to single file")
             
             # Improved debug output
             self.logger.info(f"Auto-detected content type '{auto_content_type}' (anime={is_anime}) from path: {full_subfolder_path}")
@@ -1035,15 +1061,6 @@ class DirectoryProcessor:
             
             print("\nMovie processing complete")
             
-        except Exception as e:
-            self.logger.error(f"Error processing movie folder: {e}", exc_info=True)
-            print(f"Error processing movie folder: {e}")
-
-    def _extract_media_metadata(self, media_file):
-        """Extract metadata from a media file."""
-        try:
-            filename = media_file['filename']
-            
             # FIX: Create simple placeholders for extractors to avoid import errors
             def extract_name(filename):
                 # Simple extraction - remove extension, replace separators with spaces
@@ -1258,6 +1275,13 @@ class DirectoryProcessor:
         Returns:
             Tuple of (season_number, episode_number) or (None, None) if not found
         """
+        # Load custom patterns if available
+        episode_patterns_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                                        'config', 'episode_patterns.json')
+        season_patterns_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                                       'config', 'season_patterns.json')
+        
+        # Initialize with default patterns
         patterns = [
             # S01EP01 pattern (notice the EP variation)
             r'[Ss](\d{1,2})EP(\d{1,3})',
@@ -1278,6 +1302,18 @@ class DirectoryProcessor:
             r'(\d{1,2})(\d{2})(?:\D|$)'
         ]
         
+        # Try to load custom episode patterns
+        try:
+            if os.path.exists(episode_patterns_file):
+                with open(episode_patterns_file, 'r') as f:
+                    custom_patterns = json.load(f)
+                    
+                    for pattern_obj in custom_patterns:
+                        if 'pattern' in pattern_obj and pattern_obj.get('groups', []) == ['season', 'episode']:
+                            patterns.append(pattern_obj['pattern'])
+        except Exception as e:
+            self.logger.error(f"Error loading custom episode patterns: {e}")
+        
         # First check the filename for common patterns
         for pattern in patterns:
             match = re.search(pattern, filename)
@@ -1296,6 +1332,18 @@ class DirectoryProcessor:
             r'[Ss](\d{1,2})[^Ee]',
             r'/[Ss](\d{1,2})/'  # Look for season folder pattern like /S01/
         ]
+        
+        # Try to load custom season patterns
+        try:
+            if os.path.exists(season_patterns_file):
+                with open(season_patterns_file, 'r') as f:
+                    custom_patterns = json.load(f)
+                    
+                    for pattern_obj in custom_patterns:
+                        if 'pattern' in pattern_obj and pattern_obj.get('groups', []) == ['season']:
+                            season_patterns.append(pattern_obj['pattern'])
+        except Exception as e:
+            self.logger.error(f"Error loading custom season patterns: {e}")
         
         for pattern in season_patterns:
             match = re.search(pattern, file_path) or re.search(pattern, filename)
@@ -1345,6 +1393,12 @@ class DirectoryProcessor:
         # Get the directory name from the path
         directory_name = os.path.basename(directory_path)
         
+        # Load custom patterns if available
+        anime_patterns_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                                      'config', 'anime_patterns.json')
+        movie_patterns_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                                      'config', 'movie_patterns.json')
+        
         # Check for TV show indicators
         tv_indicators = ['season', 's01', 's02', 's1', 's2', 'episode', 'series', 
                         'tv', 'complete', 'collection', 'pack']
@@ -1356,6 +1410,39 @@ class DirectoryProcessor:
         # Check for anime indicators
         anime_indicators = ['anime', 'アニメ', 'japanese', 'japan', 'subs', 
                            'subbed', 'jp', 'jpn', 'jap']
+        
+        # Try to load custom anime patterns
+        try:
+            if os.path.exists(anime_patterns_file):
+                with open(anime_patterns_file, 'r') as f:
+                    custom_patterns = json.load(f)
+                    
+                    for pattern_obj in custom_patterns:
+                        if 'pattern' in pattern_obj:
+                            if re.search(pattern_obj['pattern'], directory_path, re.IGNORECASE) or \
+                               re.search(pattern_obj['pattern'], directory_name, re.IGNORECASE):
+                                logger.info(f"Anime pattern match: {pattern_obj['name']}")
+                                is_anime = True
+                                break
+        except Exception as e:
+            logger.error(f"Error loading custom anime patterns: {e}")
+        
+        # Try to load custom movie patterns
+        movie_pattern_match = False
+        try:
+            if os.path.exists(movie_patterns_file):
+                with open(movie_patterns_file, 'r') as f:
+                    custom_patterns = json.load(f)
+                    
+                    for pattern_obj in custom_patterns:
+                        if 'pattern' in pattern_obj:
+                            if re.search(pattern_obj['pattern'], directory_path, re.IGNORECASE) or \
+                               re.search(pattern_obj['pattern'], directory_name, re.IGNORECASE):
+                                logger.info(f"Movie pattern match: {pattern_obj['name']}")
+                                movie_pattern_match = True
+                                break
+        except Exception as e:
+            logger.error(f"Error loading custom movie patterns: {e}")
         
         # Count indicators
         tv_count = 0
@@ -1393,6 +1480,10 @@ class DirectoryProcessor:
             if 'anime' in component:
                 anime_count += 2  # Give extra weight to folder structure
                 logger.info(f"Detected anime from path component: {component}")
+        
+        # If we had a custom movie pattern match, boost movie count
+        if movie_pattern_match:
+            movie_count += 2
         
         # Determine content type based on indicators
         if tv_count > movie_count:
@@ -2517,6 +2608,20 @@ class MainMenu:
                 {"name": "EDIT_ANIME_SERIES_LIST", "display": "Edit Anime Series List", 
                  "description": "Edit the list of anime series titles for auto-classification",
                  "type": "custom_handler", "handler": "_edit_scanner_list_anime_series"}
+            ],
+            "Regular Expressions": [
+                {"name": "EDIT_EPISODE_PATTERNS", "display": "Edit Episode Patterns", 
+                 "description": "Customize regex patterns for TV episode detection",
+                 "type": "custom_handler", "handler": "_edit_episode_patterns"},
+                {"name": "EDIT_SEASON_PATTERNS", "display": "Edit Season Patterns", 
+                 "description": "Customize regex patterns for TV season detection",
+                 "type": "custom_handler", "handler": "_edit_season_patterns"},
+                {"name": "EDIT_ANIME_PATTERNS", "display": "Edit Anime Detection Patterns", 
+                 "description": "Customize regex patterns for anime detection",
+                 "type": "custom_handler", "handler": "_edit_anime_patterns"},
+                {"name": "EDIT_MOVIE_PATTERNS", "display": "Edit Movie Detection Patterns", 
+                 "description": "Customize regex patterns for movie detection",
+                 "type": "custom_handler", "handler": "_edit_movie_patterns"}
             ]
         }
         
@@ -2816,11 +2921,14 @@ class MainMenu:
             list_type: Human-readable name of the list type
         """
         # Import TMDB API for validation
-        from src.api.tmdb_api import TMDBApi
-        from src.utils.logger import get_logger
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        # Get TMDB API key from environment
+        tmdb_api_key = os.environ.get('TMDB_API_KEY', '3b5df02338c403dad189e661d57e351f')
         
         logger = get_logger(__name__)
-        tmdb_api = TMDBApi()
+        tmdb = TMDB(api_key=tmdb_api_key)
         
         clear_screen()
         display_ascii_art()
@@ -2831,10 +2939,10 @@ class MainMenu:
         # Define path to scanner file
         scanner_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners', filename)
         
-        # Create the file if it doesn't exist
-        if not os.path.exists(os.path.dirname(scanner_file_path)):
-            os.makedirs(os.path.dirname(scanner_file_path))
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(scanner_file_path), exist_ok=True)
         
+        # Create the file if it doesn't exist
         if not os.path.exists(scanner_file_path):
             open(scanner_file_path, 'w').close()
             print(f"Created new {list_type} scanner file.")
@@ -2858,14 +2966,21 @@ class MainMenu:
             print(f"\nCurrent {list_type} Entries ({len(entries)}):")
             if entries:
                 for i, entry in enumerate(entries, 1):
-                    print(f"{i}. {entry}")
+                    # Highlight TMDB ID if present
+                    if "[" in entry and "]" in entry and re.search(r'\[\d+\]$', entry):
+                        tmdb_id = re.search(r'\[(\d+)\]$', entry).group(1)
+                        entry_without_id = re.sub(r'\s*\[\d+\]\s*$', '', entry)
+                        print(f"{i}. {entry_without_id} [TMDB ID: {tmdb_id}]")
+                    else:
+                        print(f"{i}. {entry}")
             else:
                 print("No entries found.")
             
             print("\nOptions:")
             print("1. Add new entry")
             print("2. Remove entry")
-            print("3. Save and return to Settings")
+            print("3. Add/Update TMDB ID for entry")
+            print("4. Save and return to Settings")
             print("0. Return without saving")
             
             choice = input("\nSelect option: ").strip()
@@ -2880,73 +2995,63 @@ class MainMenu:
                     input("\nPress Enter to continue...")
                     continue
                 
-                # Validate with TMDB
-                print(f"\nValidating '{new_entry}' with TMDB...")
+                # Ask if user wants to add TMDB ID
+                add_id = input("\nWould you like to search for and add TMDB ID? (y/N): ").strip().lower() == 'y'
+                tmdb_id = None
                 
-                # Determine search type based on list type
-                search_type = "movie" if "Movie" in list_type else "tv"
-                
-                # Extract year if present
-                import re
-                year_match = re.search(r'\((\d{4})\)$', new_entry)
-                year = year_match.group(1) if year_match else None
-                title = re.sub(r'\s*\(\d{4}\)\s*$', '', new_entry) if year else new_entry
-                
-                # Search TMDB
-                try:
-                    search_results = tmdb_api.search(title, search_type, year)
+                if add_id:
+                    # Determine search type based on list type
+                    search_type = "movie" if "Movie" in list_type else "tv"
                     
-                    if search_results:
-                        # Show search results
-                        print("\nSearch results:")
-                        for i, result in enumerate(search_results[:5], 1):
-                            title = result.get('title', result.get('name', 'Unknown'))
-                            year_str = ""
-                            if search_type == "movie" and 'release_date' in result and result['release_date']:
-                                year_str = f" ({result['release_date'][:4]})"
-                            elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
-                                year_str = f" ({result['first_air_date'][:4]})"
-                            print(f"{i}. {title}{year_str} [TMDB ID: {result.get('id', 'Unknown')}]")
-                        
-                        print("\nSelect a match or enter 0 to add without validation:")
-                        match_choice = input("Choice: ").strip()
-                        
-                        if match_choice.isdigit() and 1 <= int(match_choice) <= len(search_results[:5]):
-                            result = search_results[int(match_choice) - 1]
-                            title = result.get('title', result.get('name', 'Unknown'))
-                            
-                            # Get year from result
-                            if search_type == "movie" and 'release_date' in result and result['release_date']:
-                                year_str = f" ({result['release_date'][:4]})"
-                            elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
-                                year_str = f" ({result['first_air_date'][:4]})"
-                            else:
-                                year_str = ""
-                            
-                            # Format entry
-                            new_entry = f"{title}{year_str}"
-                            print(f"\nAdding validated entry: {new_entry}")
-                        elif match_choice == '0':
-                            print(f"\nAdding unvalidated entry: {new_entry}")
+                    # Extract year if present
+                    year_match = re.search(r'\((\d{4})\)$', new_entry)
+                    year = year_match.group(1) if year_match else None
+                    title = re.sub(r'\s*\(\d{4}\)\s*$', '', new_entry) if year else new_entry
+                    
+                    # Search TMDB
+                    try:
+                        print(f"\nSearching TMDB for {search_type}: {title}")
+                        if search_type == "movie":
+                            search_results = tmdb.search_movie(title, limit=5)
                         else:
-                            print("\nInvalid choice. Entry not added.")
-                            input("\nPress Enter to continue...")
-                            continue
-                    else:
-                        print("\nNo TMDB matches found.")
-                        add_anyway = input("Add entry anyway? (y/N): ").strip().lower()
-                        if add_anyway != 'y':
-                            print("Entry not added.")
-                            input("\nPress Enter to continue...")
-                            continue
-                except Exception as e:
-                    logger.error(f"Error searching TMDB: {e}")
-                    print(f"\nError validating with TMDB: {e}")
-                    add_anyway = input("Add entry anyway? (y/N): ").strip().lower()
-                    if add_anyway != 'y':
-                        print("Entry not added.")
-                        input("\nPress Enter to continue...")
-                        continue
+                            search_results = tmdb.search_tv(title, limit=5)
+                        
+                        if search_results:
+                            # Show search results
+                            print("\nSearch results:")
+                            for i, result in enumerate(search_results, 1):
+                                result_title = result.get('title', result.get('name', 'Unknown'))
+                                year_str = ""
+                                if search_type == "movie" and 'release_date' in result and result['release_date']:
+                                    year_str = f" ({result['release_date'][:4]})"
+                                elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
+                                    year_str = f" ({result['first_air_date'][:4]})"
+                                print(f"{i}. {result_title}{year_str} [TMDB ID: {result.get('id', 'Unknown')}]")
+                            
+                            print("\nSelect a match or enter 0 to skip adding TMDB ID:")
+                            match_choice = input("Choice: ").strip()
+                            
+                            if match_choice.isdigit() and 1 <= int(match_choice) <= len(search_results):
+                                result = search_results[int(match_choice) - 1]
+                                result_title = result.get('title', result.get('name', 'Unknown'))
+                                
+                                # Get year from result
+                                if search_type == "movie" and 'release_date' in result and result['release_date']:
+                                    year_str = f" ({result['release_date'][:4]})"
+                                elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
+                                    year_str = f" ({result['first_air_date'][:4]})"
+                                else:
+                                    year_str = ""
+                                
+                                # Format entry with TMDB ID
+                                tmdb_id = result.get('id')
+                                new_entry = f"{result_title}{year_str} [{tmdb_id}]"
+                                print(f"\nAdding entry with TMDB ID: {new_entry}")
+                        else:
+                            print("\nNo TMDB matches found.")
+                    except Exception as e:
+                        logger.error(f"Error searching TMDB: {e}")
+                        print(f"\nError searching TMDB: {e}")
                 
                 # Add the entry if it doesn't already exist
                 if new_entry not in entries:
@@ -2956,7 +3061,7 @@ class MainMenu:
                     print(f"\nEntry '{new_entry}' already exists.")
                 
                 input("\nPress Enter to continue...")
-                
+                    
             elif choice == '2':
                 if not entries:
                     print("\nNo entries to remove.")
@@ -2972,8 +3077,76 @@ class MainMenu:
                     print("\nInvalid entry number.")
                 
                 input("\nPress Enter to continue...")
-                
+            
             elif choice == '3':
+                if not entries:
+                    print("\nNo entries to update.")
+                    input("\nPress Enter to continue...")
+                    continue
+                
+                update_idx = input("\nEnter the number of the entry to add/update TMDB ID: ").strip()
+                
+                if update_idx.isdigit() and 1 <= int(update_idx) <= len(entries):
+                    entry_idx = int(update_idx) - 1
+                    current_entry = entries[entry_idx]
+                    
+                    # Remove existing TMDB ID if present
+                    clean_entry = re.sub(r'\s*\[\d+\]\s*$', '', current_entry)
+                    
+                    # Determine search type based on list type
+                    search_type = "movie" if "Movie" in list_type else "tv"
+                    
+                    # Extract year if present
+                    year_match = re.search(r'\((\d{4})\)$', clean_entry)
+                    year = year_match.group(1) if year_match else None
+                    title = re.sub(r'\s*\(\d{4}\)\s*$', '', clean_entry) if year else clean_entry
+                    
+                    try:
+                        print(f"\nSearching TMDB for {search_type}: {title}")
+                        if search_type == "movie":
+                            search_results = tmdb.search_movie(title, limit=5)
+                        else:
+                            search_results = tmdb.search_tv(title, limit=5)
+                        
+                        if search_results:
+                            # Show search results
+                            print("\nSearch results:")
+                            for i, result in enumerate(search_results, 1):
+                                result_title = result.get('title', result.get('name', 'Unknown'))
+                                year_str = ""
+                                if search_type == "movie" and 'release_date' in result and result['release_date']:
+                                    year_str = f" ({result['release_date'][:4]})"
+                                elif search_type == "tv" and 'first_air_date' in result and result['first_air_date']:
+                                    year_str = f" ({result['first_air_date'][:4]})"
+                                print(f"{i}. {result_title}{year_str} [TMDB ID: {result.get('id', 'Unknown')}]")
+                            
+                            print("\nSelect a match or enter 0 to remove TMDB ID:")
+                            match_choice = input("Choice: ").strip()
+                            
+                            if match_choice == '0':
+                                # Remove TMDB ID (already done with clean_entry)
+                                entries[entry_idx] = clean_entry
+                                print(f"\nRemoved TMDB ID from entry: {clean_entry}")
+                            elif match_choice.isdigit() and 1 <= int(match_choice) <= len(search_results):
+                                result = search_results[int(match_choice) - 1]
+                                tmdb_id = result.get('id')
+                                
+                                # Update entry with TMDB ID
+                                entries[entry_idx] = f"{clean_entry} [{tmdb_id}]"
+                                print(f"\nUpdated entry with TMDB ID: {entries[entry_idx]}")
+                            else:
+                                print("\nInvalid choice. Entry not updated.")
+                        else:
+                            print("\nNo TMDB matches found.")
+                    except Exception as e:
+                        logger.error(f"Error searching TMDB: {e}")
+                        print(f"\nError searching TMDB: {e}")
+                else:
+                    print("\nInvalid entry number.")
+                
+                input("\nPress Enter to continue...")
+                    
+            elif choice == '4':
                 # Save changes
                 try:
                     with open(scanner_file_path, 'w', encoding='utf-8') as f:
@@ -2985,7 +3158,7 @@ class MainMenu:
                 
                 input("\nPress Enter to continue...")
                 return
-                
+                    
             elif choice == '0':
                 confirm = input("\nAre you sure you want to discard changes? (y/N): ").strip().lower()
                 if confirm == 'y':
@@ -2996,6 +3169,362 @@ class MainMenu:
             else:
                 print("\nInvalid option.")
                 input("\nPress Enter to continue...")
+
+    def _edit_regex_patterns(self, pattern_type):
+        """
+        Edit regex patterns for a specific content type.
+        
+        Args:
+            pattern_type: Type of patterns to edit ('episode', 'season', 'anime', 'movie')
+        """
+        # Map pattern types to file names and descriptions
+        pattern_files = {
+            'episode': {
+                'file': 'episode_patterns.json',
+                'title': 'TV Episode Detection Patterns',
+                'description': 'Define patterns to detect TV episode numbers',
+                'examples': [
+                    {'name': 'Standard', 'pattern': r'[Ss](\d{1,2})[Ee](\d{1,3})', 'groups': ['season', 'episode'],
+                     'example': 'S01E05, s02e10'},
+                    {'name': 'Extended', 'pattern': r'[Ss](\d{1,2})EP(\d{1,3})', 'groups': ['season', 'episode'],
+                     'example': 'S01EP05'},
+                    {'name': 'Numerical', 'pattern': r'(\d{1,2})x(\d{2,3})', 'groups': ['season', 'episode'],
+                     'example': '1x05, 02x10'}
+                ]
+            },
+            'season': {
+                'file': 'season_patterns.json',
+                'title': 'TV Season Detection Patterns',
+                'description': 'Define patterns to detect TV season numbers',
+                'examples': [
+                    {'name': 'Standard', 'pattern': r'[Ss]eason\s*(\d{1,2})', 'groups': ['season'],
+                     'example': 'Season 1, Season01'},
+                    {'name': 'Abbreviated', 'pattern': r'/[Ss](\d{1,2})/', 'groups': ['season'],
+                     'example': '/S01/, /s1/'}
+                ]
+            },
+            'anime': {
+                'file': 'anime_patterns.json',
+                'title': 'Anime Detection Patterns',
+                'description': 'Define patterns to identify anime content',
+                'examples': [
+                    {'name': 'Sub Tags', 'pattern': r'\b(?:sub(?:bed|s)?|dual\s*audio)\b', 'groups': [],
+                     'example': '[Subbed], (Dual Audio)'},
+                    {'name': 'Release Groups', 'pattern': r'\[(?:Horriblesubs|Erai-raws|Subsplease)\]', 'groups': [],
+                     'example': '[HorribleSubs], [Erai-raws]'}
+                ]
+            },
+            'movie': {
+                'file': 'movie_patterns.json',
+                'title': 'Movie Detection Patterns',
+                'description': 'Define patterns to identify movie content',
+                'examples': [
+                    {'name': 'Resolution', 'pattern': r'\b(1080p|2160p|720p)\b', 'groups': [], 
+                     'example': '1080p, 2160p'},
+                    {'name': 'Movie Tags', 'pattern': r'\b(?:BluRay|BDRip|DVDRip|WEBRip)\b', 'groups': [],
+                     'example': 'BluRay, BDRip'}
+                ]
+            }
+        }
+        
+        if (pattern_type not in pattern_files):
+            print(f"Unknown pattern type: {pattern_type}")
+            input("\nPress Enter to continue...")
+            return
+        
+        pattern_info = pattern_files[pattern_type]
+        
+        # Define path to pattern file
+        pattern_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
+                                         'config', pattern_info['file'])
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(pattern_file_path), exist_ok=True)
+        
+        # Load existing patterns or create default
+        patterns = []
+        if os.path.exists(pattern_file_path):
+            try:
+                with open(pattern_file_path, 'r') as f:
+                    patterns = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Error reading pattern file. Using default patterns.")
+                patterns = pattern_info['examples']
+        else:
+            # Use example patterns as defaults
+            patterns = pattern_info['examples']
+        
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print(pattern_info['title'])
+            print("=" * 60)
+            print(f"\n{pattern_info['description']}")
+            
+            # Display current patterns
+            print("\nCurrent patterns:")
+            for i, pattern in enumerate(patterns, 1):
+                groups_str = ", ".join(pattern.get('groups', []))
+                groups_info = f" (Groups: {groups_str})" if groups_str else ""
+                print(f"{i}. {pattern['name']} - {pattern['pattern']}{groups_info}")
+                if 'example' in pattern:
+                    print(f"   Example: {pattern['example']}")
+            
+            print("\nOptions:")
+            print("1. Add new pattern")
+            print("2. Edit pattern")
+            print("3. Remove pattern")
+            print("4. Test patterns")
+            print("5. Save and return")
+            print("0. Return without saving")
+            
+            choice = input("\nSelect option: ").strip()
+            
+            if choice == '1':
+                # Add new pattern
+                self._add_new_regex_pattern(patterns)
+            elif choice == '2':
+                # Edit pattern
+                self._edit_existing_regex_pattern(patterns)
+            elif choice == '3':
+                # Remove pattern
+                self._remove_regex_pattern(patterns)
+            elif choice == '4':
+                # Test patterns
+                self._test_regex_patterns(patterns, pattern_type)
+            elif choice == '5':
+                # Save patterns
+                try:
+                    with open(pattern_file_path, 'w') as f:
+                        json.dump(patterns, f, indent=2)
+                    print(f"\nPatterns saved to {pattern_file_path}")
+                    input("\nPress Enter to continue...")
+                    return
+                except Exception as e:
+                    print(f"\nError saving patterns: {e}")
+                    input("\nPress Enter to continue...")
+            elif choice == '0':
+                # Confirm exit without saving
+                confirm = input("\nAre you sure you want to exit without saving? (y/N): ").strip().lower()
+                if confirm == 'y':
+                    return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+
+    def _edit_episode_patterns(self):
+        """Edit regex patterns for TV episode detection."""
+        self._edit_regex_patterns('episode')
+
+    def _edit_season_patterns(self):
+        """Edit regex patterns for TV season detection."""
+        self._edit_regex_patterns('season')
+
+    def _edit_anime_patterns(self):
+        """Edit regex patterns for anime detection."""
+        self._edit_regex_patterns('anime')
+
+    def _edit_movie_patterns(self):
+        """Edit regex patterns for movie detection."""
+        self._edit_regex_patterns('movie')
+
+    def _add_new_regex_pattern(self, patterns):
+        """Add a new regex pattern to the list."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("Add New Pattern")
+        print("=" * 60)
+        
+        try:
+            name = input("\nEnter pattern name: ").strip()
+            if not name:
+                print("\nPattern name cannot be empty.")
+                input("\nPress Enter to continue...")
+                return
+            
+            pattern = input("\nEnter regex pattern: ").strip()
+            if not pattern:
+                print("\nPattern cannot be empty.")
+                input("\nPress Enter to continue...")
+                return
+            
+            # Test if the pattern is valid
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                print(f"\nInvalid regex pattern: {e}")
+                input("\nPress Enter to continue...")
+                return
+            
+            groups_input = input("\nEnter group names (comma-separated, leave blank if none): ").strip()
+            groups = [g.strip() for g in groups_input.split(',')] if groups_input else []
+            
+            example = input("\nEnter example match (optional): ").strip()
+            
+            # Create new pattern object
+            new_pattern = {
+                'name': name,
+                'pattern': pattern,
+                'groups': groups
+            }
+            
+            if example:
+                new_pattern['example'] = example
+            
+            # Add to patterns list
+            patterns.append(new_pattern)
+            print("\nPattern added successfully.")
+            input("\nPress Enter to continue...")
+            
+        except Exception as e:
+            print(f"\nError adding pattern: {e}")
+            input("\nPress Enter to continue...")
+
+    def _edit_existing_regex_pattern(self, patterns):
+        """Edit an existing regex pattern."""
+        if not patterns:
+            print("\nNo patterns to edit.")
+            input("\nPress Enter to continue...")
+            return
+        
+        edit_idx = input("\nEnter the number of the pattern to edit: ").strip()
+        
+        try:
+            idx = int(edit_idx) - 1
+            if idx < 0 or idx >= len(patterns):
+                print("\nInvalid pattern number.")
+                input("\nPress Enter to continue...")
+                return
+            
+            pattern = patterns[idx]
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print(f"Edit Pattern: {pattern['name']}")
+            print("=" * 60)
+            
+            print("\nCurrent values:")
+            print(f"Name: {pattern['name']}")
+            print(f"Pattern: {pattern['pattern']}")
+            print(f"Groups: {', '.join(pattern.get('groups', []))}")
+            if 'example' in pattern:
+                print(f"Example: {pattern['example']}")
+            
+            print("\nEnter new values (or press Enter to keep current):")
+            
+            new_name = input(f"\nNew name [{pattern['name']}]: ").strip()
+            if new_name:
+                pattern['name'] = new_name
+            
+            new_pattern = input(f"\nNew regex pattern [{pattern['pattern']}]: ").strip()
+            if new_pattern:
+                try:
+                    re.compile(new_pattern)
+                    pattern['pattern'] = new_pattern
+                except re.error as e:
+                    print(f"\nInvalid regex pattern: {e}")
+                    print("Pattern not updated.")
+            
+            current_groups = ', '.join(pattern.get('groups', []))
+            groups_input = input(f"\nNew group names [{current_groups}]: ").strip()
+            if groups_input:
+                pattern['groups'] = [g.strip() for g in groups_input.split(',')]
+            
+            current_example = pattern.get('example', '')
+            example = input(f"\nNew example [{current_example}]: ").strip()
+            if example:
+                pattern['example'] = example
+            
+            print("\nPattern updated successfully.")
+            input("\nPress Enter to continue...")
+            
+        except ValueError:
+            print("\nInvalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
+        except Exception as e:
+            print(f"\nError editing pattern: {e}")
+            input("\nPress Enter to continue...")
+
+    def _remove_regex_pattern(self, patterns):
+        """Remove a regex pattern from the list."""
+        if not patterns:
+            print("\nNo patterns to remove.")
+            input("\nPress Enter to continue...")
+            return
+        
+        remove_idx = input("\nEnter the number of the pattern to remove: ").strip()
+        
+        try:
+            idx = int(remove_idx) - 1
+            if idx < 0 or idx >= len(patterns):
+                print("\nInvalid pattern number.")
+                input("\nPress Enter to continue...")
+                return
+            
+            removed = patterns.pop(idx)
+            print(f"\nRemoved pattern: {removed['name']}")
+            input("\nPress Enter to continue...")
+            
+        except ValueError:
+            print("\nInvalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
+        except Exception as e:
+            print(f"\nError removing pattern: {e}")
+            input("\nPress Enter to continue...")
+
+    def _test_regex_patterns(self, patterns, pattern_type):
+        """Test regex patterns against a sample string."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print(f"Test {pattern_type.capitalize()} Patterns")
+        print("=" * 60)
+        
+        if not patterns:
+            print("\nNo patterns to test.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print("\nEnter a string to test against the patterns.")
+        test_string = input("Test string: ").strip()
+        
+        if not test_string:
+            print("\nTest string cannot be empty.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print("\nResults:")
+        print("-" * 40)
+        
+        match_found = False
+        for pattern in patterns:
+            try:
+                regex = re.compile(pattern['pattern'])
+                matches = regex.finditer(test_string)
+                
+                for match_num, match in enumerate(matches, 1):
+                    match_found = True
+                    print(f"Pattern: {pattern['name']}")
+                    print(f"Match {match_num}: {match.group(0)}")
+                    
+                    # Show group matches if defined
+                    if 'groups' in pattern and pattern['groups']:
+                        for i, group_name in enumerate(pattern['groups'], 1):
+                            if i <= len(match.groups()):
+                                print(f"  {group_name}: {match.group(i)}")
+                    
+                    print("-" * 40)
+            
+            except re.error as e:
+                print(f"Error in pattern '{pattern['name']}': {e}")
+                print("-" * 40)
+        
+        if not match_found:
+            print("No matches found with any pattern.")
+        
+        input("\nPress Enter to continue...")
 
 def main():
     """Main entry point for the application."""
@@ -3011,6 +3540,14 @@ def main():
             logger.warning(f"Destination directory doesn't exist: {DESTINATION_DIRECTORY}")
             print(f"Warning: Destination directory doesn't exist: {DESTINATION_DIRECTORY}")
             print("Symlinks will not be created during this session.")
+
+        # Ensure config and scanners directories exist
+        config_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config')
+        scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+        os.makedirs(config_dir, exist_ok=True)
+        os.makedirs(scanners_dir, exist_ok=True)
+        logger.info(f"Ensured config directory exists: {config_dir}")
+        logger.info(f"Ensured scanners directory exists: {scanners_dir}")
 
         # Clear screen before showing welcome message
         clear_screen()
@@ -3036,8 +3573,6 @@ def main():
         import traceback
         traceback.print_exc(file=sys.stderr)
 
-# Add this function
-
 def check_scanner_lists(folder_path):
     """
     Check if a folder matches any entries in scanner lists to determine content type.
@@ -3046,7 +3581,7 @@ def check_scanner_lists(folder_path):
         folder_path: Path to check against scanner lists
         
     Returns:
-        Tuple of (content_type, is_anime) if matched, or None if no match
+        Tuple of (content_type, is_anime, tmdb_id) if matched, or None if no match
     """
     # Get the folder name without full path
     folder_name = os.path.basename(folder_path)
@@ -3057,6 +3592,22 @@ def check_scanner_lists(folder_path):
         name = re.sub(r'[.\-_]', ' ', name)
         name = re.sub(r'\s+', ' ', name).strip().lower()
         return name
+    
+    # Function to extract TMDB ID from scanner list entries
+    def extract_tmdb_id(entry):
+        # Look for [TMDB ID] pattern at end of string
+        tmdb_match = re.search(r'\[(\d+)\]$', entry)
+        if tmdb_match:
+            return int(tmdb_match.group(1))
+        return None
+    
+    # Function to clean entry for comparison (remove TMDB ID and year)
+    def clean_entry_for_comparison(entry):
+        # Remove [TMDB ID] if present
+        clean = re.sub(r'\s*\[\d+\]\s*$', '', entry)
+        # Remove (YEAR) if present
+        clean = re.sub(r'\s*\(\d{4}\)\s*', ' ', clean)
+        return clean_name(clean)
     
     # Clean the folder name for matching
     cleaned_name = clean_name(folder_name)
@@ -3070,42 +3621,90 @@ def check_scanner_lists(folder_path):
     
     # Check each list for matches
     try:
+        # Logger for debugging
+        logger = logging.getLogger(__name__)
+        
         # Check anime TV series list
         if os.path.exists(anime_tv_list):
             with open(anime_tv_list, 'r', encoding='utf-8') as f:
                 for line in f:
-                    title = line.strip()
-                    if title and clean_name(title) in cleaned_name:
-                        return 'tv', True
+                    entry = line.strip()
+                    if not entry:
+                        continue
+                    
+                    # Extract TMDB ID if present
+                    tmdb_id = extract_tmdb_id(entry)
+                    
+                    # Clean entry for title comparison
+                    clean_entry = clean_entry_for_comparison(entry)
+                    
+                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
+                        logger.info(f"Scanner match (anime TV): '{entry}' matches '{folder_name}'" + 
+                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
+                        return ('tv', True, tmdb_id)
         
         # Check anime movies list
         if os.path.exists(anime_movie_list):
             with open(anime_movie_list, 'r', encoding='utf-8') as f:
                 for line in f:
-                    title = line.strip()
-                    if title and clean_name(title) in cleaned_name:
-                        return 'movie', True
+                    entry = line.strip()
+                    if not entry:
+                        continue
+                    
+                    # Extract TMDB ID if present
+                    tmdb_id = extract_tmdb_id(entry)
+                    
+                    # Clean entry for title comparison
+                    clean_entry = clean_entry_for_comparison(entry)
+                    
+                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
+                        logger.info(f"Scanner match (anime movie): '{entry}' matches '{folder_name}'" + 
+                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
+                        return ('movie', True, tmdb_id)
         
         # Check TV series list
         if os.path.exists(tv_list):
             with open(tv_list, 'r', encoding='utf-8') as f:
                 for line in f:
-                    title = line.strip()
-                    if title and clean_name(title) in cleaned_name:
-                        return 'tv', False
+                    entry = line.strip()
+                    if not entry:
+                        continue
+                    
+                    # Extract TMDB ID if present
+                    tmdb_id = extract_tmdb_id(entry)
+                    
+                    # Clean entry for title comparison
+                    clean_entry = clean_entry_for_comparison(entry)
+                    
+                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
+                        logger.info(f"Scanner match (TV): '{entry}' matches '{folder_name}'" + 
+                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
+                        return ('tv', False, tmdb_id)
         
         # Check movies list
         if os.path.exists(movie_list):
             with open(movie_list, 'r', encoding='utf-8') as f:
                 for line in f:
-                    title = line.strip()
-                    if title and clean_name(title) in cleaned_name:
-                        return 'movie', False
+                    entry = line.strip()
+                    if not entry:
+                        continue
+                    
+                    # Extract TMDB ID if present
+                    tmdb_id = extract_tmdb_id(entry)
+                    
+                    # Clean entry for title comparison
+                    clean_entry = clean_entry_for_comparison(entry)
+                    
+                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
+                        logger.info(f"Scanner match (movie): '{entry}' matches '{folder_name}'" + 
+                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
+                        return ('movie', False, tmdb_id)
         
         # No match found in any list
         return None
     except Exception as e:
-        logging.getLogger(__name__).error(f"Error checking scanner lists: {e}")
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error checking scanner lists: {e}")
         return None
 
 if __name__ == "__main__":
