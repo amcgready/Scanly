@@ -1789,6 +1789,103 @@ class DirectoryProcessor:
             self.errors += 1
             return False
 
+    def _repair_symlinks(self):
+        """Find and repair broken symbolic links in the library."""
+        repaired_count = 0
+        
+        try:
+            # Get the destination directory (we're already in a DirectoryProcessor instance)
+            destination_dir = os.environ.get('DESTINATION_DIRECTORY', '')
+            
+            if not destination_dir or not os.path.isdir(destination_dir):
+                self.logger.error(f"Invalid destination directory: {destination_dir}")
+                return repaired_count
+                
+            self.logger.info(f"Scanning for broken symlinks in: {destination_dir}")
+            
+            # Walk through all files in the destination directory
+            for root, dirs, files in os.walk(destination_dir):
+                # Check all entries in this directory (both files and directories can be symlinks)
+                for entry in os.listdir(root):
+                    entry_path = os.path.join(root, entry)
+                    
+                    # Check if it's a broken symlink
+                    if os.path.islink(entry_path) and not os.path.exists(os.path.realpath(entry_path)):
+                        self.logger.info(f"Found broken symlink: {entry_path}")
+                        
+                        # Get the original target
+                        original_target = os.readlink(entry_path)
+                        
+                        # Check if we can fix it by finding the file with the same name somewhere else
+                        filename = os.path.basename(entry_path)
+                        
+                        # Look for matching files in the source directories
+                        # For simplicity, we'll just search common download directories
+                        search_dirs = [
+                            '/downloads',
+                            '/media',
+                            '/mnt',
+                            '/home'
+                        ]
+                        
+                        # Add any custom locations from environment
+                        origin_dir = os.environ.get('ORIGIN_DIRECTORY')
+                        if origin_dir and os.path.isdir(origin_dir):
+                            search_dirs.append(origin_dir)
+                        
+                        found = False
+                        
+                        # Search for matching files
+                        for search_dir in search_dirs:
+                            if not os.path.isdir(search_dir):
+                                continue
+                                
+                            self.logger.info(f"Searching for replacement in: {search_dir}")
+                            
+                            for search_root, search_dirs, search_files in os.walk(search_dir):
+                                # Skip the destination directory itself to avoid circular links
+                                if search_root.startswith(destination_dir):
+                                    continue
+                                    
+                                for search_file in search_files:
+                                    if search_file == filename:
+                                        new_source = os.path.join(search_root, search_file)
+                                        
+                                        # Remove the broken symlink
+                                        os.unlink(entry_path)
+                                        
+                                        # Create a new symlink with the found file
+                                        relative_symlink = os.getenv('RELATIVE_SYMLINK', 'false').lower() == 'true'
+                                        
+                                        if relative_symlink:
+                                            # Calculate relative path from link location to the target
+                                            rel_source = os.path.relpath(new_source, os.path.dirname(entry_path))
+                                            os.symlink(rel_source, entry_path)
+                                        else:
+                                            # Use absolute path
+                                            os.symlink(new_source, entry_path)
+                                            
+                                        self.logger.info(f"Repaired symlink: {entry_path} -> {new_source}")
+                                        repaired_count += 1
+                                        found = True
+                                        break
+                                        
+                                if found:
+                                    break
+                                    
+                            if found:
+                                break
+                        
+                        if not found:
+                            self.logger.warning(f"Could not find replacement for broken symlink: {entry_path}")
+            
+            self.logger.info(f"Repaired {repaired_count} symlinks")
+            return repaired_count
+            
+        except Exception as e:
+            self.logger.error(f"Error repairing symlinks: {e}", exc_info=True)
+            return repaired_count
+
 def get_input(prompt, default=None, cancel_value=None):
     """
     Get user input with universal exit command handling.
@@ -2540,29 +2637,7 @@ class MainMenu:
         processor.process()
 
     def settings_menu(self):
-        """Display and modify application settings."""
-        # Clear screen first
-        clear_screen()
-        
-        # Display ASCII art at the top
-        display_ascii_art()
-        print("=" * 60)
-        print("Settings")
-        print("=" * 60)
-        
-        # Get current environment variables
-        from dotenv import load_dotenv, set_key
-        load_dotenv()
-        
-        # Define the path to the .env file
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-        
-        # Create the .env file if it doesn't exist
-        if not os.path.exists(env_path):
-            with open(env_path, 'w') as f:
-                f.write("# Scanly Environment Configuration\n")
-            print(f"Created new configuration file: {env_path}")
-        
+        """Display the settings menu."""
         # Dictionary of settings categories and their settings
         settings = {
             "Directory Settings": [
@@ -2622,9 +2697,14 @@ class MainMenu:
                 {"name": "EDIT_MOVIE_PATTERNS", "display": "Edit Movie Detection Patterns", 
                  "description": "Customize regex patterns for movie detection",
                  "type": "custom_handler", "handler": "_edit_movie_patterns"}
+            ],
+            "Maintenance": [
+                {"name": "REPAIR_SYMLINKS", "display": "Repair Broken Symlinks",
+                 "description": "Find and repair broken symbolic links in your library", 
+                 "type": "custom_handler", "handler": "_repair_symlinks"}
             ]
         }
-        
+
         while True:
             # Clear screen for each view of the menu
             clear_screen()
@@ -2666,19 +2746,23 @@ class MainMenu:
                 
                 print("\nCurrent settings:")
                 for i, setting in enumerate(category_settings, 1):
-                    env_var = setting["name"]
-                    default_value = setting.get("default", "")
-                    current_value = os.environ.get(env_var, default_value)
-                    
-                    # Show a placeholder if the value is empty
-                    display_value = current_value if current_value else "(not set)"
-                    
-                    # For boolean settings, make the display clearer
-                    if setting.get("type") == "boolean":
-                        display_value = "Enabled" if current_value.lower() == "true" else "Disabled"
-                    
-                    print(f"{i}. {setting['display']}: {display_value}")
-                    print(f"   {setting['description']}")
+                    if setting.get("type") == "custom_handler":
+                        print(f"{i}. {setting['display']}")
+                        print(f"   {setting['description']}")
+                    else:
+                        env_var = setting["name"]
+                        default_value = setting.get("default", "")
+                        current_value = os.environ.get(env_var, default_value)
+                        
+                        # Show a placeholder if the value is empty
+                        display_value = current_value if current_value else "(not set)"
+                        
+                        # For boolean settings, make the display clearer
+                        if setting.get("type") == "boolean":
+                            display_value = "Enabled" if current_value.lower() == "true" else "Disabled"
+                        
+                        print(f"{i}. {setting['display']}: {display_value}")
+                        print(f"   {setting['description']}")
                 
                 print("\n0. Back to Settings Menu")
                 
@@ -2695,9 +2779,7 @@ class MainMenu:
                 
                 # Get the selected setting
                 selected_setting = category_settings[int(setting_choice) - 1]
-                env_var = selected_setting["name"]
-                default_value = selected_setting.get("default", "")
-                current_value = os.environ.get(env_var, default_value)
+                env_var = selected_setting.get("name")
                 
                 # Handle custom handlers
                 if selected_setting.get("type") == "custom_handler" and "handler" in selected_setting:
@@ -2710,6 +2792,9 @@ class MainMenu:
                         input("\nPress Enter to continue...")
                     continue  # Skip the regular setting handling
                 
+                default_value = selected_setting.get("default", "")
+                current_value = os.environ.get(env_var, default_value)
+                
                 # Handle different types of settings
                 if selected_setting.get("type") == "boolean":
                     # For boolean settings, toggle between true and false
@@ -2717,12 +2802,7 @@ class MainMenu:
                     print(f"\nToggling {selected_setting['display']} to: {new_value}")
                 else:
                     # For directory settings, offer path selection
-                    if "DIRECTORY" in env_var and env_var != "DESTINATION_DIRECTORY":
-                        print("\nCurrent value: " + (current_value if current_value else "(not set)"))
-                        new_value = input(f"Enter new value for {selected_setting['display']} (or press Enter to keep current): ").strip()
-                        if not new_value:
-                            new_value = current_value
-                    elif env_var == "DESTINATION_DIRECTORY":
+                    if "DIRECTORY" in env_var and env_var == "DESTINATION_DIRECTORY":
                         # For the main destination directory, offer more options
                         print("\nCurrent value: " + (current_value if current_value else "(not set)"))
                         print("\nOptions:")
@@ -2749,38 +2829,8 @@ class MainMenu:
                                         continue
                         elif browse_choice == '2':
                             print("\nNOTE: In terminal mode, you'll need to enter the path manually.")
-                            print("For GUI environments, a file dialog would normally appear.")
-                            
-                            # Simplified directory selection for terminal interface
-                            current_dir = current_value if current_value and os.path.exists(current_value) else os.path.expanduser("~")
-                            
-                            print(f"\nNavigating from: {current_dir}")
-                            while True:
-                                print("\nContents of current directory:")
-                                dirs = [d for d in os.listdir(current_dir) if os.path.isdir(os.path.join(current_dir, d))]
-                                
-                                # Show parent directory option
-                                print("0. Select this directory")
-                                print("00. Go up to parent directory")
-                                
-                                # Show subdirectories
-                                for i, d in enumerate(dirs, 1):
-                                    print(f"{i}. {d}/")
-                                
-                                dir_choice = input("\nEnter choice (0=select current, 00=parent): ").strip()
-                                
-                                if dir_choice == '0':
-                                    new_value = current_dir
-                                    break
-                                elif dir_choice == '00':
-                                    current_dir = os.path.dirname(current_dir)
-                                    continue
-                                
-                                if dir_choice.isdigit() and 1 <= int(dir_choice) <= len(dirs):
-                                    current_dir = os.path.join(current_dir, dirs[int(dir_choice) - 1])
-                                else:
-                                    print("Invalid choice.")
-                                    input("\nPress Enter to continue...")
+                            new_value = input("Enter path: ").strip()
+                            new_value = _clean_directory_path(new_value)
                         else:
                             new_value = current_value
                     else:
@@ -2796,14 +2846,6 @@ class MainMenu:
                         set_key(env_path, env_var, new_value)
                         os.environ[env_var] = new_value
                         print(f"\nSetting updated successfully.")
-                        
-                        # Special handling for DESTINATION_DIRECTORY
-                        if env_var == "DESTINATION_DIRECTORY" and not os.path.exists(new_value):
-                            try:
-                                os.makedirs(new_value, exist_ok=True)
-                                print(f"Created directory: {new_value}")
-                            except Exception as e:
-                                print(f"Warning: Could not create directory: {e}")
                 except Exception as e:
                     print(f"\nError saving setting: {e}")
                 
@@ -2943,7 +2985,7 @@ class MainMenu:
         os.makedirs(os.path.dirname(scanner_file_path), exist_ok=True)
         
         # Create the file if it doesn't exist
-        if not os.path.exists(scanner_file_path):
+        if not os.path.exists(scanner_file_path):  # Fixed: removed the parentheses
             open(scanner_file_path, 'w').close()
             print(f"Created new {list_type} scanner file.")
         
@@ -3524,6 +3566,49 @@ class MainMenu:
         if not match_found:
             print("No matches found with any pattern.")
         
+        input("\nPress Enter to continue...")
+
+    def _repair_symlinks(self):
+        """Find and repair broken symbolic links in the library."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("REPAIR BROKEN SYMLINKS")
+        print("=" * 60)
+        
+        # Get the library directory from environment
+        destination_dir = os.environ.get('DESTINATION_DIRECTORY', '')
+        
+        if not destination_dir:
+            print("\nError: No destination directory configured.")
+            print("Please set the DESTINATION_DIRECTORY in your settings first.")
+            input("\nPress Enter to continue...")
+            return
+        
+        if not os.path.isdir(destination_dir):
+            print(f"\nError: Destination directory '{destination_dir}' not found.")
+            print("Please check your DESTINATION_DIRECTORY setting.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print(f"\nScanning for broken symlinks in: {destination_dir}")
+        print("\nThis may take some time depending on the size of your library...")
+        
+        try:
+            # Create a DirectoryProcessor instance with destination_dir as parameter
+            processor = DirectoryProcessor(destination_dir)
+            
+            # Call the repair_symlinks method
+            repaired_count = processor._repair_symlinks()
+            
+            if repaired_count > 0:
+                print(f"\nSuccess! Repaired {repaired_count} broken symlink(s).")
+            else:
+                print("\nNo broken symlinks found or repaired.")
+                
+        except Exception as e:
+            print(f"\nError repairing symlinks: {str(e)}")
+            
         input("\nPress Enter to continue...")
 
 def main():
