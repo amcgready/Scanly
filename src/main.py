@@ -2699,6 +2699,9 @@ class MainMenu:
                  "type": "custom_handler", "handler": "_edit_movie_patterns"}
             ],
             "Maintenance": [
+                {"name": "AUTO_REPAIR_SYMLINKS", "display": "Automatic Symlink Repair", 
+                 "description": "Automatically monitor and repair broken symlinks (runs in background)",
+                 "default": "false", "type": "boolean"},
                 {"name": "REPAIR_SYMLINKS", "display": "Repair Broken Symlinks",
                  "description": "Find and repair broken symbolic links in your library", 
                  "type": "custom_handler", "handler": "_repair_symlinks"}
@@ -3634,6 +3637,31 @@ def main():
         logger.info(f"Ensured config directory exists: {config_dir}")
         logger.info(f"Ensured scanners directory exists: {scanners_dir}")
 
+        # Define AUTO_REPAIR_SYMLINKS in src/config/__init__.py before importing symlink_repair
+        from src.config import update_config_variable
+        # Make sure AUTO_REPAIR_SYMLINKS is defined in config with the correct name
+        update_config_variable('AUTO_REPAIR_SYMLINKS', os.environ.get('AUTO_REPAIR_SYMLINKS', 'false'))
+
+        # Start automatic symlink repair if enabled
+        from src.utils.symlink_repair import SymlinkRepair
+        auto_repair = os.environ.get('AUTO_REPAIR_SYMLINKS', 'false').lower() == 'true'
+        
+        # Initialize the repair variable to None, so we can check it later
+        repair = None
+        
+        if auto_repair:
+            destination_dir = os.environ.get('DESTINATION_DIRECTORY', '')
+            if destination_dir and os.path.exists(destination_dir):
+                logger.info("Starting automatic symlink repair monitor")
+                repair = SymlinkRepair(
+                    destination_dir=destination_dir,
+                    auto_repair=True,
+                    monitor_interval=3600  # Check every hour
+                )
+                repair.start_monitor()
+            else:
+                logger.warning("Auto repair enabled but destination directory not found")
+
         # Clear screen before showing welcome message
         clear_screen()
         display_ascii_art()
@@ -3647,6 +3675,11 @@ def main():
         except Exception as e:
             logger.exception(f"Unexpected error in main menu: {e}")
             print(f"\nAn unexpected error occurred: {e}")
+        
+        # Stop the symlink repair monitor if it was started
+        if auto_repair and repair is not None:
+            logger.info("Stopping symlink repair monitor")
+            repair.stop_monitor()
         
         logger.info("Scanly shutdown normally")
         
@@ -3794,3 +3827,23 @@ def check_scanner_lists(folder_path):
 
 if __name__ == "__main__":
     main()
+
+# In your main application or initialization code
+from src.utils.symlink_repair import SymlinkRepair
+
+# Create a repair instance with auto-monitoring
+repair = SymlinkRepair(
+    destination_dir="/path/to/media/library", 
+    auto_repair=True,
+    monitor_interval=3600  # Check every hour
+)
+
+# Start the background monitor
+repair.start_monitor()
+
+# Later, when shutting down:
+repair.stop_monitor()
+
+# Or to manually check and repair:
+repaired, failed = repair.repair_all()
+print(f"Repaired {repaired} symlinks, {failed} failed")
