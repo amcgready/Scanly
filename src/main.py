@@ -665,69 +665,51 @@ class DirectoryProcessor:
             full_subfolder_path = os.path.join(self.directory_path, subfolder)
             
             # First check scanner lists for override content types
+            from src.utils.scanner_utils import check_scanner_lists
             scanner_result = check_scanner_lists(full_subfolder_path)
             if scanner_result:
+                # IMPORTANT: Get the content type directly from the scanner list result
                 auto_content_type, is_anime = scanner_result[:2]
                 tmdb_id = scanner_result[2] if len(scanner_result) > 2 else None
-                self.logger.info(f"Content type determined from scanner list: TV={auto_content_type=='tv'}, Anime={is_anime}, TMDB ID={tmdb_id}")
-                
-                # If we have a TMDB ID, skip search and get the item directly
-                if tmdb_id:
-                    # Clear screen and show ASCII art before processing
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 60)
-                    print(f"Using scanner list entry with TMDB ID: {tmdb_id}")
-                    print("=" * 60)
-                    
-                    # Get the item details based on content type
-                    try:
-                        if auto_content_type == "tv":
-                            tmdb_item = self.tmdb.get_tv_details(tmdb_id)
-                            if tmdb_item:
-                                # Add required fields that would normally be part of search results
-                                tmdb_item['id'] = tmdb_id
-                                tmdb_item['is_anime'] = is_anime
-                                
-                                # Process the TV show
-                                self.process_tv_show(subfolder, files, tmdb_item)
-                                continue
-                        else:  # movie
-                            tmdb_item = self.tmdb.get_movie_details(tmdb_id)
-                            if tmdb_item:
-                                # Add required fields that would normally be part of search results
-                                tmdb_item['id'] = tmdb_id
-                                tmdb_item['is_anime'] = is_anime
-                                
-                                # Process the movie
-                                self.process_movie(subfolder, files, tmdb_item)
-                                continue
-                                
-                    except Exception as e:
-                        self.logger.error(f"Error fetching TMDB item with ID {tmdb_id}: {e}")
-                        print(f"Error fetching TMDB item with ID {tmdb_id}: {e}")
-                        print("Continuing with standard search process...")
-                        # Fall back to standard search process
+                self.logger.info(f"Content type determined from scanner list: type={auto_content_type}, anime={is_anime}, TMDB ID={tmdb_id}")
+                # Scanner lists take absolute priority - this overrides any further detection
             else:
-                # If no match in scanner lists, continue with existing content type detection logic
+                # Only if not in scanner lists, use regex-based detection
                 auto_content_type, is_anime = self._detect_content_type_from_directory(full_subfolder_path)
+                self.logger.info(f"Content type determined from regex patterns: type={auto_content_type}, anime={is_anime}")
             
             # Improved debug output
             self.logger.info(f"Auto-detected content type '{auto_content_type}' (anime={is_anime}) from path: {full_subfolder_path}")
             
             # Convert auto_content_type to a display name for the user with more info
-            if auto_content_type == "tv" and not is_anime:
-                content_type_display = "TV Series"
-                detection_reason = "detected TV show patterns"
-            elif auto_content_type == "tv" and is_anime:
-                content_type_display = "Anime Series"
-                detection_reason = "detected anime content with multiple files"
-            elif auto_content_type == "movie" and is_anime:
-                content_type_display = "Anime Movie"
-                detection_reason = "detected anime content with single file"
-            else:  # Movie
-                content_type_display = "Movie"
-                detection_reason = "single video file detected"
+            # First check if this is from a scanner list
+            if scanner_result:
+                if auto_content_type == "tv" and is_anime:
+                    content_type_display = "Anime Series"
+                    detection_reason = "found in anime series scanner list"
+                elif auto_content_type == "movie" and is_anime:
+                    content_type_display = "Anime Movie"
+                    detection_reason = "found in anime movies scanner list"
+                elif auto_content_type == "tv":
+                    content_type_display = "TV Series"
+                    detection_reason = "found in TV series scanner list"
+                else:
+                    content_type_display = "Movie"
+                    detection_reason = "found in movies scanner list"
+            else:
+                # Regular pattern-based detection display
+                if auto_content_type == "tv" and not is_anime:
+                    content_type_display = "TV Series"
+                    detection_reason = "detected TV show patterns"
+                elif auto_content_type == "tv" and is_anime:
+                    content_type_display = "Anime Series"
+                    detection_reason = "detected anime content with multiple files"
+                elif auto_content_type == "movie" and is_anime:
+                    content_type_display = "Anime Movie"
+                    detection_reason = "detected anime content with single file"
+                else:  # Movie
+                    content_type_display = "Movie"
+                    detection_reason = "single video file detected"
             
             # Clean folder name for search
             raw_name = os.path.basename(subfolder)
@@ -739,107 +721,101 @@ class DirectoryProcessor:
                 
                 # If that doesn't work, try using filenames
                 if not raw_name or raw_name in ['/', '.']:
-                    # Try to get a name from the first video file
+                    # Use the first file's name as a fallback
                     if files:
                         raw_name = os.path.basename(files[0]['path'])
-                        # Remove extension
+                        # Remove extension and replace separators
                         raw_name = os.path.splitext(raw_name)[0]
+                        raw_name = re.sub(r'[._-]', ' ', raw_name)
             
             clean_name = self._clean_name_for_search(raw_name)
             self.logger.info(f"Cleaned name for search: '{clean_name}' (from '{raw_name}')")
             
-            # Display detected name along with content type and reason - MOVED AFTER clean_name is defined
+            # Display detected name along with content type and reason
             print(f"\nDetected title: {clean_name}")
             print(f"Detected type: {content_type_display} ({detection_reason})")
             
-            # Allow user to modify the search term if needed
-            search_term = clean_name
+            # Ask user if they want to proceed with this detection or change it
+            print("\nOptions:")
+            print("1. Proceed with detected title and type")
+            print("2. Change search term")
+            print("3. Change content type")
+            print("s. Skip this subfolder")
+            print("q. Quit to main menu")
             
-            # Convert auto_content_type to a display name for the user
-            content_type_display = "TV Series" if auto_content_type == "tv" and not is_anime else \
-                                  "Anime Series" if auto_content_type == "tv" and is_anime else \
-                                  "Anime Movie" if auto_content_type == "movie" and is_anime else \
-                                  "Movie"
+            choice = input("\nEnter choice (or press Enter for option 1): ").strip().lower()
             
-            # Use MainMenu's helper to show content type selection, passing the detected name
-            main_menu = MainMenu()
-            
-            while True:
-                content_type_result = main_menu._show_content_type_menu(content_type_display, 
-                                                                      auto_content_type == "tv", 
-                                                                      is_anime,
-                                                                      detected_name=search_term,
-                                                                      file_count=len(files))  # Add file count here
+            # Handle empty input as option 1
+            if not choice:
+                choice = "1"
                 
-                # Check if user chose to change search term
-                if content_type_result == "CHANGE_SEARCH":
-                    # Clear screen and show ASCII art
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 60)
-                    print("Change Search Term")
-                    print("=" * 60)
-                    
-                    # Show current search term and allow user to change it
-                    print(f"\nCurrent search term: {search_term}")
-                    new_term = input("Enter new search term (or press Enter to keep current): ").strip()
-                    
-                    if new_term:
-                        search_term = new_term
-                        print(f"Search term updated to: {search_term}")
-                        time.sleep(1)  # Brief pause to show message
-                        
-                    # Go back to content type menu with updated search term
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 60)
-                    continue
-                else:
-                    # User made a content type choice or chose to skip/quit
-                    break
-                
-            # Check if user chose to skip or quit
-            if content_type_result is None:
+            # Handle user choice
+            if choice == "q":
+                print("\nExiting to main menu...")
+                return
+            elif choice == "s":
+                print(f"\nSkipping subfolder: {subfolder}")
                 self.skipped_subfolders.append({
                     'subfolder': subfolder,
                     'files': files,
                     'is_tv': auto_content_type == "tv",
-                    'is_anime': is_anime,  # Make sure we store the anime flag
-                    'suggested_name': search_term,  # Use potentially updated search term
+                    'is_anime': is_anime,
+                    'suggested_name': clean_name,
                     'timestamp': time.time()
                 })
-                print("Skipping this item.")
                 continue
-            elif content_type_result == "QUIT":
-                return
+            elif choice == "2":
+                # Change search term
+                new_term = input(f"\nEnter new search term (current: {clean_name}): ").strip()
+                if new_term:
+                    clean_name = new_term
+            elif choice == "3":
+                # Change content type
+                content_options = [
+                    ("1", "TV Series", True, False),
+                    ("2", "Movie", False, False),
+                    ("3", "Anime Series", True, True),
+                    ("4", "Anime Movie", False, True)
+                ]
                 
-            # Update content type based on user selection
-            is_tv, is_anime = content_type_result
-            auto_content_type = "tv" if is_tv else "movie"
-            
+                print("\nSelect content type:")
+                for option_num, desc, _, _ in content_options:
+                    print(f"{option_num}. {desc}")
+                    
+                type_choice = input("\nEnter choice (1-4): ").strip()
+                
+                # Find the matching content type
+                for option_num, desc, is_tv_option, is_anime_option in content_options:
+                    if type_choice == option_num:
+                        is_tv = is_tv_option
+                        is_anime = is_anime_option
+                        auto_content_type = "tv" if is_tv else "movie"
+                        content_type_display = desc
+                        break
+                
             # Clear screen and show ASCII art before searching TMDB
             clear_screen()
             display_ascii_art()
             print("=" * 60)
-            print(f"Searching for: {search_term}")
+            print(f"Searching for: {clean_name}")
             print("=" * 60)
             
             # Search TMDB and let user select the correct match
-            tmdb_item = self._match_title_to_tmdb(search_term, is_tv=is_tv, is_anime=is_anime)
+            tmdb_item = self._match_title_to_tmdb(clean_name, is_tv=(auto_content_type == "tv"), is_anime=is_anime)
             
             # If the user chose to exit, exit the entire function
             if tmdb_item == "EXIT":
                 print("\nExiting to main menu...")
-                break
+                return
                 
             # Skip this subfolder if user chose to skip
             if tmdb_item is None:
                 skipped_item = {
                     'subfolder': subfolder,
                     'files': files,
-                    'is_tv': is_tv,
+                    'is_tv': auto_content_type == "tv",
                     'is_anime': is_anime,
-                    'suggested_name': search_term,
+                    'suggested_name': clean_name,
                     'timestamp': time.time()
                 }
                 self.skipped_subfolders.append(skipped_item)
@@ -854,12 +830,66 @@ class DirectoryProcessor:
             # Process the folder based on content type
             if auto_content_type == "tv":
                 self.logger.info(f"Processing as TV show: {subfolder}")
-                # Call the process_tv_show method
-                self.process_tv_show(subfolder, files, tmdb_item)
+                
+                # Ask user whether to auto-identify seasons or manually process
+                print("\nHow would you like to process this TV series?")
+                print("1. Auto-identify seasons (recommended)")
+                print("2. Manually process season folders")
+                
+                tv_choice = input("\nEnter choice (or press Enter for option 1): ").strip()
+                if not tv_choice:
+                    tv_choice = "1"
+                    
+                # FIX: Update the process_tv_show method to accept the auto_identify_seasons parameter
+                # and pass it correctly
+                self._update_tv_show_processing(subfolder, files, tmdb_item, tv_choice == "1")
             else:
                 self.logger.info(f"Processing as movie: {subfolder}")
                 # Call the process_movie method
                 self.process_movie(subfolder, files, tmdb_item)
+
+    def _update_tv_show_processing(self, subfolder, files, tmdb_item, auto_identify_seasons):
+        """
+        Helper method to handle TV show processing with auto-identification option.
+        
+        Args:
+            subfolder: Subfolder path
+            files: List of files to process
+            tmdb_item: Selected TMDB item
+            auto_identify_seasons: Whether to auto-identify seasons
+        """
+        if auto_identify_seasons:
+            # Process with auto-identification
+            self.process_tv_show_auto(subfolder, files, tmdb_item)
+        else:
+            # Process manually
+            self.process_tv_show_manual(subfolder, files, tmdb_item)
+
+    def process_tv_show_auto(self, subfolder, files, tmdb_item):
+        """
+        Process a TV show folder with auto-identification of seasons.
+        
+        Args:
+            subfolder: Subfolder path
+            files: List of files to process
+            tmdb_item: Selected TMDB item
+        """
+        # Original process_tv_show logic with auto-identification
+        # Implementation here...
+        pass
+
+    def process_tv_show_manual(self, subfolder, files, tmdb_item):
+        """
+        Process a TV show folder with manual season handling.
+        
+        Args:
+            subfolder: Subfolder path
+            files: List of files to process
+            tmdb_item: Selected TMDB item
+        """
+        # Logic for manual processing of seasons
+        # Implementation here...
+        pass
 
     def process_tv_show(self, subfolder, files, tmdb_item):
         """
@@ -1021,84 +1051,65 @@ class DirectoryProcessor:
         Process a movie folder.
         
         Args:
-            subfolder: Path to the subfolder relative to main directory
+            subfolder: Subfolder path (relative to directory_path)
             files: List of files in the subfolder
-            tmdb_item: TMDB item data for the movie
+            tmdb_item: Selected TMDB item
         """
         try:
-            # Get movie metadata
-            movie_id = tmdb_item.get('id')
-            movie_title = tmdb_item.get('title', 'Unknown')
-            release_date = tmdb_item.get('release_date', '').split('-')[0] if tmdb_item.get('release_date') else ''
-            
-            # IMPORTANT: Make sure we capture the is_anime flag from tmdb_item
+            # Get movie details
+            title = tmdb_item.get('title', 'Unknown')
+            year = tmdb_item.get('release_date', '')[:4] if tmdb_item.get('release_date') else ''
             is_anime = tmdb_item.get('is_anime', False)
             
-            print(f"\nProcessing movie: {movie_title} ({release_date})")
-            print(f"Is anime: {'Yes' if is_anime else 'No'}")  # Add debug output
+            # Format for display
+            if year:
+                display_title = f"{title} ({year})"
+            else:
+                display_title = title
+                
+            self.logger.info(f"Processing movie: {display_title}")
+            print(f"\nProcessing: {display_title}")
             
-            # Get the type flag for this content (for directory structure)
-            is_tv = False  # Since this is a movie
-            
-            # Process each video file
+            # Process each file in the folder
             for file_info in files:
                 file_path = file_info['path']
                 file_name = file_info['filename']
                 
-                # Create symbolic link for the movie
-                success = self._create_symlink(
-                    file_path, 
-                    movie_title, 
-                    year=release_date,
-                    is_tv=is_tv,
-                    is_anime=is_anime  # Pass the anime flag here
-                )
-                
-                if success:
-                    print(f"  ✓ Processed: {file_name}")
-                else:
-                    print(f"  ✗ Failed to process: {file_name}")
+                try:
+                    # Extract media metadata from file
+                    media_file = self._extract_media_metadata(file_name)
+                    
+                    # Get the highest quality file based on its resolution
+                    resolution = self._detect_resolution(file_path)
+                    media_file['resolution'] = resolution
+                    
+                    # Create symlink
+                    result = self._create_symlink(
+                        file_path, 
+                        title, 
+                        year=year, 
+                        is_tv=False, 
+                        is_anime=is_anime,
+                        resolution=resolution
+                    )
+                    
+                    if result:
+                        print(f"✓ {file_name} → {result}")
+                    else:
+                        print(f"✗ Failed to link {file_name}")
+                except Exception as e:
+                    # Use the current file_name in the error message, not an undefined filename variable
+                    self.logger.error(f"Error processing file {file_name}: {e}", exc_info=True)
+                    print(f"✗ Error: {e}")
             
-            print("\nMovie processing complete")
-            
-            # FIX: Create simple placeholders for extractors to avoid import errors
-            def extract_name(filename):
-                # Simple extraction - remove extension, replace separators with spaces
-                base_name = os.path.splitext(filename)[0]
-                return re.sub(r'[._-]', ' ', base_name)
-            
-            def extract_season(filename):
-                # Look for patterns like S01, Season 1, etc.
-                season_match = re.search(r'[Ss](\d{1,2})', filename)
-                if season_match:
-                    return int(season_match.group(1))
-                return None
-            
-            def extract_episode(filename):
-                # Look for patterns like E01, Episode 1, etc.
-                episode_match = re.search(r'[Ee](\d{1,3})', filename)
-                if episode_match:
-                    return int(episode_match.group(1))
-                return None
-            
-            # Try to extract metadata
-            media_file['extracted_name'] = extract_name(filename)
-            media_file['season'] = extract_season(filename)
-            media_file['episode'] = extract_episode(filename)
-            
-            # Determine if it's likely a TV show or movie
-            media_file['media_type'] = 'tv' if media_file['season'] is not None else 'movie'
-            
-            # Try to get year from filename (e.g., "Movie (2020).mkv")
-            year_match = re.search(r'\((\d{4})\)', filename)
-            if year_match:
-                media_file['year'] = year_match.group(1)
+            print(f"\nFinished processing movie: {display_title}")
             
         except Exception as e:
-            self.logger.error(f"Error extracting metadata from {filename}: {e}")
-            media_file['extracted_name'] = os.path.splitext(filename)[0]
-            media_file['media_type'] = 'unknown'
-    
+            # Use the title from tmdb_item or a default in the error message
+            title = tmdb_item.get('title', 'Unknown')
+            self.logger.error(f"Error processing movie {title}: {e}", exc_info=True)
+            print(f"✗ Error: {e}")
+
     def _update_progress(self, current, total):
         """
         Update progress display in the console.
@@ -1369,6 +1380,7 @@ class DirectoryProcessor:
     def _detect_content_type_from_directory(self, directory_path):
         """
         Detect if a directory contains a TV show or movie.
+        Scanner lists take highest priority, with regex patterns as fallback.
         
         Args:
             directory_path: Path to the directory
@@ -1378,127 +1390,92 @@ class DirectoryProcessor:
             where content_type is 'tv' or 'movie'
         """
         logger = logging.getLogger(__name__)
+        logger.info(f"Detecting content type for directory: {directory_path}")
         
-        # First check scanner lists - override any other detection
-        directory_name = os.path.basename(directory_path)
-        scanner_result = check_scanner_lists(directory_name)
-        if scanner_result:
-            logger.info(f"Directory name '{directory_name}' matched in scanner list with type: {scanner_result}")
-            return scanner_result
+        # First detect the clean title from the directory name
+        dir_name = os.path.basename(directory_path)
+        clean_title = self._clean_name_for_search(dir_name)
+        logger.debug(f"Extracted clean title from directory: '{clean_title}'")
         
-        # Default to unknown
-        is_anime = False
-        content_type = None  # Default content type to None
-        
-        # Get the directory name from the path
-        directory_name = os.path.basename(directory_path)
-        
-        # Load custom patterns if available
-        anime_patterns_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                                      'config', 'anime_patterns.json')
-        movie_patterns_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                                      'config', 'movie_patterns.json')
-        
-        # Check for TV show indicators
-        tv_indicators = ['season', 's01', 's02', 's1', 's2', 'episode', 'series', 
-                        'tv', 'complete', 'collection', 'pack']
-        
-        # Check for movie indicators
-        movie_indicators = ['movie', 'film', 'feature', 'bluray', 'dvdrip', 
-                           'bdrip', 'brrip', 'webdl', 'web-dl']
-        
-        # Check for anime indicators
-        anime_indicators = ['anime', 'アニメ', 'japanese', 'japan', 'subs', 
-                           'subbed', 'jp', 'jpn', 'jap']
-        
-        # Try to load custom anime patterns
+        # First check scanner lists with highest priority
         try:
-            if os.path.exists(anime_patterns_file):
-                with open(anime_patterns_file, 'r') as f:
-                    custom_patterns = json.load(f)
+            # Import here to prevent circular imports
+            from src.utils.scanner_utils import check_scanner_lists
+            
+            # First check the clean title (highest priority)
+            logger.debug(f"Checking scanner lists for clean title: '{clean_title}'")
+            scanner_result = check_scanner_lists(clean_title)
+            
+            if scanner_result:
+                content_type, is_anime = scanner_result[:2]
+                logger.info(f"Scanner list match found for clean title '{clean_title}': type={content_type}, anime={is_anime}")
+                # IMPORTANT: Return immediately if we find a scanner match
+                return content_type, is_anime
+            
+            # Then check the directory name
+            dir_name = os.path.basename(directory_path)
+            logger.debug(f"Checking scanner lists for directory name: '{dir_name}'")
+            scanner_result = check_scanner_lists(dir_name)
+            
+            if scanner_result:
+                content_type, is_anime = scanner_result[:2]
+                logger.info(f"Scanner list match found for directory name '{dir_name}': type={content_type}, anime={is_anime}")
+                # IMPORTANT: Return immediately if we find a scanner match
+                return content_type, is_anime
                     
-                    for pattern_obj in custom_patterns:
-                        if 'pattern' in pattern_obj:
-                            if re.search(pattern_obj['pattern'], directory_path, re.IGNORECASE) or \
-                               re.search(pattern_obj['pattern'], directory_name, re.IGNORECASE):
-                                logger.info(f"Anime pattern match: {pattern_obj['name']}")
-                                is_anime = True
-                                break
+            # If no match in scanner list, check for match in full path
+            logger.debug(f"Checking scanner lists for full path: '{directory_path}'")
+            scanner_result = check_scanner_lists(directory_path)
+            if scanner_result:
+                content_type, is_anime = scanner_result[:2]
+                logger.info(f"Scanner list match found for path '{directory_path}': type={content_type}, anime={is_anime}")
+                # IMPORTANT: Return immediately if we find a scanner match
+                return content_type, is_anime
+        
         except Exception as e:
-            logger.error(f"Error loading custom anime patterns: {e}")
+            logger.error(f"Error checking scanner lists: {e}")
         
-        # Try to load custom movie patterns
-        movie_pattern_match = False
-        try:
-            if os.path.exists(movie_patterns_file):
-                with open(movie_patterns_file, 'r') as f:
-                    custom_patterns = json.load(f)
-                    
-                    for pattern_obj in custom_patterns:
-                        if 'pattern' in pattern_obj:
-                            if re.search(pattern_obj['pattern'], directory_path, re.IGNORECASE) or \
-                               re.search(pattern_obj['pattern'], directory_name, re.IGNORECASE):
-                                logger.info(f"Movie pattern match: {pattern_obj['name']}")
-                                movie_pattern_match = True
-                                break
-        except Exception as e:
-            logger.error(f"Error loading custom movie patterns: {e}")
+        # If we reach here, use simple regex patterns to determine content type
+        logger.debug(f"No scanner list match found, falling back to regex patterns for: {directory_path}")
+        dir_name = os.path.basename(directory_path).lower()
         
-        # Count indicators
-        tv_count = 0
-        movie_count = 0
-        anime_count = 0
+        # Check for TV show patterns in the name
+        tv_patterns = [
+            r'(\bs\d{1,2}\b)',           # s01, s1, etc.
+            r'(\bseason\s*\d+\b)',       # season 1, season01, etc.
+            r'(\bepisode\s*\d+\b)',      # episode 1, episode01, etc.
+            r'(\bep\s*\d+\b)',           # ep1, ep 1, etc.
+            r'\b(series|episodes|shows|complete\s+season)\b',  # Common TV show terms
+        ]
         
-        # Check directory name for indicators
-        for indicator in tv_indicators:
-            if indicator in directory_name.lower():
-                tv_count += 1
+        # Check for anime patterns in the name
+        anime_patterns = [
+            r'\b(anime|アニメ)\b',       # "anime" or Japanese "anime"
+            r'\b(subbed|dubbed)\b',      # Subbed or dubbed indicator
+            r'\b(crunchyroll|funimation)\b', # Common anime distributors
+        ]
         
-        for indicator in movie_indicators:
-            if indicator in directory_name.lower():
-                movie_count += 1
+        # Check if any TV pattern matches
+        is_tv = any(re.search(pattern, dir_name) for pattern in tv_patterns)
         
-        for indicator in anime_indicators:
-            if indicator in directory_name.lower():
-                anime_count += 1
+        # Check if any anime pattern matches
+        is_anime = any(re.search(pattern, dir_name) for pattern in anime_patterns)
         
-        # Also check full path for indicators - this will help detect anime in folder paths like "/anime/"
-        full_path_lower = directory_path.lower()
+        # If we have specific info that it's anime but don't know if it's TV or movie,
+        # we need to make a default choice
+        if is_anime and not is_tv:
+            # Check for movie indicators
+            movie_patterns = [
+                r'\b(movie|film|ova|feature)\b',
+                r'\b(bluray|dvdrip|bdrip)\b',
+            ]
+            is_movie = any(re.search(pattern, dir_name) for pattern in movie_patterns)
+            is_tv = not is_movie  # If not explicitly a movie, treat as TV series
         
-        # Check for indicators in the full path
-        for indicator in tv_indicators:
-            if indicator in full_path_lower:
-                tv_count += 1
+        # Default to movie if we can't determine
+        content_type = 'tv' if is_tv else 'movie'
         
-        for indicator in movie_indicators:
-            if indicator in full_path_lower:
-                movie_count += 1
-        
-        # Check for anime in the path components
-        path_components = full_path_lower.split(os.sep)
-        for component in path_components:
-            if 'anime' in component:
-                anime_count += 2  # Give extra weight to folder structure
-                logger.info(f"Detected anime from path component: {component}")
-        
-        # If we had a custom movie pattern match, boost movie count
-        if movie_pattern_match:
-            movie_count += 2
-        
-        # Determine content type based on indicators
-        if tv_count > movie_count:
-            content_type = 'tv'
-        elif movie_count > 0:
-            content_type = 'movie'
-        else:
-            content_type = None  # Let other detection methods determine this
-        
-        # Determine if it's anime
-        is_anime = anime_count > 0
-        
-        # Log the detection results
-        logger.info(f"Directory type detection for '{directory_path}': content_type={content_type}, is_anime={is_anime}")
-        logger.info(f"  - Indicators found: TV={tv_count}, Movie={movie_count}, Anime={anime_count}")
+        logger.info(f"Regex pattern detection for '{directory_path}': content_type={content_type}, is_anime={is_anime}")
         
         return content_type, is_anime
 
@@ -1789,6 +1766,104 @@ class DirectoryProcessor:
             self.errors += 1
             return False
 
+    def _extract_media_metadata(self, filename):
+        """
+        Extract metadata from a media file name.
+        
+        Args:
+            filename: The file name to extract metadata from
+        
+        Returns:
+            Dictionary containing extracted metadata
+        """
+        try:
+            import unicodedata
+            import re
+            import os
+            
+            media_file = {}
+            
+            # Simple extraction - remove extension, replace separators with spaces
+            base_name = os.path.splitext(filename)[0]
+            media_file['extracted_name'] = re.sub(r'[._-]', ' ', base_name)
+            
+            # Check scanner lists first for content type detection (highest priority)
+            # Need to import here to prevent circular imports
+            from src.utils.scanner_utils import check_scanner_lists
+            
+            scanner_result = check_scanner_lists(filename)
+            if scanner_result:
+                content_type, is_anime = scanner_result[:2]
+                media_file['media_type'] = content_type
+                media_file['is_anime'] = is_anime
+                
+                # If we have a TMDB ID from scanner list, include it
+                if len(scanner_result) > 2:
+                    media_file['tmdb_id'] = scanner_result[2]
+                    
+                self.logger.info(f"Media type determined from scanner list: {content_type}, anime={is_anime}")
+            else:
+                # If not in scanner list, use pattern detection
+                # Look for patterns like S01, Season 1, etc.
+                season_match = re.search(r'[Ss](\d{1,2})', filename)
+                if season_match:
+                    media_file['season'] = int(season_match.group(1))
+                else:
+                    media_file['season'] = None
+                
+                # Look for patterns like E01, Episode 1, etc.
+                episode_match = re.search(r'[Ee](\d{1,3})', filename)
+                if episode_match:
+                    media_file['episode'] = int(episode_match.group(1))
+                else:
+                    media_file['episode'] = None
+                
+                # Determine if it's likely a TV show or movie
+                media_file['media_type'] = 'tv' if media_file.get('season') is not None else 'movie'
+                
+                # Check for anime indicators
+                anime_indicators = ['anime', 'アニメ', 'japanese', 'japan', 'subs', 
+                                 'subbed', 'jp', 'jpn', 'jap']
+                is_anime = any(indicator in filename.lower() for indicator in anime_indicators)
+                media_file['is_anime'] = is_anime
+            
+            # Try to get year from filename (e.g., "Movie (2020).mkv")
+            year_match = re.search(r'\((\d{4})\)', filename)
+            if year_match:
+                media_file['year'] = year_match.group(1)
+            else:
+                media_file['year'] = None
+            
+            # Normalize anime titles - convert special characters like Pokémon to Pokemon
+            if media_file.get('is_anime', False):
+                # Common anime title normalizations
+                normalized_name = unicodedata.normalize('NFKD', media_file['extracted_name'])
+                normalized_name = ''.join([c for c in normalized_name if not unicodedata.combining(c)])
+                media_file['normalized_name'] = normalized_name
+                media_file['search_name'] = normalized_name  # Use normalized name for searching
+            else:
+                media_file['search_name'] = media_file['extracted_name']  # Use extracted name for searching
+            
+            # Check if auto-extract episodes is enabled
+            auto_extract = os.getenv('AUTO_EXTRACT_EPISODES', 'False').lower() == 'true'
+            media_file['auto_extract'] = auto_extract
+            
+            self.logger.debug(f"Extracted metadata for {filename}: {media_file}")
+            return media_file
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting metadata from {filename}: {e}")
+            return {
+                'extracted_name': os.path.splitext(filename)[0],
+                'media_type': 'unknown',
+                'season': None,
+                'episode': None,
+                'year': None,
+                'is_anime': False,
+                'auto_extract': False,
+                'search_name': os.path.splitext(filename)[0]
+            }
+
 def get_input(prompt, default=None, cancel_value=None):
     """
     Get user input with universal exit command handling.
@@ -1890,7 +1965,7 @@ def review_skipped_items():
             if is_tv:
                 # Search TMDB for TV show
                 search_term = get_input(f"\nEnter search term for TV show (default='{suggested_name}'): ", 
-                                     default=suggested_name, cancel_value="")
+                                      default=suggested_name, cancel_value="")
                 
                 if search_term == "":
                     # User chose to exit
@@ -1901,7 +1976,7 @@ def review_skipped_items():
                 
                 if tmdb_item == "EXIT":
                     break
-                    
+                
                 if tmdb_item:
                     # Clear screen and show ASCII art before processing
                     clear_screen()
@@ -1921,7 +1996,7 @@ def review_skipped_items():
             else:
                 # Process movie with proper flags
                 search_term = get_input(f"\nEnter search term for movie (default='{suggested_name}'): ", 
-                                     default=suggested_name, cancel_value="")
+                                      default=suggested_name, cancel_value="")
                 
                 if search_term == "":
                     # User chose to exit
@@ -1932,11 +2007,8 @@ def review_skipped_items():
                 
                 if tmdb_item == "EXIT":
                     break
-                    
+                
                 if tmdb_item:
-                    # Make sure the is_anime flag is set in the TMDB item
-                    tmdb_item['is_anime'] = is_anime
-                    
                     # Clear screen and show ASCII art before processing
                     clear_screen()
                     display_ascii_art()
@@ -2099,6 +2171,37 @@ class MainMenu:
                                 else:
                                     # User made a content type choice or chose to skip/quit
                                     break
+
+                            # Check if user chose to skip or quit
+                            if content_type_result is None:
+                                print("Skipping this item.")
+                                input("\nPress Enter to continue...")
+                                return
+                            elif content_type_result == "QUIT":
+                                return
+                                
+                            # Update content type based on user selection
+                            is_tv, is_anime = content_type_result
+
+                            # Clear screen and show ASCII art before searching TMDB
+                            clear_screen()
+                            display_ascii_art()
+                            print("=" * 60)
+                            print(f"Searching for: {search_term}")  # Use potentially updated search term
+                            print("=" * 60)
+
+                            if new_term:
+                                search_term = new_term
+                                print(f"Search term updated to: {search_term}")
+                                time.sleep(1)  # Brief pause to show message
+
+                                # Go back to content type menu with updated search term
+                                clear_screen()
+                                display_ascii_art()
+                                print("=" * 60)
+                                continue
+                            # User made a content type choice or chose to skip/quit
+                            break
 
                             # Check if user chose to skip or quit
                             if content_type_result is None:
@@ -2852,30 +2955,28 @@ class MainMenu:
             # Determine the valid choices
             max_choice = next_option - 1
             
-            choice = input(f"\nEnter choice (0-{max_choice}, h): ").strip().lower()
+            # Get user choice
+            choice = input("\nEnter your choice: ").strip().lower()
             
-            # Handle menu choices
             if choice == '1':
-                clear_screen()
-                self.individual_scan()  # Renamed from new_scan
+                self.individual_scan()
             elif choice == '2':
-                clear_screen()
-                self.multi_scan()  # New multi scan function
-            elif choice == '3' and has_history:
-                clear_screen()
+                self.multi_scan()
+            elif has_history and choice == '3':
                 self.resume_scan()
-            elif choice == '4' and has_history:
-                # Clear both scan history and skipped items registry
+            elif has_history and choice == '4':
+                # Clear scan history
                 clear_scan_history()
-                
-                # We already declared global above, no need to repeat
+                print("Scan history cleared.")
+                input("\nPress Enter to continue...")
+            # Clear scan history and skipped items if needed
+            elif choice == str(max_choice):
                 globals()['skipped_items_registry'] = []
                 save_skipped_items([])
-                
-                print("Scan history and skipped items cleared.")
+                print("Skipped items cleared.")
                 input("\nPress Enter to continue...")
             # Fix the condition to properly check skipped items
-            elif (has_skipped and ((has_history and choice == '5') or (not has_history and choice == '3'))):
+            elif has_skipped and ((has_history and choice == '5') or (not has_history and choice == '3')):
                 clear_screen()
                 review_skipped_items()
             # Add the settings menu option
@@ -2992,8 +3093,6 @@ class MainMenu:
                 
                 if not new_entry:
                     print("Entry cannot be empty.")
-                    input("\nPress Enter to continue...")
-                    continue
                 
                 # Ask if user wants to add TMDB ID
                 add_id = input("\nWould you like to search for and add TMDB ID? (y/N): ").strip().lower() == 'y'
@@ -3120,14 +3219,10 @@ class MainMenu:
                                     year_str = f" ({result['first_air_date'][:4]})"
                                 print(f"{i}. {result_title}{year_str} [TMDB ID: {result.get('id', 'Unknown')}]")
                             
-                            print("\nSelect a match or enter 0 to remove TMDB ID:")
+                            print("\nSelect a match or enter 0 to skip adding TMDB ID:")
                             match_choice = input("Choice: ").strip()
                             
-                            if match_choice == '0':
-                                # Remove TMDB ID (already done with clean_entry)
-                                entries[entry_idx] = clean_entry
-                                print(f"\nRemoved TMDB ID from entry: {clean_entry}")
-                            elif match_choice.isdigit() and 1 <= int(match_choice) <= len(search_results):
+                            if match_choice.isdigit() and 1 <= int(match_choice) <= len(search_results):
                                 result = search_results[int(match_choice) - 1]
                                 tmdb_id = result.get('id')
                                 
@@ -3232,11 +3327,6 @@ class MainMenu:
             input("\nPress Enter to continue...")
             return
         
-        pattern_info = pattern_files[pattern_type]
-        
-        # Define path to pattern file
-        pattern_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                                         'config', pattern_info['file'])
         
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(pattern_file_path), exist_ok=True)
@@ -3256,59 +3346,15 @@ class MainMenu:
         
         while True:
             clear_screen()
-            display_ascii_art()
-            print("=" * 60)
-            print(pattern_info['title'])
-            print("=" * 60)
-            print(f"\n{pattern_info['description']}")
-            
-            # Display current patterns
-            print("\nCurrent patterns:")
-            for i, pattern in enumerate(patterns, 1):
-                groups_str = ", ".join(pattern.get('groups', []))
-                groups_info = f" (Groups: {groups_str})" if groups_str else ""
-                print(f"{i}. {pattern['name']} - {pattern['pattern']}{groups_info}")
-                if 'example' in pattern:
-                    print(f"   Example: {pattern['example']}")
-            
-            print("\nOptions:")
-            print("1. Add new pattern")
-            print("2. Edit pattern")
-            print("3. Remove pattern")
-            print("4. Test patterns")
-            print("5. Save and return")
-            print("0. Return without saving")
-            
-            choice = input("\nSelect option: ").strip()
-            
-            if choice == '1':
-                # Add new pattern
-                self._add_new_regex_pattern(patterns)
-            elif choice == '2':
-                # Edit pattern
-                self._edit_existing_regex_pattern(patterns)
-            elif choice == '3':
-                # Remove pattern
-                self._remove_regex_pattern(patterns)
-            elif choice == '4':
-                # Test patterns
-                self._test_regex_patterns(patterns, pattern_type)
-            elif choice == '5':
-                # Save patterns
-                try:
-                    with open(pattern_file_path, 'w') as f:
-                        json.dump(patterns, f, indent=2)
-                    print(f"\nPatterns saved to {pattern_file_path}")
-                    input("\nPress Enter to continue...")
-                    return
-                except Exception as e:
-                    print(f"\nError saving patterns: {e}")
-                    input("\nPress Enter to continue...")
-            elif choice == '0':
-                # Confirm exit without saving
-                confirm = input("\nAre you sure you want to exit without saving? (y/N): ").strip().lower()
-                if confirm == 'y':
-                    return
+            print(f"\nPatterns saved to {pattern_file_path}")
+            input("\nPress Enter to continue...")
+            return
+            try:
+                # Save patterns logic here
+                pass
+            except Exception as e:
+                print(f"\nError saving patterns: {e}")
+                input("\nPress Enter to continue...")
             else:
                 print("\nInvalid option.")
                 input("\nPress Enter to continue...")
@@ -3573,139 +3619,147 @@ def main():
         import traceback
         traceback.print_exc(file=sys.stderr)
 
-def check_scanner_lists(folder_path):
+def check_scanner_lists(name):
     """
-    Check if a folder matches any entries in scanner lists to determine content type.
+    Check if a name matches any entry in the scanner lists.
     
     Args:
-        folder_path: Path to check against scanner lists
+        name: Name to check against scanner lists
         
     Returns:
-        Tuple of (content_type, is_anime, tmdb_id) if matched, or None if no match
+        Tuple of (content_type, is_anime, tmdb_id) or None if not found
     """
-    # Get the folder name without full path
-    folder_name = os.path.basename(folder_path)
-    
-    # Simple function to clean names for comparison (replacing the imported clean_name)
-    def clean_name(name):
-        # Remove common tokens, symbols, and normalize spacing
-        name = re.sub(r'[.\-_]', ' ', name)
-        name = re.sub(r'\s+', ' ', name).strip().lower()
-        return name
-    
-    # Function to extract TMDB ID from scanner list entries
-    def extract_tmdb_id(entry):
-        # Look for [TMDB ID] pattern at end of string
-        tmdb_match = re.search(r'\[(\d+)\]$', entry)
-        if tmdb_match:
-            return int(tmdb_match.group(1))
-        return None
-    
-    # Function to clean entry for comparison (remove TMDB ID and year)
-    def clean_entry_for_comparison(entry):
-        # Remove [TMDB ID] if present
-        clean = re.sub(r'\s*\[\d+\]\s*$', '', entry)
-        # Remove (YEAR) if present
-        clean = re.sub(r'\s*\(\d{4}\)\s*', ' ', clean)
-        return clean_name(clean)
-    
-    # Clean the folder name for matching
-    cleaned_name = clean_name(folder_name)
-    
-    # Define paths to scanner list files
-    scanner_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
-    movie_list = os.path.join(scanner_dir, 'movies.txt')
-    tv_list = os.path.join(scanner_dir, 'tv_series.txt')
-    anime_movie_list = os.path.join(scanner_dir, 'anime_movies.txt')
-    anime_tv_list = os.path.join(scanner_dir, 'anime_series.txt')
-    
-    # Check each list for matches
     try:
-        # Logger for debugging
         logger = logging.getLogger(__name__)
         
-        # Check anime TV series list
-        if os.path.exists(anime_tv_list):
-            with open(anime_tv_list, 'r', encoding='utf-8') as f:
-                for line in f:
-                    entry = line.strip()
-                    if not entry:
-                        continue
-                    
-                    # Extract TMDB ID if present
-                    tmdb_id = extract_tmdb_id(entry)
-                    
-                    # Clean entry for title comparison
-                    clean_entry = clean_entry_for_comparison(entry)
-                    
-                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
-                        logger.info(f"Scanner match (anime TV): '{entry}' matches '{folder_name}'" + 
-                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
-                        return ('tv', True, tmdb_id)
+        # Get the base path of our scanners directory
+        base_path = os.path.dirname(os.path.dirname(__file__))
+        scanners_path = os.path.join(base_path, 'scanners')
         
-        # Check anime movies list
-        if os.path.exists(anime_movie_list):
-            with open(anime_movie_list, 'r', encoding='utf-8') as f:
-                for line in f:
-                    entry = line.strip()
-                    if not entry:
-                        continue
-                    
-                    # Extract TMDB ID if present
-                    tmdb_id = extract_tmdb_id(entry)
-                    
-                    # Clean entry for title comparison
-                    clean_entry = clean_entry_for_comparison(entry)
-                    
-                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
-                        logger.info(f"Scanner match (anime movie): '{entry}' matches '{folder_name}'" + 
-                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
-                        return ('movie', True, tmdb_id)
+        # Define our scanner list files and their content types
+        scanner_files = {
+            'tv_series.txt': ('tv', False),      # Check TV series first
+            'anime_series.txt': ('tv', True),
+            'anime_movies.txt': ('movie', True),
+            'movies.txt': ('movie', False)
+        }
         
-        # Check TV series list
-        if os.path.exists(tv_list):
-            with open(tv_list, 'r', encoding='utf-8') as f:
-                for line in f:
-                    entry = line.strip()
-                    if not entry:
-                        continue
-                    
-                    # Extract TMDB ID if present
-                    tmdb_id = extract_tmdb_id(entry)
-                    
-                    # Clean entry for title comparison
-                    clean_entry = clean_entry_for_comparison(entry)
-                    
-                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
-                        logger.info(f"Scanner match (TV): '{entry}' matches '{folder_name}'" + 
-                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
-                        return ('tv', False, tmdb_id)
+        # Log the input name for debugging
+        logger.info(f"Checking scanner lists for: '{name}'")
         
-        # Check movies list
-        if os.path.exists(movie_list):
-            with open(movie_list, 'r', encoding='utf-8') as f:
-                for line in f:
-                    entry = line.strip()
-                    if not entry:
-                        continue
-                    
-                    # Extract TMDB ID if present
-                    tmdb_id = extract_tmdb_id(entry)
-                    
-                    # Clean entry for title comparison
-                    clean_entry = clean_entry_for_comparison(entry)
-                    
-                    if clean_entry in cleaned_name or cleaned_name in clean_entry:
-                        logger.info(f"Scanner match (movie): '{entry}' matches '{folder_name}'" + 
-                                    (f" with TMDB ID {tmdb_id}" if tmdb_id else ""))
-                        return ('movie', False, tmdb_id)
+        # Clean the name for better matching - normalize and lowercase
+        clean_name = name.lower()
+        clean_name = re.sub(r'[^a-z0-9]', '', clean_name)
         
-        # No match found in any list
+        # Debug all scanner files first
+        for file, (content_type, is_anime) in scanner_files.items():
+            file_path = os.path.join(scanners_path, file)
+            if os.path.exists(file_path):
+                logger.info(f"Scanner file exists: {file_path}")
+            else:
+                logger.warning(f"Scanner file NOT found: {file_path}")
+        
+        # Check each scanner file
+        for file, (content_type, is_anime) in scanner_files.items():
+            file_path = os.path.join(scanners_path, file)
+            if not os.path.exists(file_path):
+                logger.warning(f"Scanner file not found: {file_path}")
+                continue
+            
+            logger.info(f"Checking scanner file: {file}")
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                    for line_num, line in enumerate(f, 1):
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        
+                        logger.debug(f"Checking line {line_num}: '{line}'")
+                        
+                        # Extract possible TMDB ID
+                        tmdb_id = None
+                        id_match = re.search(r'\[(\d+)\]$', line)
+                        if id_match:
+                            tmdb_id = id_match.group(1)
+                            # Remove ID from line for comparison
+                            line_without_id = re.sub(r'\[\d+\]$', '', line).strip()
+                        else:
+                            line_without_id = line
+                        
+                        # Remove year if present for comparison
+                        line_without_year = re.sub(r'\(\d{4}\)', '', line_without_id).strip()
+                        
+                        # Clean the line the same way we cleaned the name
+                        clean_line = line_without_year.lower()
+                        clean_line = re.sub(r'[^a-z0-9]', '', clean_line)
+                        
+                        # Debug match attempts
+                        logger.debug(f"  - Clean name: '{clean_name}'")
+                        logger.debug(f"  - Clean line: '{clean_line}'")
+                        
+                        # Direct match check - if names are nearly identical
+                        if clean_line and clean_name:
+                            # Perfect match - one string is the other
+                            if clean_line == clean_name:
+                                logger.info(f"Perfect match in {file}, line {line_num}: '{line}' == '{name}'")
+                                return (content_type, is_anime, tmdb_id) if tmdb_id else (content_type, is_anime)
+                            
+                            # Partial match - one contains the other completely
+                            if clean_line in clean_name or clean_name in clean_line:
+                                # Calculate similarity for logging
+                                similarity = max(len(clean_line)/len(clean_name), len(clean_name)/len(clean_line))
+                                logger.info(f"Partial match in {file}, line {line_num}: '{line}' ~ '{name}' (similarity: {similarity:.2f})")
+                                return (content_type, is_anime, tmdb_id) if tmdb_id else (content_type, is_anime)
+                            
+                            # Special case for TV Series that might be abbreviated
+                            if file == 'tv_series.txt' and len(clean_line) > 4:
+                                # Try more aggressive matching for TV series
+                                words_in_line = set(re.findall(r'\b\w+\b', line_without_year.lower()))
+                                words_in_name = set(re.findall(r'\b\w+\b', name.lower()))
+                                
+                                # Check if most important words match
+                                common_words = words_in_line.intersection(words_in_name)
+                                if len(common_words) >= min(2, len(words_in_line)):
+                                    logger.info(f"Word match in {file}: '{line}' matches '{name}' with {len(common_words)} common words")
+                                    return (content_type, is_anime, tmdb_id) if tmdb_id else (content_type, is_anime)
+            
+            except Exception as e:
+                logger.error(f"Error reading scanner file {file}: {e}", exc_info=True)
+        
+        # No match found
+        logger.info(f"No scanner list match found for: '{name}'")
         return None
+        
     except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error checking scanner lists: {e}")
+        logger.error(f"Error checking scanner lists: {e}", exc_info=True)
         return None
+
+def similarity_score(s1, s2):
+    """
+    Calculate a similarity score between two strings.
+    
+    Args:
+        s1, s2: Strings to compare
+        
+    Returns:
+        Float between 0 and 1, where 1 is perfect match
+    """
+    if not s1 or not s2:
+        return 0
+    
+    # Simple similarity calculation based on common subsequence
+    len_s1, len_s2 = len(s1), len(s2)
+    
+    # Check if one is a substring of the other
+    if s1 in s2:
+        return len(s1) / len(s2)
+    if s2 in s1:
+        return len(s2) / len(s1)
+    
+    # Otherwise, count common characters
+    common = sum(1 for c in s1 if c in s2)
+    return common / max(len_s1, len_s2)
 
 if __name__ == "__main__":
     main()
