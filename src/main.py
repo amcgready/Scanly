@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 
 # Create logs directory if it doesn't exist
-log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
+log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'logs')
 os.makedirs(log_dir, exist_ok=True)
 
 # Ensure parent directory is in path for imports
@@ -969,7 +969,7 @@ class DirectoryProcessor:
             input("\nPress Enter to continue...")
     
     def _collect_media_files(self):
-        """Collect all media files in the directory."""
+        """Collect all media files in the directory, grouped by subfolder."""
         # Common media file extensions
         media_extensions = ['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts']
         
@@ -989,111 +989,263 @@ class DirectoryProcessor:
                 print(f"Resuming scan: {len(self.media_files)} files remaining")
                 return
         
+        # Dictionary to store files grouped by subfolder
+        self.subfolder_files = {}
+        
         # Walk through directory and find media files
         for root, _, files in os.walk(self.directory_path):
+            media_files_in_folder = []
+            
             for file in files:
                 # Check if file has a media extension
                 if any(file.lower().endswith(ext) for ext in media_extensions):
                     file_path = os.path.join(root, file)
+                    media_files_in_folder.append(file_path)
                     self.media_files.append(file_path)
+            
+            # Only add folders that contain media files
+            if media_files_in_folder:
+                self.subfolder_files[root] = sorted(media_files_in_folder)
         
-        # Sort files for consistent processing
+        # Sort media files for consistent processing
         self.media_files.sort()
         self.total_files = len(self.media_files)
         
-        print(f"Found {self.total_files} media files")
-    
+        print(f"Found {self.total_files} media files in {len(self.subfolder_files)} subfolders")
+
     def _process_media_files(self):
-        """Process each media file and create symlinks."""
+        """Process each subfolder and its media files interactively."""
         from src.utils.scanner_utils import check_scanner_lists
         
-        print("\nProcessing media files...")
+        print("\nProcessing media files by subfolder...")
         
-        # Set terminal width
-        term_width = 80
-        
-        # Calculate total files to process
-        start_idx = self.processed_files if self.resume else 0
-        remaining_files = self.media_files[start_idx:]
-        
-        # Process each file
-        for i, file_path in enumerate(remaining_files, start=start_idx+1):
-            # Update progress
-            progress = i / self.total_files
-            bar_length = 40
-            filled_length = int(bar_length * progress)
-            bar = '=' * filled_length + ' ' * (bar_length - filled_length)
+        # Process each subfolder
+        for subfolder, files in self.subfolder_files.items():
+            # Skip if no files
+            if not files:
+                continue
             
-            # Clear line and show progress
-            sys.stdout.write('\r' + ' ' * term_width)
-            sys.stdout.flush()
-            sys.stdout.write(f"\r[{bar}] {progress:.1%} - {i}/{self.total_files} - {os.path.basename(file_path)}")
-            sys.stdout.flush()
+            # Extract subfolder name for display
+            subfolder_name = os.path.basename(subfolder)
             
-            try:
-                # Check if file is in scanner lists
-                scanner_result = check_scanner_lists(file_path)
+            # Clear screen and show subfolder info
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print(f"PROCESSING SUBFOLDER: {subfolder_name}")
+            print("=" * 60)
+            
+            print(f"\nFolder path: {subfolder}")
+            print(f"Contains {len(files)} media files")
+            
+            # Special case handling for Pokemon Origins before checking scanner lists
+            if "Pokemon.Origins" in subfolder_name or "Pokemon Origins" in subfolder_name:
+                suggested_title = "Pokemon Origins"
+                content_type = "tv"  # It's an anime series
+                is_anime = True
+                tmdb_id = None
+            else:
+                # Try to extract metadata from folder name first
+                suggested_title, suggested_year = self._extract_folder_metadata(subfolder_name)
+                
+                # Check initial content type using scanner lists with the cleaned title
+                sample_file = files[0]
+                content_type = "unknown"
+                is_anime = False
+                tmdb_id = None
+                
+                # Get clean filename without path
+                sample_filename = os.path.basename(sample_file)
+                
+                # First try with the cleaned title we extracted
+                scanner_result = check_scanner_lists(sample_filename, title_hint=suggested_title)
                 
                 if scanner_result:
-                    content_type, is_anime, tmdb_id = scanner_result
-                    
-                    # Extract title and other metadata
-                    file_name = os.path.basename(file_path)
-                    file_dir = os.path.dirname(file_path)
-                    parent_dir = os.path.basename(file_dir)
-                    
-                    # Try to extract title, year, season, episode from filename or folder
-                    title, year, season, episode = self._extract_metadata(file_name, parent_dir)
-                    
-                    # Create symlink
-                    success = self._create_symlink(
-                        file_path, 
-                        title,
-                        year=year,
-                        season=season,
-                        episode=episode,
-                        is_tv=(content_type == 'tv'),
-                        is_anime=is_anime
-                    )
-                    
-                    if not success:
-                        self.errors += 1
+                    # Fix: Properly unpack the scanner result which now returns 4 values
+                    if len(scanner_result) == 4:
+                        content_type, is_anime, tmdb_id, scanner_title = scanner_result
+                        # Use the scanner title if available
+                        if scanner_title:
+                            suggested_title = scanner_title
+                    else:
+                        # Handle the case where scanner_result has 3 values for backward compatibility
+                        content_type, is_anime, tmdb_id = scanner_result
                 else:
-                    # Add to skipped items for manual review
-                    folder_path = os.path.dirname(file_path)
-                    filename = os.path.basename(file_path)
-                    
-                    # Try to extract a suggested name
-                    suggested_name = self._extract_suggested_name(filename, folder_path)
-                    
-                    skipped_item = {
-                        'path': file_path,
-                        'subfolder': folder_path,
-                        'suggested_name': suggested_name,
-                        'is_tv': None,
-                        'is_anime': None
-                    }
-                    
-                    # Add to global skipped items registry
-                    globals()['skipped_items_registry'].append(skipped_item)
-                    save_skipped_items(globals()['skipped_items_registry'])
-                    self.skipped += 1
+                    # If no match with title hint, try without it
+                    scanner_result = check_scanner_lists(sample_filename)
+                    if scanner_result:
+                        # Fix: Properly unpack the scanner result which now returns 4 values
+                        if len(scanner_result) == 4:
+                            content_type, is_anime, tmdb_id, scanner_title = scanner_result
+                            # Use the scanner title if available
+                            if scanner_title:
+                                suggested_title = scanner_title
+                        else:
+                            # Handle the case where scanner_result has 3 values for backward compatibility
+                            content_type, is_anime, tmdb_id = scanner_result
             
-            except Exception as e:
-                self.logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
-                self.errors += 1
+            # Filter out invalid years (like resolution values)
+            if suggested_year and (not suggested_year.isdigit() or int(suggested_year) < 1900 or int(suggested_year) > 2030):
+                suggested_year = None
+            
+            # Display initial guess
+            print("\nInitial detection:")
+            print(f"Title: {suggested_title}")
+            if suggested_year:
+                print(f"Year: {suggested_year}")
+            
+            # Determine content type display name
+            content_type_display = self._get_content_type_display(content_type, is_anime)
+            print(f"Content type: {content_type_display}")
+            
+            # User options
+            print("\nOptions:")
+            print("1. Accept match and process")
+            print("2. Search with new title")
+            print("3. Change content type")
+            print("4. Skip (save for later review)")
+            print("5. Quit to main menu")
+            
+            choice = input("\nEnter choice (1-5): ").strip()
+            
+            if choice == "5":
+                # Quit to main menu
+                print("\nReturning to main menu...")
+                return
+            
+            elif choice == "4":
+                # Skip and save for later review
+                self._skip_files(files, subfolder, content_type, is_anime, subfolder_name)
+                continue
+            
+            elif choice == "3":
+                # Change content type - simplified interface with combined options
+                print("\nSelect content type:")
+                print("1. TV Series")
+                print("2. Movie")
+                print("3. Anime Series")
+                print("4. Anime Movie")
+                
+                type_choice = input("\nEnter choice (1-4): ").strip()
+                
+                # Set content type and anime flag based on unified selection
+                if type_choice == "1":
+                    content_type = "tv"
+                    is_anime = False
+                elif type_choice == "2":
+                    content_type = "movie"
+                    is_anime = False
+                elif type_choice == "3":
+                    content_type = "tv"
+                    is_anime = True
+                elif type_choice == "4":
+                    content_type = "movie" 
+                    is_anime = True
+                else:
+                    print("\nInvalid choice. Using initial detection.")
+                    input("\nPress Enter to continue...")
+            
+            elif choice == "2":
+                # Search with new title
+                new_title = input("\nEnter new title: ").strip()
+                if new_title:
+                    suggested_title = new_title
+                    
+                    # Ask for year
+                    new_year = input("Enter year (optional): ").strip()
+                    if new_year and new_year.isdigit() and len(new_year) == 4:
+                        suggested_year = new_year
+            
+            # Process the subfolder based on content type
+            if content_type == "tv":
+                self._process_tv_series(files, subfolder, suggested_title, suggested_year, is_anime)
+            else:
+                self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime)
             
             # Update processed count
-            self.processed_files = i
+            self.processed_files += len(files)
             
-            # Save progress every 10 files in case of interruption
-            if i % 10 == 0:
-                save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+            # Save progress
+            save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+            
+            # Clear screen before continuing to the next subfolder
+            clear_screen()
+
+    def _get_content_type_display(self, content_type, is_anime):
+        """Return a user-friendly display name for the content type."""
+        if content_type == "tv":
+            return "Anime Series" if is_anime else "TV Series"
+        elif content_type == "movie":
+            return "Anime Movie" if is_anime else "Movie"
+        else:
+            return "Unknown"
+
+    def _skip_files(self, files, subfolder, content_type, is_anime, subfolder_name):
+        """Skip files and add them to the skipped items registry."""
+        for file_path in files:
+            # Add to skipped items for manual review
+            suggested_name = self._extract_suggested_name(os.path.basename(file_path), subfolder)
+            
+            skipped_item = {
+                'path': file_path,
+                'subfolder': subfolder,
+                'suggested_name': suggested_name,
+                'is_tv': content_type == 'tv',
+                'is_anime': is_anime
+            }
+            
+            # Add to global skipped items registry
+            globals()['skipped_items_registry'].append(skipped_item)
         
-        # Clear the progress line
-        sys.stdout.write('\r' + ' ' * term_width)
-        sys.stdout.flush()
-    
+        save_skipped_items(globals()['skipped_items_registry'])
+        self.skipped += len(files)
+        print(f"\nSkipped {len(files)} files from {subfolder_name} for later review.")
+        input("\nPress Enter to continue...")
+
+    def _extract_folder_metadata(self, folder_name):
+        """Extract title and year from folder name."""
+        # Special case handling for Pokemon Origins
+        if "Pokemon.Origins" in folder_name or "Pokemon Origins" in folder_name:
+            return "Pokemon Origins", None
+        
+        # Clean the folder name - replace dots, underscores, and dashes with spaces
+        clean_name = folder_name.replace('.', ' ').replace('_', ' ').replace('-', ' ')
+        
+        # First, try to extract year
+        year_match = re.search(r'\((\d{4})\)|\[(\d{4})\]|(?<!\d)(\d{4})(?!\d)', clean_name)
+        year = None
+        
+        if year_match:
+            # Use the first non-None group
+            year = next((g for g in year_match.groups() if g is not None), None)
+            # Remove the year from the title
+            clean_name = re.sub(r'\((\d{4})\)|\[(\d{4})\]|(?<!\d)(\d{4})(?!\d)', '', clean_name)
+        
+        # Remove season indicators (like S01, Season 1)
+        clean_name = re.sub(r'\bS\d{1,2}\b|\bSeason\s*\d{1,2}\b', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove resolution indicators (like 1080p, 2160p, 720p)
+        clean_name = re.sub(r'\b(?:1080p|720p|2160p|480p|4K|UHD)\b', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove other common technical specifications
+        clean_name = re.sub(r'\b(?:WEB-?DL|BluRay|x264|x265|XviD|HEVC|AAC\d?(?:\.\d)?|H\.264|H\.265)\b', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove release group tags in brackets
+        clean_name = re.sub(r'\[[^\]]*\]', '', clean_name)
+        
+        # Remove any content in parentheses
+        clean_name = re.sub(r'\([^\)]*\)', '', clean_name)
+        
+        # Remove any content after a hyphen (often release group info)
+        hyphen_parts = clean_name.split(' - ')
+        if len(hyphen_parts) > 1:
+            clean_name = hyphen_parts[0]
+        
+        # Normalize spaces and trim
+        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+        
+        return clean_name, year
+
     def _extract_metadata(self, filename, dirname):
         """
         Extract metadata from filename and directory name.
@@ -1172,7 +1324,7 @@ class DirectoryProcessor:
         else:
             return parent_folder
     
-    def _create_symlink(self, source_path, title, year=None, season=None, episode=None, is_tv=False, is_anime=False, resolution=None):
+    def _create_symlink(self, source_path, title, year=None, season=None, episode=None, is_tv=False, is_anime=False, resolution=None, part=None):
         """
         Create a symlink from the source file to the appropriate destination.
         
@@ -1185,6 +1337,7 @@ class DirectoryProcessor:
             is_tv: Boolean indicating if content is a TV series
             is_anime: Boolean indicating if content is anime
             resolution: Optional resolution string
+            part: Part number for multi-part movies (optional)
             
         Returns:
             Boolean indicating success
@@ -1220,7 +1373,8 @@ class DirectoryProcessor:
                 'season': season,
                 'episode': episode,
                 'resolution': resolution,
-                'episode_title': None  # Add episode title key with None as default
+                'episode_title': None,  # Add episode title key with None as default
+                'part': part  # Add part number for multi-part movies
             }
             
             # Create symlinks using the utility function
@@ -1248,6 +1402,166 @@ class DirectoryProcessor:
             print(f"Error creating symlink: {e}")
             self.errors += 1
             return False
+
+    def _process_movies(self, files, subfolder, title, year, is_anime):
+        """Process files as movies."""
+        # For multi-part movies or movie collections
+        if len(files) > 1:
+            print(f"\nFound {len(files)} files for movie '{title}'")
+            print("1. Process as parts of the same movie")
+            print("2. Process as separate movies (will prompt for titles)")
+            
+            multi_choice = input("\nEnter choice (1-2): ").strip()
+            
+            if multi_choice == "2":
+                # Process as separate movies
+                for i, file_path in enumerate(files):
+                    filename = os.path.basename(file_path)
+                    print(f"\nFile {i+1}/{len(files)}: {filename}")
+                    
+                    movie_title = input(f"Enter title for this movie (or press Enter to use '{title}'): ").strip()
+                    if not movie_title:
+                        movie_title = title
+                    
+                    movie_year = input(f"Enter year (or press Enter to use '{year}'): ").strip()
+                    if not movie_year:
+                        movie_year = year
+                    
+                    # Create symlink
+                    success = self._create_symlink(
+                        file_path,
+                        movie_title,
+                        year=movie_year,
+                        is_tv=False,
+                        is_anime=is_anime
+                    )
+                    
+                    if not success:
+                        self.errors += 1
+            else:
+                # Process as parts of the same movie
+                for i, file_path in enumerate(files):
+                    # Create symlink with part number
+                    success = self._create_symlink(
+                        file_path,
+                        title,
+                        year=year,
+                        is_tv=False,
+                        is_anime=is_anime,
+                        part=i+1
+                    )
+                    
+                    if not success:
+                        self.errors += 1
+        else:
+            # Single movie file
+            file_path = files[0]
+            
+            # Create symlink
+            success = self._create_symlink(
+                file_path,
+                title,
+                year=year,
+                is_tv=False,
+                is_anime=is_anime
+            )
+            
+            if not success:
+                self.errors += 1
+
+    def _process_tv_series(self, files, subfolder, title, year, is_anime):
+        """Process files as TV series."""
+        # Check if we should auto-extract episodes based on environment variable
+        auto_extract = os.environ.get('AUTO_EXTRACT_EPISODES', 'False').lower() in ('true', 'yes', '1')
+        
+        # Only ask for manual processing if auto_extract is False
+        if not auto_extract:
+            print("\nHow do you want to process these episodes?")
+            print("1. Automatically extract season and episode info")
+            print("2. Manually set season for all files")
+            
+            extract_choice = input("\nEnter choice (1-2): ").strip()
+            auto_extract = extract_choice == "1"
+        
+        if auto_extract:
+            # Automatically extract season and episode info
+            print("\nAutomatically extracting season and episode information...")
+            
+            for file_path in files:
+                try:
+                    filename = os.path.basename(file_path)
+                    
+                    # Extract season and episode info
+                    _, _, season, episode = self._extract_metadata(filename, title)
+                    
+                    if not season:
+                        # Try to extract from folder structure
+                        season_match = re.search(r'season\s*(\d+)|s(\d+)', subfolder, re.IGNORECASE)
+                        if season_match:
+                            season = int(next((g for g in season_match.groups() if g is not None), 1))
+                        else:
+                            season = 1  # Default to season 1
+                    
+                    if not episode:
+                        # Try simple pattern matching for episode numbers
+                        ep_match = re.search(r'e(\d+)|episode\s*(\d+)|ep\s*(\d+)', filename, re.IGNORECASE)
+                        if ep_match:
+                            episode = int(next((g for g in ep_match.groups() if g is not None), 1))
+                        else:
+                            # Try to extract just numbers
+                            num_match = re.search(r'(?<!\d)(\d{1,3})(?!\d)', filename)
+                            if num_match:
+                                episode = int(num_match.group(1))
+                            else:
+                                episode = None  # Cannot determine episode
+                    
+                    # Create symlink with extracted metadata
+                    success = self._create_symlink(
+                        file_path,
+                        title,
+                        year=year,
+                        season=season,
+                        episode=episode,
+                        is_tv=True,
+                        is_anime=is_anime
+                    )
+                    
+                    if not success:
+                        self.errors += 1
+                
+                except Exception as e:
+                    self.logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
+                    self.errors += 1
+        
+        else:
+            # Manually set season
+            season = input("\nEnter season number for all files: ").strip()
+            if not season.isdigit():
+                season = 1  # Default to season 1
+            else:
+                season = int(season)
+            
+            # Process each file and prompt for episode number
+            for i, file_path in enumerate(files):
+                filename = os.path.basename(file_path)
+                print(f"\nFile {i+1}/{len(files)}: {filename}")
+                
+                episode_input = input(f"Enter episode number (or press Enter to use {i+1}): ").strip()
+                episode = int(episode_input) if episode_input.isdigit() else i+1
+                
+                # Create symlink
+                success = self._create_symlink(
+                    file_path,
+                    title,
+                    year=year,
+                    season=season,
+                    episode=episode,
+                    is_tv=True,
+                    is_anime=is_anime
+                )
+                
+                if not success:
+                    self.errors += 1
 
 # Main entry point
 if __name__ == "__main__":
