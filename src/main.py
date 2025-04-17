@@ -339,6 +339,24 @@ class MainMenu:
         print("INDIVIDUAL SCAN")
         print("=" * 60)
         
+        # Ask for scan mode first
+        print("\nSelect scan mode:")
+        print("1. Auto Scan (automatic content detection and processing without user interaction)")
+        print("2. Manual Scan (interactive content selection and processing)")
+        print("0. Back to Main Menu")
+        
+        mode_choice = input("\nEnter choice (0-2): ").strip()
+        
+        if mode_choice == '0':
+            return
+            
+        auto_mode = (mode_choice == "1")
+        
+        if not auto_mode and mode_choice != "2":
+            print("\nInvalid choice. Using manual scan mode.")
+            auto_mode = False
+            input("\nPress Enter to continue...")
+        
         # Get directory path from user
         print("\nEnter the path to scan (or 'q' to cancel):")
         dir_path = input("> ").strip()
@@ -355,8 +373,9 @@ class MainMenu:
             input("\nPress Enter to continue...")
             return
         
-        # Process the directory
-        processor = DirectoryProcessor(dir_path)
+        # Process the directory - make sure auto_mode is passed here
+        print(f"\nInitializing processor with auto_mode={auto_mode}...")
+        processor = DirectoryProcessor(dir_path, auto_mode=auto_mode)
         processor.process()
     
     def multi_scan(self):
@@ -366,6 +385,24 @@ class MainMenu:
         print("=" * 60)
         print("MULTI SCAN")
         print("=" * 60)
+        
+        # Ask for scan mode first
+        print("\nSelect scan mode:")
+        print("1. Auto Scan (automatic content detection and processing without user interaction)")
+        print("2. Manual Scan (interactive content selection and processing)")
+        print("0. Back to Main Menu")
+        
+        mode_choice = input("\nEnter choice (0-2): ").strip()
+        
+        if mode_choice == '0':
+            return
+            
+        auto_mode = (mode_choice == "1")
+        
+        if not auto_mode and mode_choice != "2":
+            print("\nInvalid choice. Using manual scan mode.")
+            auto_mode = False
+            input("\nPress Enter to continue...")
         
         print("\nMulti scan allows you to queue multiple directories for scanning.")
         print("Enter each directory path on a new line.")
@@ -395,7 +432,7 @@ class MainMenu:
             input("\nPress Enter to continue...")
             return
         
-        # Process each directory
+        # Process each directory - make sure auto_mode is passed here
         for i, dir_path in enumerate(directories):
             clear_screen()
             display_ascii_art()
@@ -403,8 +440,9 @@ class MainMenu:
             print(f"PROCESSING DIRECTORY {i+1}/{len(directories)}")
             print("=" * 60)
             print(f"\nDirectory: {dir_path}\n")
+            print(f"Using scan mode: {'Automatic' if auto_mode else 'Manual'}")
             
-            processor = DirectoryProcessor(dir_path)
+            processor = DirectoryProcessor(dir_path, auto_mode=auto_mode)
             processor.process()
     
     def resume_scan(self):
@@ -888,41 +926,27 @@ class MainMenu:
 class DirectoryProcessor:
     """Process a directory of media files."""
     
-    def __init__(self, directory_path, resume=False):
+    def __init__(self, directory_path, resume=False, auto_mode=False):
         """
         Initialize the directory processor.
         
         Args:
             directory_path: Path to the directory to process
             resume: Whether to resume a previous scan
+            auto_mode: Whether to process in automatic mode without user interaction
         """
         self.logger = get_logger(__name__)
+        self.logger.info(f"Initializing DirectoryProcessor with auto_mode={auto_mode}")
         self.directory_path = directory_path
         self.resume = resume
+        self.auto_mode = auto_mode
+        self.auto_process = auto_mode  # Set auto_process to match auto_mode immediately
         self.processed_files = 0
         self.total_files = 0
         self.media_files = []
         self.errors = 0
         self.skipped = 0
         self.symlink_count = 0
-    
-    def process(self):
-        """Process the directory and create symlinks."""
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("SCANNING DIRECTORY")
-        print("=" * 60)
-        
-        print(f"\nScanning: {self.directory_path}")
-        
-        # Check if directory exists
-        if not os.path.isdir(self.directory_path):
-            print(f"Directory not found: {self.directory_path}")
-            input("\nPress Enter to continue...")
-            return
-        
-        # Check if destination directory is set
         if not os.environ.get('DESTINATION_DIRECTORY'):
             print("Destination directory not set.")
             print("Please set the destination directory in Settings > Paths first.")
@@ -938,19 +962,19 @@ class DirectoryProcessor:
                 input("\nPress Enter to continue...")
                 return
             
+            # No need to ask for auto/manual mode - use the one provided in constructor
+            # Set auto_process to match the auto_mode parameter
+            self.auto_process = self.auto_mode
+            
             # Process each media file
             self._process_media_files()
             
             # Display results
-            print("\nScan completed!")
-            print(f"Processed {self.processed_files} of {self.total_files} files")
-            print(f"Created {self.symlink_count} symlinks")
-            
-            if self.errors > 0:
-                print(f"Errors: {self.errors}")
-            
-            if self.skipped > 0:
-                print(f"Skipped: {self.skipped} (Use 'Review Skipped Items' from main menu)")
+            print("\nScan completed:")
+            print(f"- Processed: {self.processed_files} files")
+            print(f"- Created symlinks: {self.symlink_count}")
+            print(f"- Skipped: {self.skipped} files")
+            print(f"- Errors: {self.errors}")
             
             # Clear scan history if all files were processed
             if self.processed_files >= self.total_files:
@@ -967,7 +991,7 @@ class DirectoryProcessor:
             self.logger.error(f"Error processing directory: {e}", exc_info=True)
             print(f"\nError processing directory: {e}")
             input("\nPress Enter to continue...")
-    
+
     def _collect_media_files(self):
         """Collect all media files in the directory, grouped by subfolder."""
         # Common media file extensions
@@ -1028,15 +1052,18 @@ class DirectoryProcessor:
             # Extract subfolder name for display
             subfolder_name = os.path.basename(subfolder)
             
-            # Clear screen and show subfolder info
-            clear_screen()
-            display_ascii_art()
-            print("=" * 60)
-            print(f"PROCESSING SUBFOLDER: {subfolder_name}")
-            print("=" * 60)
-            
-            print(f"\nFolder path: {subfolder}")
-            print(f"Contains {len(files)} media files")
+            # Clear screen and show subfolder info only in manual mode
+            if not self.auto_mode:
+                clear_screen()
+                display_ascii_art()
+                print("=" * 60)
+                print(f"PROCESSING SUBFOLDER: {subfolder_name}")
+                print("=" * 60)
+                
+                print(f"\nFolder path: {subfolder}")
+                print(f"Contains {len(files)} media files")
+            else:
+                print(f"\nProcessing subfolder: {subfolder_name}")
             
             # Special case handling for Pokemon Origins before checking scanner lists
             if "Pokemon.Origins" in subfolder_name or "Pokemon Origins" in subfolder_name:
@@ -1088,7 +1115,29 @@ class DirectoryProcessor:
             if suggested_year and (not suggested_year.isdigit() or int(suggested_year) < 1900 or int(suggested_year) > 2030):
                 suggested_year = None
             
-            # Display initial guess
+            # In auto mode, skip user interaction and process directly
+            if self.auto_mode:
+                if content_type == "unknown":
+                    # If content type could not be determined, skip in auto mode
+                    self._skip_files(files, subfolder, content_type, is_anime, subfolder_name)
+                    print(f"  Skipped {len(files)} files (unknown content type)")
+                    continue
+                
+                # Process based on detected content type
+                print(f"  Auto-detected: {suggested_title} ({self._get_content_type_display(content_type, is_anime)})")
+                if content_type == "tv":
+                    self._process_tv_series(files, subfolder, suggested_title, suggested_year, is_anime)
+                else:
+                    self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime)
+                    
+                # Update processed count
+                self.processed_files += len(files)
+                
+                # Save progress
+                save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+                continue
+            
+            # Manual mode - Display initial guess and options for user
             print("\nInitial detection:")
             print(f"Title: {suggested_title}")
             if suggested_year:
@@ -1100,13 +1149,17 @@ class DirectoryProcessor:
             
             # User options
             print("\nOptions:")
-            print("1. Accept match and process")
+            print("1. Accept match and process (default - press Enter)")
             print("2. Search with new title")
             print("3. Change content type")
             print("4. Skip (save for later review)")
             print("5. Quit to main menu")
             
-            choice = input("\nEnter choice (1-5): ").strip()
+            choice = input("\nEnter choice (1-5, or press Enter for option 1): ").strip()
+            
+            # Use default choice (1) if user just presses Enter
+            if choice == "":
+                choice = "1"
             
             if choice == "5":
                 # Quit to main menu
@@ -1168,8 +1221,9 @@ class DirectoryProcessor:
             # Save progress
             save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
             
-            # Clear screen before continuing to the next subfolder
-            clear_screen()
+            # No confirmation step between subfolders - just clear the screen and continue
+            if not self.auto_mode:
+                clear_screen()
 
     def _get_content_type_display(self, content_type, is_anime):
         """Return a user-friendly display name for the content type."""
@@ -1472,96 +1526,391 @@ class DirectoryProcessor:
     def _process_tv_series(self, files, subfolder, title, year, is_anime):
         """Process files as TV series."""
         # Check if we should auto-extract episodes based on environment variable
-        auto_extract = os.environ.get('AUTO_EXTRACT_EPISODES', 'False').lower() in ('true', 'yes', '1')
+        auto_extract_episodes = os.environ.get('AUTO_EXTRACT_EPISODES', 'False').lower() in ('true', 'yes', '1')
         
-        # Only ask for manual processing if auto_extract is False
-        if not auto_extract:
-            print("\nHow do you want to process these episodes?")
-            print("1. Automatically extract season and episode info")
-            print("2. Manually set season for all files")
+        # In manual mode, ask if seasons should be processed manually or automatically
+        auto_process_seasons = True  # Default for auto mode
+        
+        # Check if this is likely a multi-season pack (like "Star.Trek.The.Next.Generation.S01-07")
+        subfolder_name = os.path.basename(subfolder)
+        is_multi_season_pack = False
+        
+        # Look for patterns like "S01-S07", "S01-07", "Season 1-7", etc.
+        multi_season_patterns = [
+            r'S(\d{1,2})[.-]S?(\d{1,2})',  # S01-S07 or S01-07
+            r'S(\d{1,2}).*?S(\d{1,2})',     # S01...S07
+            r'Season[s]?\s*(\d{1,2})[-.](\d{1,2})',  # Season 1-7 or Seasons 1-7
+            r'(\d{1,2})[-.](\d{1,2})\s*Season[s]?'   # 1-7 Seasons
+        ]
+        
+        season_range = None
+        for pattern in multi_season_patterns:
+            match = re.search(pattern, subfolder_name, re.IGNORECASE)
+            if match:
+                is_multi_season_pack = True
+                start_season = int(match.group(1))
+                end_season = int(match.group(2))
+                season_range = (start_season, end_season)
+                break
+        
+        # If this looks like a multi-season pack, suggest using detailed title extraction
+        if is_multi_season_pack and not self.auto_mode:
+            # Try to extract a more specific title from the folder name
+            refined_title = self._extract_full_series_name(subfolder_name)
+            if refined_title != title:
+                print(f"\nDetected possible full series title: {refined_title}")
+                use_detailed = input(f"Use '{refined_title}' instead of '{title}'? (Y/n): ").strip().lower()
+                if use_detailed != 'n':
+                    title = refined_title
+                    print(f"Using title: {title}")
             
-            extract_choice = input("\nEnter choice (1-2): ").strip()
-            auto_extract = extract_choice == "1"
+            print(f"\nThis appears to be a multi-season pack (Seasons {season_range[0]}-{season_range[1]})")
         
-        if auto_extract:
-            # Automatically extract season and episode info
-            print("\nAutomatically extracting season and episode information...")
+        if not self.auto_mode:
+            print("\nHow would you like to process seasons?")
+            print("1. Automatically detect seasons (default - press Enter)")
+            print("2. Manually assign season numbers")
+            
+            season_choice = input("\nEnter choice (1-2, or press Enter for option 1): ").strip()
+            auto_process_seasons = (not season_choice or season_choice == "1")
+        
+        # Display the chosen processing method
+        if not self.auto_mode:
+            season_mode = "automatic" if auto_process_seasons else "manual"
+            episode_mode = "automatic" if auto_extract_episodes else "manual"
+            print(f"\nUsing {season_mode} season detection and {episode_mode} episode detection")
+        
+        # Process TV series based on selected options
+        if auto_process_seasons:
+            # Automatically detect seasons and episodes
+            successful_links = 0
+            errors = 0
             
             for file_path in files:
                 try:
-                    filename = os.path.basename(file_path)
+                    # Extract season and episode from filename
+                    file_name = os.path.basename(file_path)
                     
-                    # Extract season and episode info
-                    _, _, season, episode = self._extract_metadata(filename, title)
+                    # Better metadata extraction for TV shows, especially multi-season packs
+                    metadata = self._extract_tv_metadata(file_name, os.path.basename(subfolder))
                     
-                    if not season:
-                        # Try to extract from folder structure
-                        season_match = re.search(r'season\s*(\d+)|s(\d+)', subfolder, re.IGNORECASE)
-                        if season_match:
-                            season = int(next((g for g in season_match.groups() if g is not None), 1))
+                    season = metadata.get('season')
+                    episode = metadata.get('episode')
+                    resolution = metadata.get('resolution')
+                    
+                    if not season and season_range:
+                        # If no season was detected but we have a season range from the folder name,
+                        # try to extract it from the filename with the known range
+                        season = self._extract_season_from_filename(file_name, season_range)
+                    
+                    if not season or not episode:
+                        print(f"Warning: Could not extract season/episode from {file_name}")
+                        if not auto_extract_episodes:
+                            if not season and not self.auto_mode:
+                                season_input = input(f"Enter season number for {file_name}: ").strip()
+                                if season_input.isdigit():
+                                    season = season_input
+                                else:
+                                    print("Invalid season number. Skipping file.")
+                                    errors += 1
+                                    continue
+                            
+                            if not episode and not self.auto_mode:
+                                episode_input = input(f"Enter episode number for {file_name}: ").strip()
+                                if episode_input.isdigit():
+                                    episode = episode_input
+                                else:
+                                    print("Invalid episode number. Skipping file.")
+                                    errors += 1
+                                    continue
                         else:
-                            season = 1  # Default to season 1
+                            errors += 1
+                            continue
                     
-                    if not episode:
-                        # Try simple pattern matching for episode numbers
-                        ep_match = re.search(r'e(\d+)|episode\s*(\d+)|ep\s*(\d+)', filename, re.IGNORECASE)
-                        if ep_match:
-                            episode = int(next((g for g in ep_match.groups() if g is not None), 1))
-                        else:
-                            # Try to extract just numbers
-                            num_match = re.search(r'(?<!\d)(\d{1,3})(?!\d)', filename)
-                            if num_match:
-                                episode = int(num_match.group(1))
-                            else:
-                                episode = None  # Cannot determine episode
-                    
-                    # Create symlink with extracted metadata
-                    success = self._create_symlink(
-                        file_path,
-                        title,
-                        year=year,
-                        season=season,
-                        episode=episode,
-                        is_tv=True,
-                        is_anime=is_anime
-                    )
-                    
-                    if not success:
-                        self.errors += 1
+                    # Create symlink with detected metadata
+                    if self._create_symlink(
+                        file_path, 
+                        title, 
+                        year, 
+                        season, 
+                        episode, 
+                        is_tv=True, 
+                        is_anime=is_anime,
+                        resolution=resolution
+                    ):
+                        successful_links += 1
+                    else:
+                        errors += 1
                 
                 except Exception as e:
-                    self.logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
-                    self.errors += 1
-        
+                    self.logger.error(f"Error processing TV file {file_path}: {e}", exc_info=True)
+                    print(f"Error processing {os.path.basename(file_path)}: {e}")
+                    errors += 1
+                    
+            # Update counts
+            self.symlink_count += successful_links
+            self.errors += errors
+                    
         else:
-            # Manually set season
+            # Manual season assignment
             season = input("\nEnter season number for all files: ").strip()
             if not season.isdigit():
-                season = 1  # Default to season 1
-            else:
-                season = int(season)
+                print("Invalid season number. Using season 1 as default.")
+                season = "1"
             
-            # Process each file and prompt for episode number
-            for i, file_path in enumerate(files):
-                filename = os.path.basename(file_path)
-                print(f"\nFile {i+1}/{len(files)}: {filename}")
-                
-                episode_input = input(f"Enter episode number (or press Enter to use {i+1}): ").strip()
-                episode = int(episode_input) if episode_input.isdigit() else i+1
-                
-                # Create symlink
-                success = self._create_symlink(
-                    file_path,
-                    title,
-                    year=year,
-                    season=season,
-                    episode=episode,
-                    is_tv=True,
-                    is_anime=is_anime
-                )
-                
-                if not success:
-                    self.errors += 1
+            # Process each file with the manually set season
+            successful_links = 0
+            errors = 0
+            
+            for file_path in files:
+                try:
+                    file_name = os.path.basename(file_path)
+                    metadata = self._extract_tv_metadata(file_name, os.path.basename(subfolder))
+                    resolution = metadata.get('resolution')
+                    
+                    # If auto_extract_episodes is enabled, try to extract episode number
+                    # Otherwise, manually set the episode number
+                    episode = None
+                    if auto_extract_episodes:
+                        episode = metadata.get('episode')
+                        if not episode:
+                            print(f"Warning: Could not extract episode from {file_name}")
+                            if not self.auto_mode:
+                                # In manual mode, allow entering episode manually when auto-extraction fails
+                                episode_input = input(f"Enter episode number for {file_name}: ").strip()
+                                if episode_input.isdigit():
+                                    episode = episode_input
+                                else:
+                                    print("Invalid episode number. Skipping file.")
+                                    errors += 1
+                                    continue
+                            else:
+                                # In auto mode, skip files when extraction fails
+                                errors += 1
+                                continue
+                    else:
+                        # Always prompt for episode number when auto_extract_episodes is disabled
+                        print(f"\nFile: {file_name}")
+                        episode_input = input(f"Enter episode number: ").strip()
+                        if episode_input.isdigit():
+                            episode = episode_input
+                        else:
+                            print("Invalid episode number. Skipping file.")
+                            errors += 1
+                            continue
+                    
+                    # Create symlink with manually set season and episode
+                    if self._create_symlink(
+                        file_path, 
+                        title, 
+                        year, 
+                        season, 
+                        episode, 
+                        is_tv=True, 
+                        is_anime=is_anime,
+                        resolution=resolution
+                    ):
+                        successful_links += 1
+                    else:
+                        errors += 1
+                        
+                except Exception as e:
+                    self.logger.error(f"Error processing TV file {file_path}: {e}", exc_info=True)
+                    print(f"Error processing {os.path.basename(file_path)}: {e}")
+                    errors += 1
+            
+            # Update counts
+            self.symlink_count += successful_links
+            self.errors += errors
+
+    def process(self):
+        """Process the directory and create symlinks."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("SCANNING DIRECTORY")
+        print("=" * 60)
+        
+        print(f"\nScanning: {self.directory_path}")
+        
+        # Check if directory exists
+        if not os.path.isdir(self.directory_path):
+            print(f"Directory not found: {self.directory_path}")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Check if destination directory is set
+        if not os.environ.get('DESTINATION_DIRECTORY'):
+            print("Destination directory not set.")
+            print("Please set the destination directory in Settings > Paths first.")
+            input("\nPress Enter to continue...")
+            return
+        
+        try:
+            # Display the mode being used at the beginning
+            print(f"\nScan mode: {'Automatic' if self.auto_mode else 'Manual'}")
+            
+            # Collect all media files in the directory
+            self._collect_media_files()
+            
+            if not self.media_files:
+                print("No media files found in the directory.")
+                input("\nPress Enter to continue...")
+                return
+            
+            # Use the auto_mode parameter without asking again
+            self.auto_process = self.auto_mode
+            
+            # Process each media file
+            self._process_media_files()
+            
+            # Display results
+            print("\nScan completed:")
+            print(f"- Processed: {self.processed_files} files")
+            print(f"- Created symlinks: {self.symlink_count}")
+            print(f"- Skipped: {self.skipped} files")
+            print(f"- Errors: {self.errors}")
+            
+            # Clear scan history if all files were processed
+            if self.processed_files >= self.total_files:
+                clear_scan_history()
+            
+            input("\nPress Enter to continue...")
+            
+        except KeyboardInterrupt:
+            # Save progress for resuming later
+            save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+            print("\nScan interrupted. Progress saved for resuming later.")
+            input("\nPress Enter to continue...")
+        except Exception as e:
+            self.logger.error(f"Error processing directory: {e}", exc_info=True)
+            print(f"\nError processing directory: {e}")
+            input("\nPress Enter to continue...")
+
+    def _extract_full_series_name(self, folder_name):
+        """Extract the full series name from folder name, preserving important subtitle parts."""
+        # Replace common separators with spaces
+        clean_name = folder_name.replace('.', ' ').replace('_', ' ')
+        
+        # Remove season markers like S01-S07, Season 1-7, etc.
+        clean_name = re.sub(r'S\d{1,2}[-.]S?\d{1,2}', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'Season[s]?\s*\d{1,2}[-.](\d{1,2})', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'(\d{1,2})[-.](\d{1,2})\s*Season[s]?', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove resolution and quality markers
+        clean_name = re.sub(r'\b(?:1080p|720p|2160p|480p|4K|UHD)\b', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'\b(?:BluRay|x264|x265|HEVC|AAC|H\.264|H\.265|DTS|DD5\.1)\b', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove content in brackets
+        clean_name = re.sub(r'\[[^\]]*\]', '', clean_name)
+        
+        # Special handling for series with "The" in the middle like "Star Trek: The Next Generation"
+        # Look for common patterns in show titles
+        trek_match = re.search(r'\b(Star\s*Trek).*?(The\s*Next\s*Generation)', clean_name, re.IGNORECASE)
+        if trek_match:
+            return f"{trek_match.group(1)}: {trek_match.group(2)}"
+        
+        # Handle other shows with colons or extended titles
+        colon_match = re.search(r'^([^:]+)[:\s]+(.*?)(?:\s*\(|$)', clean_name)
+        if colon_match and len(colon_match.group(2)) > 2:  # Ensure the subtitle is meaningful
+            return f"{colon_match.group(1)}: {colon_match.group(2)}".strip()
+        
+        # Normalize spaces and trim
+        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+        
+        return clean_name
+
+    def _extract_tv_metadata(self, filename, dirname):
+        """
+        Extract metadata from TV show filename.
+        
+        Returns:
+            Dictionary with keys for season, episode, resolution, etc.
+        """
+        metadata = {
+            'season': None,
+            'episode': None,
+            'resolution': None
+        }
+        
+        # Clean the filename
+        clean_filename = filename.replace('.', ' ').replace('_', ' ')
+        
+        # Try to extract season and episode with different patterns
+        
+        # Pattern 1: S01E01 format
+        season_ep_pattern = re.compile(r'S(\d{1,2})E(\d{1,2})', re.IGNORECASE)
+        match = season_ep_pattern.search(clean_filename)
+        if match:
+            metadata['season'] = match.group(1)
+            metadata['episode'] = match.group(2)
+            return metadata
+        
+        # Pattern 2: Season X Episode Y format
+        alt_pattern = re.compile(r'Season\s*(\d{1,2}).*?Episode\s*(\d{1,2})', re.IGNORECASE)
+        match = alt_pattern.search(clean_filename)
+        if match:
+            metadata['season'] = match.group(1)
+            metadata['episode'] = match.group(2)
+            return metadata
+        
+        # Pattern 3: 1x01 format
+        numeric_pattern = re.compile(r'(\d{1,2})x(\d{2})', re.IGNORECASE)
+        match = numeric_pattern.search(clean_filename)
+        if match:
+            metadata['season'] = match.group(1)
+            metadata['episode'] = match.group(2)
+            return metadata
+        
+        # Pattern 4: Look for episode numbers in filenames like "Star.Trek.TNG.121.mp4"
+        # This would be season 1, episode 21
+        episode_number_pattern = re.compile(r'\.(\d)(\d{2})\.')
+        match = episode_number_pattern.search(filename)
+        if match:
+            metadata['season'] = match.group(1)
+            metadata['episode'] = match.group(2)
+            return metadata
+        
+        # Try to extract resolution
+        resolution_pattern = re.compile(r'\b(2160p|1080p|720p|480p|4K|UHD)\b', re.IGNORECASE)
+        res_match = resolution_pattern.search(clean_filename)
+        if res_match:
+            metadata['resolution'] = res_match.group(1)
+        
+        return metadata
+
+    def _extract_season_from_filename(self, filename, season_range=None):
+        """
+        Extract season number from filename, with optional known season range.
+        
+        Args:
+            filename: The filename to extract from
+            season_range: Optional tuple of (start_season, end_season)
+            
+        Returns:
+            Season number as string or None if not found
+        """
+        if not season_range:
+            return None
+        
+        # If this is a multi-season pack like S01-S07, try to find which season this file belongs to
+        start_season, end_season = season_range
+        
+        # Look for season indicators in the filename
+        for season_num in range(start_season, end_season + 1):
+            # Format season number with leading zero if needed
+            season_str = f"{season_num:02d}"
+            season_patterns = [
+                rf'S{season_str}',           # S01
+                rf'Season {season_num}',      # Season 1
+                rf'{season_num}x\d{{2}}',     # 1x01
+            ]
+            
+            for pattern in season_patterns:
+                if re.search(pattern, filename, re.IGNORECASE):
+                    return str(season_num)
+        
+        return None
 
 # Main entry point
 if __name__ == "__main__":
