@@ -1121,6 +1121,10 @@ class DirectoryProcessor:
                     # If content type could not be determined, skip in auto mode
                     self._skip_files(files, subfolder, content_type, is_anime, subfolder_name)
                     print(f"  Skipped {len(files)} files (unknown content type)")
+                    # IMPORTANT FIX: Still count these as processed since we've handled them
+                    self.processed_files += len(files)
+                    # Save progress
+                    save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
                     continue
                 
                 # Process based on detected content type
@@ -1215,11 +1219,12 @@ class DirectoryProcessor:
             else:
                 self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime)
             
-            # Update processed count
-            self.processed_files += len(files)
-            
-            # Save progress
-            save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+            # Update processed count - only in manual mode
+            # In auto mode, this is handled within the auto-mode processing block
+            if not self.auto_mode:
+                self.processed_files += len(files)
+                # Save progress after each subfolder in manual mode
+                save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
             
             # No confirmation step between subfolders - just clear the screen and continue
             if not self.auto_mode:
@@ -1336,10 +1341,11 @@ class DirectoryProcessor:
         
         # Try to extract year
         year_pattern = re.compile(r'\((\d{4})\)|\[(\d{4})\]|(?<!\d)(\d{4})(?!\d)')
-        match = year_pattern.search(clean_filename)
-        if match:
-            # Use the first non-None group
-            year = next((g for g in match.groups() if g is not None), None)
+        if not year:
+            match = year_pattern.search(clean_filename)
+            if match:
+                # Use the first non-None group
+                year = next((g for g in match.groups() if g is not None), None)
         
         return title, year, season, episode
     
@@ -1606,26 +1612,34 @@ class DirectoryProcessor:
                     if not season or not episode:
                         print(f"Warning: Could not extract season/episode from {file_name}")
                         if not auto_extract_episodes:
-                            if not season and not self.auto_mode:
-                                season_input = input(f"Enter season number for {file_name}: ").strip()
-                                if season_input.isdigit():
-                                    season = season_input
-                                else:
-                                    print("Invalid season number. Skipping file.")
-                                    errors += 1
-                                    continue
-                            
-                            if not episode and not self.auto_mode:
-                                episode_input = input(f"Enter episode number for {file_name}: ").strip()
-                                if episode_input.isdigit():
-                                    episode = episode_input
-                                else:
-                                    print("Invalid episode number. Skipping file.")
-                                    errors += 1
-                                    continue
-                        else:
+                            print("Manual episode numbering required but not available in auto mode.")
+                            print(f"Skipping {file_name}")
                             errors += 1
                             continue
+                        else:
+                            # Try to extract episode number from filename when season is known
+                            if season and not episode:
+                                # Try various patterns to extract just the episode number
+                                ep_patterns = [
+                                    r'E(\d{1,3})',  # Match E01, E1, E001
+                                    r'EP(\d{1,3})',  # Match EP01, EP1, EP001
+                                    r'Episode.*?(\d{1,3})',  # Match Episode 1, Episode 01
+                                    r'[\s\.\-](\d{1,3})[\s\.\-]',  # Match spaces, dots or dashes with numbers
+                                ]
+                                for pattern in ep_patterns:
+                                    ep_match = re.search(pattern, file_name, re.IGNORECASE)
+                                    if ep_match:
+                                        episode = int(ep_match.group(1))
+                                        break
+                            
+                            # If still no success, try to guess from file order
+                            if not season or not episode:
+                                # Default to season 1 if not found
+                                if not season:
+                                    season = 1
+                                # Default to episode based on position in file list
+                                episode = files.index(file_path) + 1
+                                print(f"  Auto-assigning: Season {season}, Episode {episode}")
                     
                     # Create symlink with detected metadata
                     if self._create_symlink(
@@ -1672,41 +1686,46 @@ class DirectoryProcessor:
                     # Otherwise, manually set the episode number
                     episode = None
                     if auto_extract_episodes:
-                        episode = metadata.get('episode')
+                        # Try to extract episode numbers from filename
+                        ep_match = re.search(r'[Ee](\d{1,3})', file_name)
+                        if ep_match:
+                            episode = int(ep_match.group(1))
+                        else:
+                            # Try alternative patterns
+                            alt_patterns = [
+                                r'EP(\d{1,3})',  # EP01
+                                r'Episode.*?(\d{1,3})',  # Episode 1
+                                r'[\s\.\-](\d{1,3})[\s\.\-]',  # Match numbers with separators
+                            ]
+                            for pattern in alt_patterns:
+                                ep_match = re.search(pattern, file_name, re.IGNORECASE)
+                                if ep_match:
+                                    episode = int(ep_match.group(1))
+                                    break
+                            
                         if not episode:
-                            print(f"Warning: Could not extract episode from {file_name}")
-                            if not self.auto_mode:
-                                # In manual mode, allow entering episode manually when auto-extraction fails
-                                episode_input = input(f"Enter episode number for {file_name}: ").strip()
-                                if episode_input.isdigit():
-                                    episode = episode_input
-                                else:
-                                    print("Invalid episode number. Skipping file.")
-                                    errors += 1
-                                    continue
-                            else:
-                                # In auto mode, skip files when extraction fails
-                                errors += 1
-                                continue
+                            # If we still can't extract the episode, use the index in the file list
+                            episode = files.index(file_path) + 1
+                            print(f"  Couldn't extract episode number for {file_name}, using {episode}")
                     else:
-                        # Always prompt for episode number when auto_extract_episodes is disabled
+                        # Ask user for episode number
                         print(f"\nFile: {file_name}")
-                        episode_input = input(f"Enter episode number: ").strip()
-                        if episode_input.isdigit():
-                            episode = episode_input
+                        ep_input = input(f"Enter episode number: ").strip()
+                        if ep_input.isdigit():
+                            episode = int(ep_input)
                         else:
                             print("Invalid episode number. Skipping file.")
                             errors += 1
                             continue
-                    
-                    # Create symlink with manually set season and episode
+
+                    # Create symlink with manually set season
                     if self._create_symlink(
-                        file_path, 
-                        title, 
-                        year, 
-                        season, 
-                        episode, 
-                        is_tv=True, 
+                        file_path,
+                        title,
+                        year,
+                        int(season),
+                        episode,
+                        is_tv=True,
                         is_anime=is_anime,
                         resolution=resolution
                     ):
@@ -1842,40 +1861,36 @@ class DirectoryProcessor:
         season_ep_pattern = re.compile(r'S(\d{1,2})E(\d{1,2})', re.IGNORECASE)
         match = season_ep_pattern.search(clean_filename)
         if match:
-            metadata['season'] = match.group(1)
-            metadata['episode'] = match.group(2)
-            return metadata
+            metadata['season'] = int(match.group(1))
+            metadata['episode'] = int(match.group(2))
         
         # Pattern 2: Season X Episode Y format
         alt_pattern = re.compile(r'Season\s*(\d{1,2}).*?Episode\s*(\d{1,2})', re.IGNORECASE)
         match = alt_pattern.search(clean_filename)
         if match:
-            metadata['season'] = match.group(1)
-            metadata['episode'] = match.group(2)
-            return metadata
+            metadata['season'] = int(match.group(1))
+            metadata['episode'] = int(match.group(2))
         
         # Pattern 3: 1x01 format
         numeric_pattern = re.compile(r'(\d{1,2})x(\d{2})', re.IGNORECASE)
         match = numeric_pattern.search(clean_filename)
         if match:
-            metadata['season'] = match.group(1)
-            metadata['episode'] = match.group(2)
-            return metadata
+            metadata['season'] = int(match.group(1))
+            metadata['episode'] = int(match.group(2))
         
         # Pattern 4: Look for episode numbers in filenames like "Star.Trek.TNG.121.mp4"
         # This would be season 1, episode 21
         episode_number_pattern = re.compile(r'\.(\d)(\d{2})\.')
         match = episode_number_pattern.search(filename)
         if match:
-            metadata['season'] = match.group(1)
-            metadata['episode'] = match.group(2)
-            return metadata
+            metadata['season'] = int(match.group(1))
+            metadata['episode'] = int(match.group(2))
         
         # Try to extract resolution
-        resolution_pattern = re.compile(r'\b(2160p|1080p|720p|480p|4K|UHD)\b', re.IGNORECASE)
-        res_match = resolution_pattern.search(clean_filename)
-        if res_match:
-            metadata['resolution'] = res_match.group(1)
+        resolution_pattern = re.compile(r'(720p|1080p|2160p|4K)', re.IGNORECASE)
+        match = resolution_pattern.search(filename)
+        if match:
+            metadata['resolution'] = match.group(1)
         
         return metadata
 
