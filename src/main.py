@@ -12,6 +12,7 @@ import time
 import logging
 import unicodedata
 from pathlib import Path
+import datetime
 
 # Set up basic logging configuration
 logging.basicConfig(
@@ -1440,6 +1441,19 @@ class DirectoryProcessor:
                     print(f"Error: Failed to create destination directory: {e}")
                     return False
             
+            # Check environment variables for folder ID settings
+            include_tmdb_id = os.environ.get('TMDB_FOLDER_ID', 'true').lower() == 'true'
+            include_imdb_id = os.environ.get('IMDB_FOLDER_ID', 'false').lower() == 'true'
+            include_tvdb_id = os.environ.get('TVDB_FOLDER_ID', 'false').lower() == 'true'
+            
+            # Filter IDs based on environment settings
+            if not include_tmdb_id:
+                tmdb_id = None
+            if not include_imdb_id:
+                imdb_id = None
+            if not include_tvdb_id:
+                tvdb_id = None
+            
             # Prepare metadata
             metadata = {
                 'title': title,
@@ -1449,10 +1463,15 @@ class DirectoryProcessor:
                 'resolution': resolution,
                 'episode_title': None,  # Add episode title key with None as default
                 'part': part,  # Add part number for multi-part movies
-                'tmdb_id': tmdb_id,  # Add TMDB ID
+                'tmdb_id': tmdb_id,  # Add TMDB ID 
                 'imdb_id': imdb_id,  # Add IMDB ID
                 'tvdb_id': tvdb_id   # Add TVDB ID
             }
+            
+            # Debug log to trace what's happening
+            self.logger.debug(f"Creating symlink for '{title}' with IDs: TMDB={tmdb_id}, IMDB={imdb_id}, TVDB={tvdb_id}")
+            self.logger.debug(f"Source: {source_path}")
+            self.logger.debug(f"Destination: {destination_dir}")
             
             # Create symlinks using the utility function
             success, message = create_symlinks(
@@ -1465,7 +1484,6 @@ class DirectoryProcessor:
             )
             
             if success:
-                self.symlink_count += 1
                 self.logger.info(f"Created symlink: {message}")
                 return True
             else:
@@ -1481,84 +1499,73 @@ class DirectoryProcessor:
             return False
 
     def _process_movies(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
-        """Process files as movies."""
-        logger = logging.getLogger(__name__)
+        """Process files as movies.
         
-        # Log the information we have
-        logger.debug(f"Processing movies with title={title}, year={year}, tmdb_id={tmdb_id}, imdb_id={imdb_id}, tvdb_id={tvdb_id}")
+        Args:
+            files: List of file paths
+            subfolder: Path to subfolder containing the files
+            title: Movie title
+            year: Release year
+            is_anime: Whether this is anime content
+            tmdb_id: TMDB ID (optional)
+            imdb_id: IMDB ID (optional)
+            tvdb_id: TVDB ID (optional) - Not typically used for movies but included for consistency
+        """
+        successful_links = 0
+        errors = 0
         
-        # For multi-part movies or movie collections
-        if len(files) > 1:
-            print(f"\nFound {len(files)} files for movie '{title}'")
-            print("1. Process as parts of the same movie")
-            print("2. Process as separate movies (will prompt for titles)")
-            
-            multi_choice = input("\nEnter choice (1-2): ").strip()
-            
-            if multi_choice == "2":
-                # Process as separate movies
-                for i, file_path in enumerate(files):
-                    filename = os.path.basename(file_path)
-                    print(f"\nFile {i+1}/{len(files)}: {filename}")
+        # Check if we should attempt to get IDs that weren't provided
+        if not tmdb_id or not imdb_id:
+            # Only query TMDB if we need IDs and the title is available
+            if title:
+                ids = self._get_media_ids(title, year, is_tv=False)
+                if ids:
+                    # Only use IDs that weren't already provided
+                    if not tmdb_id:
+                        tmdb_id = ids.get('tmdb_id')
+                    if not imdb_id:
+                        imdb_id = ids.get('imdb_id')
+        
+        # Log the IDs we're working with
+        self.logger.debug(f"Processing movies with title={title}, year={year}, tmdb_id={tmdb_id}, imdb_id={imdb_id}")
+        
+        for file_path in files:
+            try:
+                # Extract resolution from filename
+                resolution = None
+                res_match = re.search(r'(720p|1080p|2160p|4K)', os.path.basename(file_path), re.IGNORECASE)
+                if res_match:
+                    resolution = res_match.group(1)
+                
+                # Detect movie part (for multi-part movies)
+                part_match = re.search(r'part\s*(\d+)', os.path.basename(file_path).lower())
+                part = part_match.group(1) if part_match else None
+                
+                # Create the symlink with the IDs
+                if self._create_symlink(
+                    file_path,
+                    title,
+                    year=year,
+                    is_tv=False,
+                    is_anime=is_anime,
+                    resolution=resolution,
+                    part=part,
+                    tmdb_id=tmdb_id,
+                    imdb_id=imdb_id,
+                    tvdb_id=tvdb_id
+                ):
+                    successful_links += 1
+                else:
+                    errors += 1
                     
-                    movie_title = input(f"Enter title for this movie (or press Enter to use '{title}'): ").strip()
-                    if not movie_title:
-                        movie_title = title
-                    
-                    movie_year = input(f"Enter year (or press Enter to use '{year}'): ").strip()
-                    if not movie_year:
-                        movie_year = year
-                    
-                    # Create symlink with IDs
-                    success = self._create_symlink(
-                        file_path,
-                        movie_title,
-                        year=movie_year,
-                        is_tv=False,
-                        is_anime=is_anime,
-                        tmdb_id=tmdb_id,
-                        imdb_id=imdb_id,
-                        tvdb_id=tvdb_id
-                    )
-                    
-                    if not success:
-                        self.errors += 1
-            else:
-                # Process as parts of the same movie
-                for i, file_path in enumerate(files):
-                    # Create symlink with part number and IDs
-                    success = self._create_symlink(
-                        file_path,
-                        title,
-                        year=year,
-                        is_tv=False,
-                        is_anime=is_anime,
-                        part=i+1,
-                        tmdb_id=tmdb_id,
-                        imdb_id=imdb_id,
-                        tvdb_id=tvdb_id
-                    )
-                    
-                    if not success:
-                        self.errors += 1
-        else:
-            # Single movie file
-            file_path = files[0]
-            
-            # Create symlink with IDs
-            success = self._create_symlink(
-                file_path,
-                title,
-                year=year,
-                is_tv=False,
-                is_anime=is_anime,
-                tmdb_id=tmdb_id,
-                imdb_id=imdb_id,
-                tvdb_id=tvdb_id
-            )
-            
-            if not success:
-                self.errors += 1
+            except Exception as e:
+                self.logger.error(f"Error processing movie file {file_path}: {e}", exc_info=True)
+                print(f"Error processing {os.path.basename(file_path)}: {e}")
+                errors += 1
+        
+        # Return success/error counts rather than updating globals
+        # This avoids double-counting when caller also updates counts
+        return successful_links, errors
 
     def _process_tv_series(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
         """Process files as TV series."""
@@ -1850,48 +1857,83 @@ class DirectoryProcessor:
 
     def _extract_full_series_name(self, folder_name):
         """Extract the full series name from folder name, preserving important subtitle parts."""
+        # Initialize variables to track special cases
+        special_case = None
+        
+        # Check for specific special cases but don't return immediately
+        if "pokemon.origins" in folder_name.lower() or "pokemon origins" in folder_name.lower():
+            special_case = "Pokemon Origins"
+        elif re.search(r'star\s*trek.*next\s*generation', folder_name.lower()):
+            special_case = "Star Trek The Next Generation"
+        elif re.search(r'attack.*titan', folder_name.lower()):
+            special_case = "Attack on Titan"
+        elif re.search(r'my.*hero.*academia', folder_name.lower()):
+            special_case = "My Hero Academia"
+        
         # Replace common separators with spaces
         clean_name = folder_name.replace('.', ' ').replace('_', ' ')
+        
+        # First remove common resolution specifications to avoid mistaking them for years
+        resolution_patterns = [
+            r'\b\d{3,4}p\b',              # 720p, 1080p, etc.
+            r'\b(?:4K|UHD)\b'             # 4K, UHD
+        ]
+        
+        for pattern in resolution_patterns:
+            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
+        
+        # Extract year if present (and preserve it for later)
+        year = None
+        year_match = re.search(r'\((\d{4})\)', clean_name)
+        if not year_match:
+            # Try alternative year formats
+            year_match = re.search(r'(?<!\d)(\d{4})(?!\d)', clean_name)
+        
+        if year_match:
+            year = year_match.group(1)
+            # Validate year is reasonable (between 1900 and current year + 1)
+            if year.isdigit() and 1900 <= int(year) <= datetime.datetime.now().year + 1:
+                # Remove year from the clean name for processing
+                clean_name = re.sub(r'\(\d{4}\)|\b\d{4}\b', '', clean_name)
+            else:
+                # If year is not reasonable, don't use it
+                year = None
         
         # Remove season markers like S01-S07, Season 1-7, etc.
         clean_name = re.sub(r'S\d{1,2}[-.]S?\d{1,2}', '', clean_name, flags=re.IGNORECASE)
         clean_name = re.sub(r'Season[s]?\s*\d{1,2}[-.](\d{1,2})', '', clean_name, flags=re.IGNORECASE)
         clean_name = re.sub(r'(\d{1,2})[-.](\d{1,2})\s*Season[s]?', '', clean_name, flags=re.IGNORECASE)
         
-        # Remove resolution and quality markers
-        clean_name = re.sub(r'\b(?:1080p|720p|2160p|480p|4K|UHD)\b', '', clean_name, flags=re.IGNORECASE)
-        clean_name = re.sub(r'\b(?:BluRay|x264|x265|HEVC|AAC|H\.264|H\.265|DTS|DD5\.1)\b', '', clean_name, flags=re.IGNORECASE)
+        # Remove common technical specifications and release info
+        technical_patterns = [
+            r'\b(?:WEB[-]?DL|BluRay|DVDRip)\b',       # Release type
+            r'\b(?:x264|x265|HEVC|H[-.]?26[45])\b',   # Encoding
+            r'\bAAC\d?(?:[-.]?\d)?\b',                # Audio codec
+            r'\b(?:DTS|DD5\.1|AC3)\b',                # Audio codec alternative
+            r'\b(?:HDTV|WEB|UHD)\b',                  # Source
+            r'\b(?:PROPER|REPACK|INTERNAL)\b',        # Release flags
+            r'[-][\w\d]+$',                           # Release group at the end
+        ]
         
-        # Remove content in brackets
-        clean_name = re.sub(r'\[[^\]]*\]', '', clean_name)
+        for pattern in technical_patterns:
+            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
         
-        # Extract year if present
-        year = None
-        year_match = re.search(r'\((\d{4})\)', clean_name)
-        if year_match:
-            year = year_match.group(1)
-            clean_name = re.sub(r'\(\d{4}\)', '', clean_name)
+        # Remove content in brackets and parentheses
+        clean_name = re.sub(r'\[[^\]]*\]|\([^)]*\)', '', clean_name)
         
-        # Normalize spaces before specific pattern matching
+        # Normalize spaces and trim
         clean_name = re.sub(r'\s+', ' ', clean_name).strip()
         
-        # Check for Star Trek special case with advanced normalization
-        if re.search(r'star\s*trek.*next\s*generation', clean_name, re.IGNORECASE):
-            # Instead of suggesting a new format, keep the original format if it's already correct
-            # Just normalize the spacing
-            original_words = clean_name.lower().split()
-            if "star" in original_words and "trek" in original_words and "the" in original_words and "next" in original_words and "generation" in original_words:
-                # If all relevant words are present, just ensure the format is clean
-                return "Star Trek The Next Generation"
+        # If we identified a special case earlier, use that normalized name
+        if special_case:
+            clean_name = special_case
         
-        # Handle other known series with specific formatting preferences
-        # This is where you can add more special case handling
-
-        # For general title formatting, keep the existing format rather than suggesting changes
-        # Just clean up spacing and remove technical information
-
         # Final cleaning and normalization
         clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+        
+        # Add back the year if it was extracted
+        if year:
+            clean_name = f"{clean_name} ({year})"
         
         return clean_name
 
@@ -2019,14 +2061,32 @@ class DirectoryProcessor:
             # Initialize TMDB API
             tmdb = TMDB(api_key=tmdb_api_key)
             
+            # Clean the title to remove any resolution or technical specs that might have been missed
+            clean_title = re.sub(r'\b\d{3,4}p\b', '', title, flags=re.IGNORECASE)  # Remove 1080p, 720p, etc.
+            clean_title = re.sub(r'\(\d{3,4}\)', '', clean_title)  # Remove (1080), etc.
+            clean_title = clean_title.strip()
+            
+            # Validate year to ensure it's a plausible year, not a resolution
+            valid_year = None
+            if year and year.isdigit():
+                year_num = int(year)
+                if 1900 <= year_num <= datetime.datetime.now().year + 1:
+                    valid_year = year
+            
             # Search differently based on content type
             if is_tv:
                 # Search for TV series
-                query = f"{title}"
-                if year:
-                    query += f" {year}"
-                    
+                query = f"{clean_title}"
+                logger.debug(f"Searching for TV series with query: {query}")
+                
+                # First try searching by title only for better matching
                 results = tmdb.search_tv(query, limit=1)
+                
+                # If no results or low confidence, and we have a valid year, try with year
+                if (not results or len(results) == 0) and valid_year:
+                    query_with_year = f"{clean_title} {valid_year}"
+                    logger.debug(f"No results with title only, trying with year: {query_with_year}")
+                    results = tmdb.search_tv(query_with_year, limit=1)
                 
                 if results and len(results) > 0:
                     show_id = results[0].get('id')
@@ -2039,7 +2099,7 @@ class DirectoryProcessor:
                         imdb_id = external_ids.get('imdb_id')
                         tvdb_id = external_ids.get('tvdb_id')
                         
-                        logger.debug(f"Found IDs for {title}: TMDB={show_id}, IMDB={imdb_id}, TVDB={tvdb_id}")
+                        logger.debug(f"Found IDs for {clean_title}: TMDB={show_id}, IMDB={imdb_id}, TVDB={tvdb_id}")
                         
                         return {
                             'tmdb_id': show_id,
@@ -2048,11 +2108,17 @@ class DirectoryProcessor:
                         }
             else:
                 # Search for movie
-                query = f"{title}"
-                if year:
-                    query += f" {year}"
-                    
+                query = f"{clean_title}"
+                logger.debug(f"Searching for movie with query: {query}")
+                
+                # First try searching by title only
                 results = tmdb.search_movie(query, limit=1)
+                
+                # If no results and we have a valid year, try with year
+                if (not results or len(results) == 0) and valid_year:
+                    query_with_year = f"{clean_title} {valid_year}"
+                    logger.debug(f"No results with title only, trying with year: {query_with_year}")
+                    results = tmdb.search_movie(query_with_year, limit=1)
                 
                 if results and len(results) > 0:
                     movie_id = results[0].get('id')
@@ -2063,7 +2129,7 @@ class DirectoryProcessor:
                         # Extract external IDs
                         imdb_id = details.get('imdb_id')
                         
-                        logger.debug(f"Found IDs for {title}: TMDB={movie_id}, IMDB={imdb_id}")
+                        logger.debug(f"Found IDs for {clean_title}: TMDB={movie_id}, IMDB={imdb_id}")
                         
                         return {
                             'tmdb_id': movie_id,
@@ -2071,7 +2137,7 @@ class DirectoryProcessor:
                             'tvdb_id': None  # Movies don't have TVDB IDs
                         }
             
-            logger.warning(f"No IDs found for {title} ({year})")
+            logger.warning(f"No IDs found for {clean_title}" + (f" ({valid_year})" if valid_year else ""))
             return {'tmdb_id': None, 'imdb_id': None, 'tvdb_id': None}
                     
         except Exception as e:
