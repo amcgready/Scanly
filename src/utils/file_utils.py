@@ -7,10 +7,10 @@ import shutil
 
 def create_symlinks(source_path, destination_path, is_anime=False, content_type=None, metadata=None, force_overwrite=False):
     """
-    Create symbolic links for the given source path at the destination path.
+    Create symbolic links for the given source file at the destination path.
     
     Args:
-        source_path: Path to the source file or directory
+        source_path: Path to the source file
         destination_path: Base destination directory
         is_anime: Boolean indicating if the content is anime
         content_type: 'tv' or 'movie'
@@ -22,193 +22,160 @@ def create_symlinks(source_path, destination_path, is_anime=False, content_type=
     """
     logger = logging.getLogger(__name__)
     
-    # Set default logging level if not already set
-    if not logger.handlers:
-        logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        logger.addHandler(handler)
-    
     try:
-        # Enhanced error checking and debug logging
-        if not os.path.exists(source_path):
-            logger.error(f"Source path does not exist: {source_path}")
-            return False, f"Source path does not exist: {source_path}"
-            
-        if not destination_path:
-            logger.error("Destination path is not set")
-            return False, "Destination path is not set"
-        
-        # Extensive debug logging
-        logger.debug(f"Creating symlink:")
-        logger.debug(f"  Source path: {source_path}")
-        logger.debug(f"  Destination path: {destination_path}")
-        logger.debug(f"  Content type: {content_type}")
-        logger.debug(f"  Is anime: {is_anime}")
-        logger.debug(f"  Metadata: {metadata}")
-        
         # Extract metadata
-        title = metadata.get('title', 'Unknown') if metadata else 'Unknown'
-        year = metadata.get('year', '') if metadata else ''
-        season = metadata.get('season') if metadata else None
-        episode = metadata.get('episode') if metadata else None
-        episode_title = metadata.get('episode_title') if metadata else None
+        title = metadata.get('title', 'Unknown')
+        year = metadata.get('year')
+        season = metadata.get('season')
+        episode = metadata.get('episode')
+        tmdb_id = metadata.get('tmdb_id')
+        imdb_id = metadata.get('imdb_id')
+        tvdb_id = metadata.get('tvdb_id')
         
-        # Clean the title for file system use
-        title = clean_filename(title)
+        # Print all metadata for debugging
+        logger.debug(f"Processing file with metadata: {metadata}")
         
-        # Determine the appropriate folder structure based on content type and anime flag
-        # We use four distinct top-level content folders:
+        # Clean the title for filesystem use
+        clean_title = clean_filename(title)
+        
+        # Read environment variables directly from os.environ
+        tmdb_folder_id = os.environ.get('TMDB_FOLDER_ID', '').lower()
+        imdb_folder_id = os.environ.get('IMDB_FOLDER_ID', '').lower()
+        tvdb_folder_id = os.environ.get('TVDB_FOLDER_ID', '').lower()
+        
+        # Debug environment variables
+        logger.debug(f"Environment variables: TMDB_FOLDER_ID={tmdb_folder_id}, IMDB_FOLDER_ID={imdb_folder_id}, TVDB_FOLDER_ID={tvdb_folder_id}")
+        logger.debug(f"IDs available: TMDB={tmdb_id}, IMDB={imdb_id}, TVDB={tvdb_id}")
+        
+        # Check which IDs should be included in the folder name
+        include_tmdb_id = tmdb_folder_id == 'true' and tmdb_id is not None
+        include_imdb_id = imdb_folder_id == 'true' and imdb_id is not None
+        include_tvdb_id = tvdb_folder_id == 'true' and tvdb_id is not None
+        
+        # Log the inclusion decisions
+        logger.debug(f"ID inclusion decisions: TMDB={include_tmdb_id}, IMDB={include_imdb_id}, TVDB={include_tvdb_id}")
+        
+        # Determine content type subfolder based on environment variables
         if content_type == 'tv':
             if is_anime:
-                # Anime Series
-                content_dir = os.path.join(destination_path, "Anime Series", title)
+                content_subdir = os.environ.get('CUSTOM_ANIME_SHOW_FOLDER', 'Anime Shows').strip('"\'')
             else:
-                # TV Series
-                content_dir = os.path.join(destination_path, "TV Series", title)
-            
-            # Add season folder for TV content
-            if season is not None:
-                season_dir = f"Season {season:02d}"
-                content_dir = os.path.join(content_dir, season_dir)
-        else:
-            # Movie content
+                content_subdir = os.environ.get('CUSTOM_SHOW_FOLDER', 'TV Shows').strip('"\'')
+        else:  # movie
             if is_anime:
-                # Anime Movies
-                title_with_year = f"{title} ({year})" if year else title
-                content_dir = os.path.join(destination_path, "Anime Movies", title_with_year)
+                content_subdir = os.environ.get('CUSTOM_ANIME_MOVIE_FOLDER', 'Anime Movies').strip('"\'')
             else:
-                # Regular Movies
-                title_with_year = f"{title} ({year})" if year else title
-                content_dir = os.path.join(destination_path, "Movies", title_with_year)
+                content_subdir = os.environ.get('CUSTOM_MOVIE_FOLDER', 'Movies').strip('"\'')
         
-        # Create the content directory if it doesn't exist
-        logger.debug(f"Creating content directory: {content_dir}")
-        try:
-            os.makedirs(content_dir, exist_ok=True)
-        except Exception as e:
-            logger.error(f"Failed to create content directory: {e}")
-            return False, f"Failed to create content directory: {str(e)}"
+        # Create base path for the content type
+        content_base = os.path.join(destination_path, content_subdir)
+        os.makedirs(content_base, exist_ok=True)
         
-        # Handle the file differently based on whether it's a directory or a file
-        if os.path.isdir(source_path):
-            # Directory handling - link all files inside
-            success = True
-            messages = []
-            
-            # Get all files in the source directory (non-recursive)
-            for filename in os.listdir(source_path):
-                file_path = os.path.join(source_path, filename)
-                
-                # Skip if not a file
-                if not os.path.isfile(file_path):
-                    continue
-                
-                # For TV shows, format the filename if we have season/episode info
-                if content_type == 'tv' and season is not None and episode is not None:
-                    # Extract file extension
-                    name, ext = os.path.splitext(filename)
-                    
-                    # Format as SxxExx - Original filename
-                    if episode_title:
-                        new_filename = f"S{season:02d}E{episode:02d} - {episode_title}{ext}"
-                    else:
-                        new_filename = f"S{season:02d}E{episode:02d} - {name}{ext}"
-                else:
-                    new_filename = filename
-                
-                # Create symlink for this file
-                dest_file_path = os.path.join(content_dir, new_filename)
-                
-                # Check if destination already exists
-                if os.path.exists(dest_file_path):
-                    if force_overwrite:
-                        try:
-                            os.remove(dest_file_path)
-                        except Exception as e:
-                            logger.error(f"Failed to remove existing file: {e}")
-                            success = False
-                            messages.append(f"Failed to remove existing file: {dest_file_path}")
-                            continue
-                    else:
-                        logger.warning(f"Destination file already exists: {dest_file_path}")
-                        success = False
-                        messages.append(f"File already exists: {dest_file_path}")
-                        continue
-                
-                # Create symlink
-                try:
-                    # Use absolute paths for symlinks
-                    abs_source = os.path.abspath(file_path)
-                    logger.debug(f"Creating symlink: {abs_source} -> {dest_file_path}")
-                    os.symlink(abs_source, dest_file_path)
-                    logger.info(f"Created symlink: {abs_source} -> {dest_file_path}")
-                    messages.append(f"Created symlink for: {filename}")
-                except Exception as e:
-                    logger.error(f"Error creating symlink for {filename}: {e}")
-                    success = False
-                    messages.append(f"Error creating symlink for {filename}: {str(e)}")
-            
-            if not messages:
-                messages = ["No files processed"]
-                
-            return success, "\n".join(messages)
-            
+        # Format the media folder name - title is required
+        media_folder = clean_title
+        
+        # ALWAYS add year if available - this is mandatory for both TV shows and movies
+        if year:
+            media_folder += f" ({year})"
         else:
-            # Single file handling
-            filename = os.path.basename(source_path)
+            logger.warning(f"No year available for {title}, folder name will not include year")
             
-            # For TV shows, format the filename if we have season/episode info
-            if content_type == 'tv' and season is not None and episode is not None:
-                # Extract file extension
-                name, ext = os.path.splitext(filename)
+        # Add IDs in correct format - only for folder names, not file names
+        if include_tmdb_id:
+            media_folder += f" [tmdb-{tmdb_id}]"
+        if include_imdb_id:
+            media_folder += f" [imdb-{imdb_id}]"
+        if include_tvdb_id and content_type == 'tv':
+            media_folder += f" [tvdb-{tvdb_id}]"
+            
+        logger.debug(f"Final media folder name: {media_folder}")
+        
+        # For TV shows
+        if content_type == 'tv':
+            # Create the full series path
+            series_path = os.path.join(content_base, media_folder)
+            os.makedirs(series_path, exist_ok=True)
+            
+            # Create season folder in the format "Season XX"
+            if season:
+                season_folder = f"Season {int(season):02d}"
+                season_path = os.path.join(series_path, season_folder)
+                os.makedirs(season_path, exist_ok=True)
                 
-                # Format as SxxExx - Title.ext or SxxExx - Episode Title.ext
-                if episode_title:
-                    new_filename = f"S{season:02d}E{episode:02d} - {episode_title}{ext}"
+                # Format the episode filename
+                if episode:
+                    # Get file extension
+                    _, ext = os.path.splitext(source_path)
+                    
+                    # Format the episode filename as "Title - SXXEXX.ext" - no IDs in filenames
+                    # Use clean_title instead of media_folder to avoid IDs in filenames
+                    base_title = clean_title
+                    if year:  # Include year in episode filename if available
+                        base_title += f" ({year})"
+                        
+                    episode_filename = f"{base_title} - S{int(season):02d}E{int(episode):02d}"
+                    
+                    # Add episode title if available
+                    episode_title = metadata.get('episode_title')
+                    if episode_title:
+                        episode_filename += f" - {clean_filename(episode_title)}"
+                    
+                    # Add extension
+                    episode_filename += ext
+                    
+                    # Full path for the symlink
+                    link_path = os.path.join(season_path, episode_filename)
                 else:
-                    new_filename = f"S{season:02d}E{episode:02d} - {name}{ext}"
+                    # If no episode number, use original filename
+                    link_path = os.path.join(season_path, os.path.basename(source_path))
             else:
-                new_filename = filename
+                # If no season number, link directly to series folder
+                link_path = os.path.join(series_path, os.path.basename(source_path))
+        
+        # For movies
+        else:
+            # Format the movie filename - place in media folder directory
+            _, ext = os.path.splitext(source_path)
             
-            # Create the destination path
-            dest_file_path = os.path.join(content_dir, new_filename)
-            
-            # Check if destination already exists
-            if os.path.exists(dest_file_path):
-                if force_overwrite:
-                    try:
-                        os.remove(dest_file_path)
-                    except Exception as e:
-                        logger.error(f"Failed to remove existing file: {e}")
-                        return False, f"Failed to remove existing file: {dest_file_path}"
-                else:
-                    logger.warning(f"Destination file already exists: {dest_file_path}")
-                    return False, f"File already exists: {dest_file_path}"
-            
-            # Create symlink
-            try:
-                # Use absolute paths for symlinks
-                abs_source = os.path.abspath(source_path)
-                logger.debug(f"Creating symlink: {abs_source} -> {dest_file_path}")
-                os.symlink(abs_source, dest_file_path)
-                logger.info(f"Created symlink: {abs_source} -> {dest_file_path}")
-                return True, f"Created symlink: {new_filename} in {content_dir}"
-            except Exception as e:
-                logger.error(f"Error creating symlink: {e}")
+            # Base movie filename - no IDs in filenames
+            # Use clean_title instead of media_folder to avoid IDs in filenames
+            movie_filename = clean_title
+            if year:
+                movie_filename += f" ({year})"
                 
-                # Check for common errors and provide helpful messages
-                error_msg = str(e).lower()
-                if "permission denied" in error_msg:
-                    return False, f"Permission denied. Check that you have write permissions to {destination_path}"
-                elif "no such file or directory" in error_msg:
-                    return False, f"Could not create symlink. Directory {content_dir} may not exist or permissions issue."
-                else:
-                    return False, f"Error creating symlink: {str(e)}"
-    
+            # Handle multi-part movies
+            part = metadata.get('part')
+            if part:
+                movie_filename += f" - Part {part}"
+                
+            # Add extension
+            movie_filename += ext
+            
+            # Create the movie folder path
+            movie_path = os.path.join(content_base, media_folder)
+            os.makedirs(movie_path, exist_ok=True)
+            
+            # Full path for the symlink
+            link_path = os.path.join(movie_path, movie_filename)
+        
+        # Log the final paths
+        logger.debug(f"Content base: {content_base}")
+        logger.debug(f"Media folder: {media_folder}")
+        logger.debug(f"Link path: {link_path}")
+        
+        # Check if target link already exists
+        if os.path.exists(link_path) and not force_overwrite:
+            return False, f"Destination already exists: {link_path}"
+        
+        # Create the symlink
+        logger.info(f"Creating symlink: {os.path.abspath(source_path)} -> {link_path}")
+        os.symlink(os.path.abspath(source_path), link_path)
+        
+        return True, f"Created symlink to {link_path}"
+        
     except Exception as e:
-        logger.error(f"Unexpected error in create_symlinks: {e}", exc_info=True)
-        return False, f"Unexpected error: {str(e)}"
+        logger.error(f"Error creating symlink: {e}", exc_info=True)
+        return False, f"Error creating symlink: {str(e)}"
 
 def clean_filename(filename):
     """
