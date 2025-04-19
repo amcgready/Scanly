@@ -940,9 +940,29 @@ class DirectoryProcessor:
         self.processed_files = 0
         self.total_files = 0
         self.media_files = []
+        self.subfolder_files = {}
         self.errors = 0
         self.skipped = 0
         self.symlink_count = 0
+        # Note: No processing happens here anymore, just initialization
+
+    def process(self):
+        """Process the directory and create symlinks."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("SCANNING DIRECTORY")
+        print("=" * 60)
+        
+        print(f"\nScanning: {self.directory_path}")
+        
+        # Check if directory exists
+        if not os.path.isdir(self.directory_path):
+            print(f"Directory not found: {self.directory_path}")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Check if destination directory is set
         if not os.environ.get('DESTINATION_DIRECTORY'):
             print("Destination directory not set.")
             print("Please set the destination directory in Settings > Paths first.")
@@ -950,6 +970,9 @@ class DirectoryProcessor:
             return
         
         try:
+            # Display the mode being used at the beginning
+            print(f"\nScan mode: {'Automatic' if self.auto_mode else 'Manual'}")
+            
             # Collect all media files in the directory
             self._collect_media_files()
             
@@ -958,15 +981,22 @@ class DirectoryProcessor:
                 input("\nPress Enter to continue...")
                 return
             
-            # No need to ask for auto/manual mode - use the one provided in constructor
-            # Set auto_process to match the auto_mode parameter
+            # Use the auto_mode parameter without asking again
             self.auto_process = self.auto_mode
             
             # Process each media file
             self._process_media_files()
             
+            # Clear screen for final results
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("SCAN COMPLETED")
+            print("=" * 60)
+            
             # Display results
-            print("\nScan completed:")
+            print(f"\nDirectory: {self.directory_path}")
+            print("\nSummary:")
             print(f"- Processed: {self.processed_files} files")
             print(f"- Created symlinks: {self.symlink_count}")
             print(f"- Skipped: {self.skipped} files")
@@ -975,8 +1005,11 @@ class DirectoryProcessor:
             # Clear scan history if all files were processed
             if self.processed_files >= self.total_files:
                 clear_scan_history()
+                print("\nScan history cleared.")
             
-            input("\nPress Enter to continue...")
+            print("\nScan complete! Press Enter to return to main menu.")
+            input()
+            # No need for further action - control will return to the main menu
             
         except KeyboardInterrupt:
             # Save progress for resuming later
@@ -1113,126 +1146,112 @@ class DirectoryProcessor:
             
             # In auto mode, skip user interaction and process directly
             if self.auto_mode:
-                if content_type == "unknown":
-                    # If content type could not be determined, skip in auto mode
+                # Auto mode processing... (existing code)
+                continue
+            
+            # Manual mode - Start interactive processing loop
+            while True:
+                # Display current metadata
+                print("\nCurrent detection:")
+                print(f"Title: {suggested_title}")
+                if suggested_year:
+                    print(f"Year: {suggested_year}")
+                
+                # Determine content type display name
+                content_type_display = self._get_content_type_display(content_type, is_anime)
+                print(f"Content type: {content_type_display}")
+                
+                # User options
+                print("\nOptions:")
+                print("1. Accept match and process (default - press Enter)")
+                print("2. Search with new title")
+                print("3. Change content type")
+                print("4. Skip (save for later review)")
+                print("5. Quit to main menu")
+                
+                choice = input("\nEnter choice (1-5, or press Enter for option 1): ").strip()
+                
+                # Use default choice (1) if user just presses Enter
+                if choice == "":
+                    choice = "1"
+                
+                if choice == "5":
+                    # Quit to main menu
+                    print("\nReturning to main menu...")
+                    return
+                
+                elif choice == "4":
+                    # Skip and save for later review
                     self._skip_files(files, subfolder, content_type, is_anime, subfolder_name)
-                    print(f"  Skipped {len(files)} files (unknown content type)")
-                    # IMPORTANT FIX: Still count these as processed since we've handled them
-                    self.processed_files += len(files)
-                    # Save progress
-                    save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+                    break  # Break out of the while loop and continue to next subfolder
+                
+                elif choice == "3":
+                    # Change content type - simplified interface with combined options
+                    print("\nSelect content type:")
+                    print("1. TV Series")
+                    print("2. Movie")
+                    print("3. Anime Series")
+                    print("4. Anime Movie")
+                    
+                    type_choice = input("\nEnter choice (1-4): ").strip()
+                    
+                    # Set content type and anime flag based on unified selection
+                    if type_choice == "1":
+                        content_type = "tv"
+                        is_anime = False
+                    elif type_choice == "2":
+                        content_type = "movie"
+                        is_anime = False
+                    elif type_choice == "3":
+                        content_type = "tv"
+                        is_anime = True
+                    elif type_choice == "4":
+                        content_type = "movie" 
+                        is_anime = True
+                    else:
+                        print("\nInvalid choice. Using initial detection.")
+                        input("\nPress Enter to continue...")
+                    
+                    # Continue the loop to show updated metadata and options
                     continue
                 
-                # Process based on detected content type
-                print(f"  Auto-detected: {suggested_title} ({self._get_content_type_display(content_type, is_anime)})")
-                if content_type == "tv":
-                    self._process_tv_series(files, subfolder, suggested_title, suggested_year, is_anime)
-                else:
-                    self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime)
+                elif choice == "2":
+                    # Search with new title
+                    new_title = input("\nEnter new title: ").strip()
+                    if new_title:
+                        suggested_title = new_title
+                        
+                        # Ask for year
+                        new_year = input("Enter year (optional): ").strip()
+                        if new_year and new_year.isdigit() and len(new_year) == 4:
+                            suggested_year = new_year
                     
+                    # Continue the loop to show updated metadata and options
+                    continue
+                
+                # Option 1 or default - proceed with processing
+                
+                # Get media IDs for the title
+                ids = self._get_media_ids(suggested_title, suggested_year, content_type == "tv")
+                tmdb_id = ids.get('tmdb_id')
+                imdb_id = ids.get('imdb_id')
+                tvdb_id = ids.get('tvdb_id')
+                
+                # Process the subfolder based on content type with the IDs
+                if content_type == "tv":
+                    self._process_tv_series(files, subfolder, suggested_title, suggested_year, is_anime, 
+                                           tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id)
+                else:
+                    self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime,
+                                        tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id)
+                
                 # Update processed count
                 self.processed_files += len(files)
-                
-                # Save progress
+                # Save progress after each subfolder
                 save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
-                continue
-            
-            # Manual mode - Display initial guess and options for user
-            print("\nInitial detection:")
-            print(f"Title: {suggested_title}")
-            if suggested_year:
-                print(f"Year: {suggested_year}")
-            
-            # Determine content type display name
-            content_type_display = self._get_content_type_display(content_type, is_anime)
-            print(f"Content type: {content_type_display}")
-            
-            # User options
-            print("\nOptions:")
-            print("1. Accept match and process (default - press Enter)")
-            print("2. Search with new title")
-            print("3. Change content type")
-            print("4. Skip (save for later review)")
-            print("5. Quit to main menu")
-            
-            choice = input("\nEnter choice (1-5, or press Enter for option 1): ").strip()
-            
-            # Use default choice (1) if user just presses Enter
-            if choice == "":
-                choice = "1"
-            
-            if choice == "5":
-                # Quit to main menu
-                print("\nReturning to main menu...")
-                return
-            
-            elif choice == "4":
-                # Skip and save for later review
-                self._skip_files(files, subfolder, content_type, is_anime, subfolder_name)
-                continue
-            
-            elif choice == "3":
-                # Change content type - simplified interface with combined options
-                print("\nSelect content type:")
-                print("1. TV Series")
-                print("2. Movie")
-                print("3. Anime Series")
-                print("4. Anime Movie")
                 
-                type_choice = input("\nEnter choice (1-4): ").strip()
-                
-                # Set content type and anime flag based on unified selection
-                if type_choice == "1":
-                    content_type = "tv"
-                    is_anime = False
-                elif type_choice == "2":
-                    content_type = "movie"
-                    is_anime = False
-                elif type_choice == "3":
-                    content_type = "tv"
-                    is_anime = True
-                elif type_choice == "4":
-                    content_type = "movie" 
-                    is_anime = True
-                else:
-                    print("\nInvalid choice. Using initial detection.")
-                    input("\nPress Enter to continue...")
-            
-            elif choice == "2":
-                # Search with new title
-                new_title = input("\nEnter new title: ").strip()
-                if new_title:
-                    suggested_title = new_title
-                    
-                    # Ask for year
-                    new_year = input("Enter year (optional): ").strip()
-                    if new_year and new_year.isdigit() and len(new_year) == 4:
-                        suggested_year = new_year
-            
-            # Get media IDs for the title
-            ids = self._get_media_ids(suggested_title, suggested_year, content_type == "tv")
-            tmdb_id = ids.get('tmdb_id')
-            imdb_id = ids.get('imdb_id')
-            tvdb_id = ids.get('tvdb_id')
-            
-            # Process the subfolder based on content type with the IDs
-            if content_type == "tv":
-                self._process_tv_series(files, subfolder, suggested_title, suggested_year, is_anime, 
-                                       tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id)
-            else:
-                self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime,
-                                    tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id)
-            
-            # Update processed count - only in manual mode
-            # In auto mode, this is handled within the auto-mode processing block
-            if not self.auto_mode:
-                self.processed_files += len(files)
-                # Save progress after each subfolder in manual mode
-                save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
-            
-            # No confirmation step between subfolders - just clear the screen and continue
-            if not self.auto_mode:
-                clear_screen()
+                # Break the while loop after processing is complete
+                break
 
     def _get_content_type_display(self, content_type, is_anime):
         """Return a user-friendly display name for the content type."""
@@ -1790,70 +1809,6 @@ class DirectoryProcessor:
             # Update counts
             self.symlink_count += successful_links
             self.errors += errors
-
-    def process(self):
-        """Process the directory and create symlinks."""
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("SCANNING DIRECTORY")
-        print("=" * 60)
-        
-        print(f"\nScanning: {self.directory_path}")
-        
-        # Check if directory exists
-        if not os.path.isdir(self.directory_path):
-            print(f"Directory not found: {self.directory_path}")
-            input("\nPress Enter to continue...")
-            return
-        
-        # Check if destination directory is set
-        if not os.environ.get('DESTINATION_DIRECTORY'):
-            print("Destination directory not set.")
-            print("Please set the destination directory in Settings > Paths first.")
-            input("\nPress Enter to continue...")
-            return
-        
-        try:
-            # Display the mode being used at the beginning
-            print(f"\nScan mode: {'Automatic' if self.auto_mode else 'Manual'}")
-            
-            # Collect all media files in the directory
-            self._collect_media_files()
-            
-            if not self.media_files:
-                print("No media files found in the directory.")
-                input("\nPress Enter to continue...")
-                return
-            
-            # Use the auto_mode parameter without asking again
-            self.auto_process = self.auto_mode
-            
-            # Process each media file
-            self._process_media_files()
-            
-            # Display results
-            print("\nScan completed:")
-            print(f"- Processed: {self.processed_files} files")
-            print(f"- Created symlinks: {self.symlink_count}")
-            print(f"- Skipped: {self.skipped} files")
-            print(f"- Errors: {self.errors}")
-            
-            # Clear scan history if all files were processed
-            if self.processed_files >= self.total_files:
-                clear_scan_history()
-            
-            input("\nPress Enter to continue...")
-            
-        except KeyboardInterrupt:
-            # Save progress for resuming later
-            save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
-            print("\nScan interrupted. Progress saved for resuming later.")
-            input("\nPress Enter to continue...")
-        except Exception as e:
-            self.logger.error(f"Error processing directory: {e}", exc_info=True)
-            print(f"\nError processing directory: {e}")
-            input("\nPress Enter to continue...")
 
     def _extract_full_series_name(self, folder_name):
         """Extract the full series name from folder name, preserving important subtitle parts."""
