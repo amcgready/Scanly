@@ -1,92 +1,103 @@
 """
-Utility functions for interacting with Plex Media Server.
+Plex utility functions for Scanly.
 
-This module provides functions for triggering library scans
-and interacting with Plex Media Server.
+This module contains functions for interacting with Plex Media Server.
 """
 
-import requests
-from urllib.parse import urljoin
-from typing import Optional
+import logging
+from plexapi.server import PlexServer
 
-from src.config import ENABLE_PLEX_UPDATE, PLEX_URL, PLEX_TOKEN
-from src.utils.logger import get_logger
-
-logger = get_logger(__name__)
-
-
-def trigger_plex_scan(section_id: Optional[int] = None) -> bool:
+def refresh_plex_library(base_url, token, library_name=None):
     """
-    Trigger a Plex library scan.
+    Refresh Plex libraries.
     
     Args:
-        section_id: Optional library section ID to scan. If None, scans all libraries.
+        base_url: Plex server base URL (e.g., "http://localhost:32400")
+        token: Plex authentication token
+        library_name: Name of specific library to refresh (optional)
         
     Returns:
-        True if the scan was triggered successfully, False otherwise
+        Boolean indicating success
     """
-    if not ENABLE_PLEX_UPDATE:
-        logger.debug("Plex updates are disabled")
-        return True
-    
-    if not PLEX_TOKEN:
-        logger.error("Plex token is not set")
-        return False
+    logger = logging.getLogger(__name__)
     
     try:
-        headers = {
-            'X-Plex-Token': PLEX_TOKEN,
-            'Accept': 'application/json'
-        }
+        # Connect to the Plex server
+        logger.info(f"Connecting to Plex server at {base_url}")
+        plex = PlexServer(base_url, token)
         
-        if section_id is not None:
-            endpoint = f"library/sections/{section_id}/refresh"
+        if library_name:
+            # Refresh a specific library
+            try:
+                library = plex.library.section(library_name)
+                logger.info(f"Refreshing Plex library: {library_name}")
+                library.refresh()
+                logger.info(f"Successfully refreshed Plex library: {library_name}")
+                return True
+            except KeyError:
+                logger.error(f"Library '{library_name}' not found on Plex server")
+                return False
         else:
-            endpoint = "library/refresh"
-        
-        url = urljoin(PLEX_URL, endpoint)
-        
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            logger.info(f"Successfully triggered Plex scan for {'all libraries' if section_id is None else f'section {section_id}'}")
+            # Refresh all libraries
+            logger.info("Refreshing all Plex libraries")
+            for section in plex.library.sections():
+                logger.info(f"Refreshing Plex library: {section.title}")
+                section.refresh()
+            
+            logger.info("Successfully refreshed all Plex libraries")
             return True
-        else:
-            logger.error(f"Failed to trigger Plex scan: {response.status_code} {response.text}")
-            return False
             
     except Exception as e:
-        logger.error(f"Error triggering Plex scan: {e}")
+        logger.error(f"Error refreshing Plex library: {str(e)}")
         return False
 
-
-def get_plex_sections() -> list:
+def get_plex_libraries(base_url, token):
     """
-    Get all library sections from Plex.
+    Get a list of all libraries on a Plex server.
     
+    Args:
+        base_url: Plex server base URL
+        token: Plex authentication token
+        
     Returns:
-        List of library sections
+        List of library names or None if an error occurred
     """
-    if not ENABLE_PLEX_UPDATE or not PLEX_TOKEN:
-        return []
+    logger = logging.getLogger(__name__)
     
     try:
-        headers = {
-            'X-Plex-Token': PLEX_TOKEN,
-            'Accept': 'application/json'
-        }
+        # Connect to the Plex server
+        plex = PlexServer(base_url, token)
         
-        url = urljoin(PLEX_URL, "library/sections")
+        # Get all library sections
+        sections = plex.library.sections()
         
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            sections = response.json().get('MediaContainer', {}).get('Directory', [])
-            return sections
-        else:
-            logger.error(f"Failed to get Plex sections: {response.status_code} {response.text}")
-            return []
+        # Return just the names
+        return [section.title for section in sections]
             
     except Exception as e:
-        logger.error(f"Error getting Plex sections: {e}")
-        return []
+        logger.error(f"Error getting Plex libraries: {str(e)}")
+        return None
+
+def check_plex_connection(base_url, token):
+    """
+    Check if a connection to the Plex server can be established.
+    
+    Args:
+        base_url: Plex server base URL
+        token: Plex authentication token
+        
+    Returns:
+        Boolean indicating if connection was successful
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Attempt to connect to the Plex server
+        plex = PlexServer(base_url, token)
+        
+        # If we get here, connection was successful
+        return True
+            
+    except Exception as e:
+        logger.error(f"Error connecting to Plex server: {str(e)}")
+        return False
