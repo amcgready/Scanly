@@ -102,6 +102,52 @@ def check_scanner_lists(filename, title_hint=None):
     # No match found
     return None
 
+def update_scanner_entry(scanner_file, entry, tmdb_id):
+    """
+    Update a scanner entry with a new TMDB ID.
+    
+    Args:
+        scanner_file: The scanner file to update (tv_series.txt, movies.txt, etc.)
+        entry: The entry to update
+        tmdb_id: The new TMDB ID
+        
+    Returns:
+        Boolean indicating success
+    """
+    import os
+    import re
+    
+    scanner_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scanners', scanner_file)
+    
+    if not os.path.exists(scanner_path):
+        return False
+    
+    # Read the file
+    with open(scanner_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    
+    # Entry might have trailing whitespace in the file
+    entry = entry.strip()
+    
+    # Find and update the entry
+    updated = False
+    for i, line in enumerate(lines):
+        if line.strip() == entry:
+            # Clean entry (remove the existing ERROR part)
+            clean_entry = re.sub(r'\s*\[.*?\]\s*$', '', entry).strip()
+            # Add the new TMDB ID
+            lines[i] = f"{clean_entry} [{tmdb_id}]\n"
+            updated = True
+            break
+    
+    # Write the file back if updated
+    if updated:
+        with open(scanner_path, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+        return True
+    
+    return False
+
 if __name__ == "__main__":
     # Configure logging for direct script execution
     logging.basicConfig(
