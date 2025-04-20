@@ -14,17 +14,66 @@
 Version: 1.3.0
 Last Updated: 2025-04-19
 
-Scanly is a media file organizer that monitors directories for new files and creates an organized library using symbolic or hard links.
+# What is Scanly?
 
-## Features
+Scanly is a media file organization tool that helps scan, categorize, and organize your media library.
 
-- Monitor directories for new media files
-- Extract show or movie information from filenames
-- Extract season and episode numbers for TV shows
-- Integration with TMDB for accurate metadata
-- Create organized library using symbolic links or hard links
-- Resume interrupted scans
-- Track skipped items
+## Main Features
+
+Scanly offers these key features:
+
+1. **Media Organization**: Scans directories for media files and organizes them using symlinks or hardlinks
+2. **Metadata Integration**: Uses TMDB API to fetch accurate metadata for TV shows and movies
+3. **Content Type Detection**: Uses scanner lists (like tv_series.txt, anime_movies.txt, etc.) to identify content types
+4. **Library Structure**: Creates an organized library structure with customizable folder naming
+5. **Anime Separation**: Optionally separates anime content into dedicated folders
+6. **Resume Functionality**: Tracks progress to resume interrupted scans
+7. **Skipped Items Tracking**: Keeps track of items that couldn't be processed
+
+## Configuration System
+
+Scanly uses a comprehensive configuration system:
+
+1. **Environment Variables**: Loaded from .env file using `python-dotenv`
+2. **Command Line Arguments**: For one-time overrides and specific operations
+3. **Settings Management UI**: An interactive menu to modify settings
+
+## Core Components
+
+1. **Scanner Lists**: Text files in the scanners directory containing known TV series and movies with their IDs
+2. **Directory Processor**: Processes directories recursively to find media files
+3. **File Processor**: Extracts information from filenames (show name, season/episode)
+4. **API Integration**: Connects to TMDB for metadata
+5. **Symlink/Hardlink Creator**: Creates the organized library structure
+
+## Settings Menu
+
+The settings menu allows users to modify configuration through a text-based interface. It reads from and writes to the .env file, making changes persistent.
+
+## Docker Support
+
+Scanly has Docker support with:
+- Volume mounts for media directories
+- Environment variable overrides
+- An entrypoint script that manages configuration
+
+## Scanner Lists
+
+The scanner lists (like tv_series.txt) contain entries in formats like:
+- `Show Name [TMDB_ID]` 
+- `Show Name [Error]` (when ID couldn't be determined)
+
+These lists help identify TV shows and movies by name.
+
+## Command-Line Interface
+
+Scanly supports various command-line arguments:
+- `--movie`: Process a specific movie directory
+- `--tv`: Process a specific TV show directory
+- `--force`: Force rescan of already processed files
+- `--config`: Use a specific configuration file
+- `--debug`: Enable debug logging
+- `--quiet`: Run in quiet mode
 
 ## Installation
 
@@ -65,8 +114,7 @@ cp .env.example .env
 
 4. Set environment variables for your media directories:
 ```bash
-export MEDIA_SOURCE_DIR=/path/to/your/media
-export MEDIA_LIBRARY_DIR=/path/to/your/library
+export DESTINATION_DIRECTORY=/path/to/your/library
 ```
 
 5. Build and run the Docker container:
