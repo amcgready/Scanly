@@ -1146,8 +1146,25 @@ class DirectoryProcessor:
             
             # In auto mode, skip user interaction and process directly
             if self.auto_mode:
-                # Auto mode processing... (existing code)
-                continue
+                # Get media IDs for the title
+                ids = self._get_media_ids(suggested_title, suggested_year, content_type == "tv")
+                tmdb_id = ids.get('tmdb_id')
+                imdb_id = ids.get('imdb_id')
+                tvdb_id = ids.get('tvdb_id')
+                
+                # Process the subfolder based on content type with the IDs
+                if content_type == "tv":
+                    self._process_tv_series(files, subfolder, suggested_title, suggested_year, is_anime, 
+                                           tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id)
+                else:
+                    self._process_movies(files, subfolder, suggested_title, suggested_year, is_anime,
+                                        tmdb_id=tmdb_id, imdb_id=imdb_id, tvdb_id=tvdb_id)
+                
+                # Update processed count
+                self.processed_files += len(files)
+                # Save progress after each subfolder
+                save_scan_history(self.directory_path, self.processed_files, self.total_files, self.media_files)
+                continue  # Now we can continue to the next subfolder
             
             # Manual mode - Start interactive processing loop
             while True:
