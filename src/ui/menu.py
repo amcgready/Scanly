@@ -51,6 +51,7 @@ class MainMenu:
             # Always show these options
             menu_options.append(("Directory Scan", self._directory_scan))
             menu_options.append(("Individual Scan", self._individual_scan))
+            menu_options.append(("Monitor Scan", self._monitor_scan))  # Add Monitor Scan
             
             # Conditional menu options
             if history_exists():
@@ -230,6 +231,7 @@ class MainMenu:
         help_texts = {
             "Directory Scan": "Used to scan larger directories that contain multiple sub-folders and files\nBest for processing entire media libraries or disk drives",
             "Individual Scan": "Used to scan either a single folder or file that does not have\nadditional nested sub-folders\nBest for processing a single TV episode or movie file",
+            "Monitor Scan": "Add and manage directories to be monitored for new files\nReceive Discord notifications when new media appears in watched folders",
             "Resume Scan": "Continues processing from where a previous scan was interrupted",
             "Clear History": "Removes the saved progress from an interrupted scan",
             "Review Skipped": "Process items that were skipped during previous scans",
@@ -330,6 +332,15 @@ class MainMenu:
             print(traceback.format_exc())
         
         input("\nPress Enter to continue...")
+    
+    def _monitor_scan(self):
+        """Launch the monitor scan menu."""
+        # Import here to avoid circular imports
+        from src.ui.monitor_menu import MonitorMenu
+        
+        # Create and show the monitor menu
+        monitor_menu = MonitorMenu()
+        monitor_menu.show()
 
 # Add this code to make the module executable
 if __name__ == "__main__":

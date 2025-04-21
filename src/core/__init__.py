@@ -6,5 +6,4 @@ processing files, and creating symlinks.
 """
 
 from .file_monitor import FileMonitor
-from .file_processor import FileProcessor, MovieProcessor, TVProcessor
-from .symlink_creator import SymlinkCreator
+from .monitor_manager import MonitorManager

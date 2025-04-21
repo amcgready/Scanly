@@ -66,6 +66,11 @@ services:
       # Application Settings
       - AUTO_EXTRACT_EPISODES=${AUTO_EXTRACT_EPISODES:-True}
       - PROGRESS_FILE=${PROGRESS_FILE:-scanly_progress.json}
+      
+      # Notification Settings
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-""}
+      - ENABLE_DISCORD_NOTIFICATIONS=${ENABLE_DISCORD_NOTIFICATIONS:-false}
+      - MONITOR_SCAN_INTERVAL=${MONITOR_SCAN_INTERVAL:-60}
     
     volumes:
       - ./logs:/app/logs
