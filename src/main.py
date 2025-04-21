@@ -1101,44 +1101,43 @@ class DirectoryProcessor:
                 is_anime = True
                 tmdb_id = None
             else:
-                # Try to extract metadata from folder name first
-                suggested_title, suggested_year = self._extract_folder_metadata(subfolder_name)
-                
-                # Check initial content type using scanner lists with the cleaned title
-                sample_file = files[0]
-                content_type = "unknown"
+                # Initialize content_type and is_anime with default values
+                content_type = "movie"  # Default to movie
                 is_anime = False
                 tmdb_id = None
+                scanner_title = None  # Initialize scanner_title
                 
-                # Get clean filename without path
-                sample_filename = os.path.basename(sample_file)
-                
-                # First try with the cleaned title we extracted
-                scanner_result = check_scanner_lists(sample_filename, title_hint=suggested_title)
-                
+                # First try direct scanner match with the folder name before any cleaning
+                folder_name = os.path.basename(subfolder)
+                scanner_result = check_scanner_lists(folder_name)
                 if scanner_result:
-                    # Fix: Properly unpack the scanner result which now returns 4 values
                     if len(scanner_result) == 4:
                         content_type, is_anime, tmdb_id, scanner_title = scanner_result
-                        # Use the scanner title if available
                         if scanner_title:
+                            self.logger.info(f"DIRECT SCANNER MATCH: Using scanner title '{scanner_title}' for folder '{folder_name}'")
                             suggested_title = scanner_title
+                            # Don't extract further - use the scanner title
+                            suggested_year = self._extract_year_from_foldername(subfolder_name)
                     else:
                         # Handle the case where scanner_result has 3 values for backward compatibility
                         content_type, is_anime, tmdb_id = scanner_result
-                else:
-                    # If no match with title hint, try without it
-                    scanner_result = check_scanner_lists(sample_filename)
+                
+                # If we didn't get a match from direct scanner check, then extract metadata
+                if not scanner_result or not scanner_title:
+                    # Try to extract metadata from folder name
+                    suggested_title, suggested_year = self._extract_folder_metadata(subfolder_name)
+                    
+                    # Now try to match the extracted title with scanner lists
+                    scanner_result = check_scanner_lists(suggested_title)
                     if scanner_result:
-                        # Fix: Properly unpack the scanner result which now returns 4 values
                         if len(scanner_result) == 4:
-                            content_type, is_anime, tmdb_id, scanner_title = scanner_result
-                            # Use the scanner title if available
+                            new_content_type, new_is_anime, new_tmdb_id, scanner_title = scanner_result
                             if scanner_title:
+                                self.logger.info(f"SCANNER MATCH: Using scanner title '{scanner_title}' instead of extracted title '{suggested_title}'")
                                 suggested_title = scanner_title
-                        else:
-                            # Handle the case where scanner_result has 3 values for backward compatibility
-                            content_type, is_anime, tmdb_id = scanner_result
+                                content_type = new_content_type
+                                is_anime = new_is_anime
+                                tmdb_id = new_tmdb_id
             
             # Filter out invalid years (like resolution values)
             if suggested_year and (not suggested_year.isdigit() or int(suggested_year) < 1900 or int(suggested_year) > 2030):
@@ -1335,7 +1334,11 @@ class DirectoryProcessor:
         clean_name = re.sub(r'\b(?:1080p|720p|2160p|480p|4K|UHD)\b', '', clean_name, flags=re.IGNORECASE)
         
         # Remove other common technical specifications
-        clean_name = re.sub(r'\b(?:WEB-?DL|BluRay|x264|x265|XviD|HEVC|AAC\d?(?:\.\d)?|H\.264|H\.265)\b', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'\b(?:WEB-?DL|BluRay|REMUX|x264|x265|XviD|HEVC|AAC\d?(?:\.\d)?|H\.264|H\.265)\b', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove audio format specifications - improved pattern to catch DTS-HD.MA.2.0 and similar
+        clean_name = re.sub(r'\b(?:DTS-HD|DTS|MA|DD|AC3|AAC|TrueHD|FLAC)(?:[-\s.]?\d+(?:\.\d+)?)*\b', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'\b(?:DTS|DD|AC3|AAC|TrueHD|FLAC)(?:[-\s.]?\d+(?:\.\d+)?)*\b', '', clean_name, flags=re.IGNORECASE)
         
         # Remove release group tags in brackets
         clean_name = re.sub(r'\[[^\]]*\]', '', clean_name)
@@ -1347,6 +1350,9 @@ class DirectoryProcessor:
         hyphen_parts = clean_name.split(' - ')
         if len(hyphen_parts) > 1:
             clean_name = hyphen_parts[0]
+        
+        # Handle FGT and other common release group tags at the end
+        clean_name = re.sub(r'\b(?:FGT|RARBG|YIFY|YTS)\b', '', clean_name, flags=re.IGNORECASE)
         
         # Normalize spaces and trim
         clean_name = re.sub(r'\s+', ' ', clean_name).strip()
