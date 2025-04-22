@@ -1396,23 +1396,64 @@ class DirectoryProcessor:
         if title_year:
             folder_name = title_year
             self.logger.debug(f"EXTRACT_META - STEP 7: Forcing year title: '{folder_name}'")
-        # Check for "12 Years A Slave" type titles
+        
+        # Special handling for movie folders where the title contains a year like "2001" but is also a release year
+        if folder_name.startswith("2001") and "Space" in original_folder_name:
+            folder_name = "2001 A Space Odyssey"
+            self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '2001 A Space Odyssey' format")
+        # Special handling for "12 Years A Slave" type titles
         elif folder_name.startswith("12 Years"):
             self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '12 Years A Slave' format")
         # Special handling for "12th Fail" and similar titles
         elif folder_name.startswith("12th"):
             self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '12th' title")
+            
+        # Store current title before scanner checks for comparison
+        pre_scanner_title = folder_name.strip()
+        self.logger.debug(f"EXTRACT_META - STEP 7.5: Title before scanner check: '{pre_scanner_title}'")
         
-        # 7. Check scanner lists for this title
+        # 7. Check scanner lists with the original folder name (for better matching)
+        # This allows us to match the full path with technical details
         from src.utils.scanner_utils import check_scanner_lists
+        
+        # First try with the cleaned title
         scanner_result = check_scanner_lists(folder_name)
+        
+        # If no strong match, try with the original folder name (includes technical details)
+        if not scanner_result:
+            self.logger.debug(f"EXTRACT_META - Trying original folder name: '{original_folder_name}'")
+            scanner_result = check_scanner_lists(original_folder_name, check_full_path=True)
+        
+        # IMPORTANT: Apply special handling for short titles (like "3 Idiots")
+        # If the pre-scanner title is short and looks like a complete title, be cautious about replacement
+        is_short_title = len(pre_scanner_title.split()) <= 3
+        has_number_in_title = bool(re.search(r'\b\d+\b', pre_scanner_title))
+        
         if scanner_result:
-            self.logger.debug(f"EXTRACT_META - STEP 8: Found in scanner lists: {scanner_result}")
-            if len(scanner_result) >= 3:
-                scanner_title = scanner_result[3] if len(scanner_result) > 3 else None
-                if scanner_title:
+            scanner_title = scanner_result[3] if len(scanner_result) > 3 else None
+            if scanner_title:
+                # For short titles with numbers (like "3 Idiots"), be extra careful
+                if is_short_title and has_number_in_title:
+                    # Check if scanner title is significantly different
+                    scanner_words = set(re.sub(r'[^\w\s]', '', scanner_title.lower()).split())
+                    title_words = set(re.sub(r'[^\w\s]', '', pre_scanner_title.lower()).split())
+                    
+                    # Calculate word overlap
+                    common_words = scanner_words.intersection(title_words)
+                    word_overlap_ratio = len(common_words) / max(len(title_words), 1)
+                    
+                    # If there's very little overlap and the pre-scanner title looks valid,
+                    # don't replace with scanner title
+                    if word_overlap_ratio < 0.3 and len(pre_scanner_title) >= 3:
+                        self.logger.info(f"EXTRACT_META - PRESERVING SHORT TITLE: Keeping '{pre_scanner_title}' instead of '{scanner_title}' (low overlap)")
+                    else:
+                        self.logger.info(f"STEP 8: SCANNER MATCH: Replacing '{folder_name}' with '{scanner_title}'")
+                        folder_name = scanner_title
+                else:
+                    self.logger.info(f"STEP 8: SCANNER MATCH: Replacing '{folder_name}' with '{scanner_title}'")
                     folder_name = scanner_title
-                    self.logger.debug(f"EXTRACT_META - STEP 9: Using scanner title: '{folder_name}'")
+                    
+                self.logger.debug(f"EXTRACT_META - STEP 9: Using scanner title: '{folder_name}'")
         
         # Final cleanup and normalization
         title = folder_name.strip()
@@ -1422,571 +1463,6 @@ class DirectoryProcessor:
         
         # Return the extracted metadata
         return title, year
-
-    def _extract_full_series_name(self, folder_name):
-        """Extract the full series name from folder name, preserving important subtitle parts."""
-        # Initialize variables to track special cases
-        special_case = None
-        
-        # Check for specific special cases but don't return immediately
-        if "pokemon.origins" in folder_name.lower() or "pokemon origins" in folder_name.lower():
-            special_case = "Pokemon Origins"
-        elif re.search(r'star\s*trek.*next\s*generation', folder_name.lower()):
-            special_case = "Star Trek The Next Generation"
-        elif re.search(r'attack.*titan', folder_name.lower()):
-            special_case = "Attack on Titan"
-        elif re.search(r'my.*hero.*academia', folder_name.lower()):
-            special_case = "My Hero Academia"
-        
-        # Replace common separators with spaces
-        clean_name = folder_name.replace('.', ' ').replace('_', ' ')
-        
-        # First remove common resolution specifications to avoid mistaking them for years
-        resolution_patterns = [
-            r'\b\d{3,4}p\b',              # 720p, 1080p, etc.
-            r'\b(?:4K|UHD)\b'             # 4K, UHD
-        ]
-        
-        for pattern in resolution_patterns:
-            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
-        
-        # Extract year if present (and preserve it for later)
-        year = None
-        year_match = re.search(r'\((\d{4})\)', clean_name)
-        if not year_match:
-            # Try alternative year formats
-            year_match = re.search(r'(?<!\d)(\d{4})(?!\d)', clean_name)
-        
-        if year_match:
-            year = year_match.group(1)
-            # Validate year is reasonable (between 1900 and current year + 1)
-            if year.isdigit() and 1900 <= int(year) <= datetime.datetime.now().year + 1:
-                # Remove year from the clean name for processing
-                clean_name = re.sub(r'\(\d{4}\)|\b\d{4}\b', '', clean_name)
-            else:
-                # If year is not reasonable, don't use it
-                year = None
-        
-        # Remove season markers like S01-S07, Season 1-7, etc.
-        clean_name = re.sub(r'S\d{1,2}[-.]S?\d{1,2}', '', clean_name, flags=re.IGNORECASE)
-        clean_name = re.sub(r'Season[s]?\s*\d{1,2}[-.](\d{1,2})', '', clean_name, flags=re.IGNORECASE)
-        clean_name = re.sub(r'(\d{1,2})[-.](\d{1,2})\s*Season[s]?', '', clean_name, flags=re.IGNORECASE)
-        
-        # Remove common technical specifications and release info
-        technical_patterns = [
-            r'\b(?:WEB[-]?DL|BluRay|DVDRip)\b',       # Release type
-            r'\b(?:x264|x265|HEVC|H[-.]?26[45])\b',   # Encoding
-            r'\bAAC\d?(?:[-.]?\d)?\b',                # Audio codec
-            r'\b(?:DTS|DD5\.1|AC3)\b',                # Audio codec alternative
-            r'\b(?:HDTV|WEB|UHD)\b',                  # Source
-            r'\b(?:PROPER|REPACK|INTERNAL)\b',        # Release flags
-            r'[-][\w\d]+$',                           # Release group at the end
-        ]
-        
-        for pattern in technical_patterns:
-            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
-        
-        # Remove content in brackets and parentheses
-        clean_name = re.sub(r'\[[^\]]*\]|\([^)]*\)', '', clean_name)
-        
-        # Normalize spaces and trim
-        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
-        
-        # If we identified a special case earlier, use that normalized name
-        if special_case:
-            clean_name = special_case
-        
-        # Final cleaning and normalization
-        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
-        
-        # Add back the year if it was extracted
-        if year:
-            clean_name = f"{clean_name} ({year})"
-        
-        return clean_name
-
-    def _extract_year_from_foldername(self, folder_name):
-        """Extract just the year from a folder name."""
-        # Try to find a year in the format (YYYY) or [YYYY] or standalone YYYY
-        year_match = re.search(r'\((\d{4})\)|\[(\d{4})\]|(?<!\d)(\d{4})(?!\d)', folder_name)
-        if year_match:
-            # Use the first non-None group
-            return next((g for g in year_match.groups() if g is not None), None)
-        return None
-
-    def _extract_metadata(self, filename, dirname):
-        """
-        Extract metadata from filename and directory name.
-        
-        Returns:
-            Tuple of (title, year, season, episode)
-        """
-        # Default values
-        title = None
-        year = None
-        season = None
-        episode = None
-        
-        # Clean the filename
-        clean_filename = filename.replace('.', ' ').replace('_', ' ')
-        
-        # Try to extract title from directory name first
-        title = dirname
-        
-        # Try to extract season and episode information
-        season_ep_pattern = re.compile(r'S(\d{1,2})E(\d{1,2})', re.IGNORECASE)
-        match = season_ep_pattern.search(clean_filename)
-        if match:
-            season = int(match.group(1))
-            episode = int(match.group(2))
-        
-        # Alternative pattern: "Season X Episode Y"
-        alt_pattern = re.compile(r'Season\s*(\d{1,2}).*Episode\s*(\d{1,2})', re.IGNORECASE)
-        if not match:
-            match = alt_pattern.search(clean_filename)
-            if match:
-                season = int(match.group(1))
-                episode = int(match.group(2))
-        
-        # Try to extract year
-        year_pattern = re.compile(r'\((\d{4})\)|\[(\d{4})\]|(?<!\d)(\d{4})(?!\d)')
-        if not year:
-            match = year_pattern.search(clean_filename)
-            if match:
-                # Use the first non-None group
-                year = next((g for g in match.groups() if g is not None), None)
-        
-        return title, year, season, episode
-    
-    def _extract_suggested_name(self, filename, folder_path):
-        """
-        Extract a suggested name from filename and folder path.
-        
-        Args:
-            filename: Filename to extract from
-            folder_path: Folder path to extract from
-            
-        Returns:
-            A suggested name for the content
-        """
-        # Try to get the parent folder name as a good starting point
-        parent_folder = os.path.basename(folder_path)
-        
-        # If parent folder is generic (like "movies" or "downloads"), try to extract from filename
-        generic_folders = ['movies', 'downloads', 'videos', 'tv', 'series', 'anime', 'films']
-        
-        if parent_folder.lower() in generic_folders:
-            # Clean the filename
-            clean_name = re.sub(r'\.(mkv|mp4|avi|mov|wmv|flv|m4v|ts)$', '', filename, flags=re.IGNORECASE)
-            clean_name = re.sub(r'[._-]', ' ', clean_name)
-            
-            # Remove common tags
-            clean_name = re.sub(r'\[[^\]]*\]|\([^\)]*\)', '', clean_name)
-            
-            # Remove quality indicators
-            clean_name = re.sub(r'(?i)(1080p|720p|2160p|4K|HEVC|x264|x265|WEB-?DL|BluRay)', '', clean_name)
-            
-            # Normalize spaces
-            clean_name = re.sub(r'\s+', ' ', clean_name).strip()
-            
-            return clean_name
-        else:
-            return parent_folder
-    
-    def _create_symlink(self, source_path, title, year=None, season=None, episode=None, is_tv=False, is_anime=False, resolution=None, part=None, tmdb_id=None, imdb_id=None, tvdb_id=None):
-        """
-        Create a symlink from the source file to the appropriate destination.
-        
-        Args:
-            source_path: Path to the source file
-            title: Title of the movie or TV show
-            year: Year of release (optional)
-            season: Season number for TV shows (optional)
-            episode: Episode number for TV shows (optional)
-            is_tv: Boolean indicating if content is a TV series
-            is_anime: Boolean indicating if content is anime
-            resolution: Optional resolution string
-            part: Part number for multi-part movies (optional)
-            tmdb_id: TMDB ID (optional)
-            imdb_id: IMDB ID (optional)
-            tvdb_id: TVDB ID (optional)
-            
-        Returns:
-            Boolean indicating success
-        """
-        try:
-            # Import the create_symlinks function
-            from src.utils.file_utils import create_symlinks
-            
-            # Get destination directory from environment variable
-            destination_dir = os.environ.get('DESTINATION_DIRECTORY')
-            
-            if not destination_dir:
-                self.logger.error("Destination directory not set in environment variables")
-                print("Error: Destination directory not set. Please set DESTINATION_DIRECTORY environment variable.")
-                return False
-            
-            # Strip quotes from destination directory as well
-            destination_dir = destination_dir.strip("'\"")
-            
-            # Ensure the destination directory exists
-            if not os.path.exists(destination_dir):
-                try:
-                    os.makedirs(destination_dir, exist_ok=True)
-                except Exception as e:
-                    self.logger.error(f"Failed to create destination directory: {e}")
-                    print(f"Error: Failed to create destination directory: {e}")
-                    return False
-            
-            # Check environment variables for folder ID settings
-            include_tmdb_id = os.environ.get('TMDB_FOLDER_ID', 'true').lower() == 'true'
-            include_imdb_id = os.environ.get('IMDB_FOLDER_ID', 'false').lower() == 'true'
-            include_tvdb_id = os.environ.get('TVDB_FOLDER_ID', 'false').lower() == 'true'
-            
-            # Filter IDs based on environment settings
-            if not include_tmdb_id:
-                tmdb_id = None
-            if not include_imdb_id:
-                imdb_id = None
-            if not include_tvdb_id:
-                tvdb_id = None
-            
-            # Prepare metadata
-            metadata = {
-                'title': title,
-                'year': year,
-                'season': season,
-                'episode': episode,
-                'resolution': resolution,
-                'episode_title': None,  # Add episode title key with None as default
-                'part': part,  # Add part number for multi-part movies
-                'tmdb_id': tmdb_id,  # Add TMDB ID 
-                'imdb_id': imdb_id,  # Add IMDB ID
-                'tvdb_id': tvdb_id   # Add TVDB ID
-            }
-            
-            # Debug log to trace what's happening
-            self.logger.debug(f"Creating symlink for '{title}' with IDs: TMDB={tmdb_id}, IMDB={imdb_id}, TVDB={tvdb_id}")
-            self.logger.debug(f"Source: {source_path}")
-            self.logger.debug(f"Destination: {destination_dir}")
-            
-            # Create symlinks using the utility function
-            success, message = create_symlinks(
-                source_path,
-                destination_dir,
-                is_anime=is_anime,
-                content_type='tv' if is_tv else 'movie',
-                metadata=metadata,
-                force_overwrite=False
-            )
-            
-            if success:
-                self.logger.info(f"Created symlink: {message}")
-                return True
-            else:
-                self.errors += 1
-                self.logger.error(f"Failed to create symlink: {message}")
-                print(f"Error: {message}")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Error creating symlink: {e}", exc_info=True)
-            print(f"Error creating symlink: {e}")
-            self.errors += 1
-            return False
-
-    def _process_movies(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
-        """Process files as movies.
-        
-        Args:
-            files: List of file paths
-            subfolder: Path to subfolder containing the files
-            title: Movie title
-            year: Release year
-            is_anime: Whether this is anime content
-            tmdb_id: TMDB ID (optional)
-            imdb_id: IMDB ID (optional)
-            tvdb_id: TVDB ID (optional) - Not typically used for movies but included for consistency
-        """
-        successful_links = 0
-        errors = 0
-        
-        # Check if we should attempt to get IDs that weren't provided
-        if not tmdb_id or not imdb_id:
-            # Only query TMDB if we need IDs and the title is available
-            if title:
-                ids = self._get_media_ids(title, year, is_tv=False)
-                if ids:
-                    # Only use IDs that weren't already provided
-                    if not tmdb_id:
-                        tmdb_id = ids.get('tmdb_id')
-                    if not imdb_id:
-                        imdb_id = ids.get('imdb_id')
-        
-        # Log the IDs we're working with
-        self.logger.debug(f"Processing movies with title={title}, year={year}, tmdb_id={tmdb_id}, imdb_id={imdb_id}")
-        
-        for file_path in files:
-            try:
-                # Extract resolution from filename
-                resolution = None
-                res_match = re.search(r'(720p|1080p|2160p|4K)', os.path.basename(file_path), re.IGNORECASE)
-                if res_match:
-                    resolution = res_match.group(1)
-                
-                # Detect movie part (for multi-part movies)
-                part_match = re.search(r'part\s*(\d+)', os.path.basename(file_path).lower())
-                part = part_match.group(1) if part_match else None
-                
-                # Create the symlink with the IDs
-                if self._create_symlink(
-                    file_path,
-                    title,
-                    year=year,
-                    is_tv=False,
-                    is_anime=is_anime,
-                    resolution=resolution,
-                    part=part,
-                    tmdb_id=tmdb_id,
-                    imdb_id=imdb_id,
-                    tvdb_id=tvdb_id
-                ):
-                    successful_links += 1
-                else:
-                    errors += 1
-                    
-            except Exception as e:
-                self.logger.error(f"Error processing movie file {file_path}: {e}", exc_info=True)
-                print(f"Error processing {os.path.basename(file_path)}: {e}")
-                errors += 1
-        
-        # Return success/error counts rather than updating globals
-        # This avoids double-counting when caller also updates counts
-        return successful_links, errors
-
-    def _process_tv_series(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
-        """Process files as TV series."""
-        logger = logging.getLogger(__name__)
-        
-        # Log the information we have
-        logger.debug(f"Processing TV series with title={title}, year={year}, tmdb_id={tmdb_id}, imdb_id={imdb_id}, tvdb_id={tvdb_id}")
-        
-        # Check if we should auto-extract episodes based on environment variable
-        auto_extract_episodes = os.environ.get('AUTO_EXTRACT_EPISODES', 'False').lower() in ('true', 'yes', '1')
-        
-        # In manual mode, ask if seasons should be processed manually or automatically
-        auto_process_seasons = True  # Default for auto mode
-        
-        # Check if this is likely a multi-season pack (like "Star.Trek.The.Next.Generation.S01-07")
-        subfolder_name = os.path.basename(subfolder)
-        is_multi_season_pack = False
-        
-        # Look for patterns like "S01-S07", "S01-07", "Season 1-7", etc.
-        multi_season_patterns = [
-            r'S(\d{1,2})[.-]S?(\d{1,2})',  # S01-S07 or S01-07
-            r'S(\d{1,2}).*?S(\d{1,2})',     # S01...S07
-            r'Season[s]?\s*(\d{1,2})[-.](\d{1,2})',  # Season 1-7 or Seasons 1-7
-            r'(\d{1,2})[-.](\d{1,2})\s*Season[s]?'   # 1-7 Seasons
-        ]
-        
-        season_range = None
-        for pattern in multi_season_patterns:
-            match = re.search(pattern, subfolder_name, re.IGNORECASE)
-            if match:
-                is_multi_season_pack = True
-                start_season = int(match.group(1))
-                end_season = int(match.group(2))
-                season_range = (start_season, end_season)
-                break
-        
-        # If this looks like a multi-season pack, suggest using detailed title extraction
-        if is_multi_season_pack and not self.auto_mode:
-            # Try to extract a more specific title from the folder name
-            refined_title = self._extract_full_series_name(subfolder_name)
-            if refined_title != title:
-                print(f"\nDetected possible full series title: {refined_title}")
-                use_detailed = input(f"Use '{refined_title}' instead of '{title}'? (Y/n): ").strip().lower()
-                if use_detailed != 'n':
-                    title = refined_title
-                    print(f"Using title: {title}")
-            
-            print(f"\nThis appears to be a multi-season pack (Seasons {season_range[0]}-{season_range[1]})")
-        
-        if not self.auto_mode:
-            print("\nHow would you like to process seasons?")
-            print("1. Automatically detect seasons (default - press Enter)")
-            print("2. Manually assign season numbers")
-            
-            season_choice = input("\nEnter choice (1-2, or press Enter for option 1): ").strip()
-            auto_process_seasons = (not season_choice or season_choice == "1")
-        
-        # Display the chosen processing method
-        if not self.auto_mode:
-            season_mode = "automatic" if auto_process_seasons else "manual"
-            episode_mode = "automatic" if auto_extract_episodes else "manual"
-            print(f"\nUsing {season_mode} season detection and {episode_mode} episode detection")
-        
-        # Process TV series based on selected options
-        if auto_process_seasons:
-            # Automatically detect seasons and episodes
-            successful_links = 0
-            errors = 0
-            
-            for file_path in files:
-                try:
-                    # Extract season and episode from filename
-                    file_name = os.path.basename(file_path)
-                    
-                    # Better metadata extraction for TV shows, especially multi-season packs
-                    metadata = self._extract_tv_metadata(file_name, os.path.basename(subfolder))
-                    
-                    season = metadata.get('season')
-                    episode = metadata.get('episode')
-                    resolution = metadata.get('resolution')
-                    
-                    if not season and season_range:
-                        # If no season was detected but we have a season range from the folder name,
-                        # try to extract it from the filename with the known range
-                        season = self._extract_season_from_filename(file_name, season_range)
-                    
-                    if not season or not episode:
-                        print(f"Warning: Could not extract season/episode from {file_name}")
-                        if not auto_extract_episodes:
-                            print("Manual episode numbering required but not available in auto mode.")
-                            print(f"Skipping {file_name}")
-                            errors += 1
-                            continue
-                        else:
-                            # Try to extract episode number from filename when season is known
-                            if season and not episode:
-                                # Try various patterns to extract just the episode number
-                                ep_patterns = [
-                                    r'E(\d{1,3})',  # Match E01, E1, E001
-                                    r'EP(\d{1,3})',  # Match EP01, EP1, EP001
-                                    r'Episode.*?(\d{1,3})',  # Match Episode 1, Episode 01
-                                    r'[\s\.\-](\d{1,3})[\s\.\-]',  # Match spaces, dots or dashes with numbers
-                                ]
-                                for pattern in ep_patterns:
-                                    ep_match = re.search(pattern, file_name, re.IGNORECASE)
-                                    if ep_match:
-                                        episode = int(ep_match.group(1))
-                                        break
-                            
-                            # If still no success, try to guess from file order
-                            if not season or not episode:
-                                # Default to season 1 if not found
-                                if not season:
-                                    season = 1
-                                # Default to episode based on position in file list
-                                episode = files.index(file_path) + 1
-                                print(f"  Auto-assigning: Season {season}, Episode {episode}")
-                    
-                    # Create symlink with detected metadata
-                    if self._create_symlink(
-                        file_path, 
-                        title, 
-                        year, 
-                        season, 
-                        episode, 
-                        is_tv=True, 
-                        is_anime=is_anime,
-                        resolution=resolution,
-                        tmdb_id=tmdb_id,
-                        imdb_id=imdb_id,
-                        tvdb_id=tvdb_id
-                    ):
-                        successful_links += 1
-                    else:
-                        errors += 1
-                
-                except Exception as e:
-                    self.logger.error(f"Error processing TV file {file_path}: {e}", exc_info=True)
-                    print(f"Error processing {os.path.basename(file_path)}: {e}")
-                    errors += 1
-                    
-            # Update counts
-            self.symlink_count += successful_links
-            self.errors += errors
-                    
-        else:
-            # Manual season assignment
-            season = input("\nEnter season number for all files: ").strip()
-            if not season.isdigit():
-                print("Invalid season number. Using season 1 as default.")
-                season = "1"
-            
-            # Process each file with the manually set season
-            successful_links = 0
-            errors = 0
-            
-            for file_path in files:
-                try:
-                    file_name = os.path.basename(file_path)
-                    metadata = self._extract_tv_metadata(file_name, os.path.basename(subfolder))
-                    resolution = metadata.get('resolution')
-                    
-                    # If auto_extract_episodes is enabled, try to extract episode number
-                    # Otherwise, manually set the episode number
-                    episode = None
-                    if auto_extract_episodes:
-                        # Try to extract episode numbers from filename
-                        ep_match = re.search(r'[Ee](\d{1,3})', file_name)
-                        if ep_match:
-                            episode = int(ep_match.group(1))
-                        else:
-                            # Try alternative patterns
-                            alt_patterns = [
-                                r'EP(\d{1,3})',  # EP01
-                                r'Episode.*?(\d{1,3})',  # Episode 1
-                                r'[\s\.\-](\d{1,3})[\s\.\-]',  # Match numbers with separators
-                            ]
-                            for pattern in alt_patterns:
-                                ep_match = re.search(pattern, file_name, re.IGNORECASE)
-                                if ep_match:
-                                    episode = int(ep_match.group(1))
-                                    break
-                            
-                        if not episode:
-                            # If we still can't extract the episode, use the index in the file list
-                            episode = files.index(file_path) + 1
-                            print(f"  Couldn't extract episode number for {file_name}, using {episode}")
-                    else:
-                        # Ask user for episode number
-                        print(f"\nFile: {file_name}")
-                        ep_input = input(f"Enter episode number: ").strip()
-                        if ep_input.isdigit():
-                            episode = int(ep_input)
-                        else:
-                            print("Invalid episode number. Skipping file.")
-                            errors += 1
-                            continue
-
-                    # Create symlink with manually set season
-                    if self._create_symlink(
-                        file_path,
-                        title,
-                        year,
-                        int(season),
-                        episode,
-                        is_tv=True,
-                        is_anime=is_anime,
-                        resolution=resolution,
-                        tmdb_id=tmdb_id,
-                        imdb_id=imdb_id,
-                        tvdb_id=tvdb_id
-                    ):
-                        successful_links += 1
-                    else:
-                        errors += 1
-                        
-                except Exception as e:
-                    self.logger.error(f"Error processing TV file {file_path}: {e}", exc_info=True)
-                    print(f"Error processing {os.path.basename(file_path)}: {e}")
-                    errors += 1
-            
-            # Update counts
-            self.symlink_count += successful_links
-            self.errors += errors
 
     def _extract_full_series_name(self, folder_name):
         """Extract the full series name from folder name, preserving important subtitle parts."""
@@ -2276,6 +1752,177 @@ class DirectoryProcessor:
         except Exception as e:
             logger.error(f"Error getting media IDs: {e}", exc_info=True)
             return {'tmdb_id': None, 'imdb_id': None, 'tvdb_id': None}
+
+    def _process_movies(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
+        """
+        Process movie files from a subfolder.
+        
+        Args:
+            files: List of file paths to process
+            subfolder: Path to the subfolder containing the files
+            title: Movie title
+            year: Release year
+            is_anime: Whether this is an anime movie
+            tmdb_id: Optional TMDB ID
+            imdb_id: Optional IMDB ID
+            tvdb_id: Optional TVDB ID (rarely used for movies)
+        """
+        self.logger.debug(f"Processing {len(files)} movie files for '{title}' ({year if year else 'Unknown Year'})")
+        
+        # Get destination directory from environment
+        destination_dir = os.environ.get('DESTINATION_DIRECTORY')
+        
+        if not destination_dir:
+            print("Destination directory not set")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Create base movie directory
+        movie_type = "Anime Movies" if is_anime else "Movies"
+        content_dir = os.path.join(destination_dir, movie_type)
+        os.makedirs(content_dir, exist_ok=True)
+        
+        # Create movie-specific directory with year if available
+        movie_dir_name = f"{title} ({year})" if year else title
+        movie_dir = os.path.join(content_dir, movie_dir_name)
+        
+        # Add metadata file if we have IDs
+        if tmdb_id or imdb_id:
+            os.makedirs(movie_dir, exist_ok=True)
+            metadata_path = os.path.join(movie_dir, ".metadata")
+            try:
+                with open(metadata_path, 'w') as f:
+                    metadata = {
+                        'title': title,
+                        'year': year,
+                        'type': 'movie',
+                        'is_anime': is_anime,
+                        'tmdb_id': tmdb_id,
+                        'imdb_id': imdb_id,
+                        'tvdb_id': tvdb_id
+                    }
+                    json.dump(metadata, f, indent=2)
+            except Exception as e:
+                self.logger.error(f"Failed to write metadata for {title}: {e}")
+        
+        # Process each movie file
+        for file_path in files:
+            try:
+                # Extract file name and extension
+                file_name = os.path.basename(file_path)
+                file_ext = os.path.splitext(file_name)[1]
+                
+                # Create symlink with original filename in movie directory
+                symlink_path = os.path.join(movie_dir, file_name)
+                
+                # Create the directory if it doesn't exist
+                os.makedirs(os.path.dirname(symlink_path), exist_ok=True)
+                
+                # Create symlink
+                if os.path.exists(symlink_path):
+                    # Skip if symlink already exists
+                    self.logger.debug(f"Symlink already exists: {symlink_path}")
+                    continue
+                    
+                os.symlink(file_path, symlink_path)
+                self.logger.info(f"Created symlink: {symlink_path} -> {file_path}")
+                self.symlink_count += 1
+                
+            except Exception as e:
+                self.logger.error(f"Error processing movie file {file_path}: {e}")
+                self.errors += 1
+        
+        print(f"Processed {len(files)} movie files for '{title}'")
+
+    def _process_tv_series(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
+        """
+        Process TV series files from a subfolder.
+        
+        Args:
+            files: List of file paths to process
+            subfolder: Path to the subfolder containing the files
+            title: Series title
+            year: Release year
+            is_anime: Whether this is an anime series
+            tmdb_id: Optional TMDB ID
+            imdb_id: Optional IMDB ID
+            tvdb_id: Optional TVDB ID
+        """
+        self.logger.debug(f"Processing {len(files)} TV files for '{title}' ({year if year else 'Unknown Year'})")
+        
+        # Get destination directory from environment
+        destination_dir = os.environ.get('DESTINATION_DIRECTORY')
+        
+        if not destination_dir:
+            print("Destination directory not set")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Create base TV directory
+        series_type = "Anime Series" if is_anime else "TV Series"
+        content_dir = os.path.join(destination_dir, series_type)
+        os.makedirs(content_dir, exist_ok=True)
+        
+        # Create series-specific directory with year if available
+        series_dir_name = f"{title} ({year})" if year else title
+        series_dir = os.path.join(content_dir, series_dir_name)
+        os.makedirs(series_dir, exist_ok=True)
+        
+        # Add metadata file if we have IDs
+        if tmdb_id or imdb_id or tvdb_id:
+            metadata_path = os.path.join(series_dir, ".metadata")
+            try:
+                with open(metadata_path, 'w') as f:
+                    metadata = {
+                        'title': title,
+                        'year': year,
+                        'type': 'tv',
+                        'is_anime': is_anime,
+                        'tmdb_id': tmdb_id,
+                        'imdb_id': imdb_id,
+                        'tvdb_id': tvdb_id
+                    }
+                    json.dump(metadata, f, indent=2)
+            except Exception as e:
+                self.logger.error(f"Failed to write metadata for {title}: {e}")
+        
+        # Process each TV episode file
+        for file_path in files:
+            try:
+                # Extract file name and metadata
+                file_name = os.path.basename(file_path)
+                episode_metadata = self._extract_tv_metadata(file_name, subfolder)
+                
+                # Determine season and episode
+                season_num = episode_metadata.get('season')
+                episode_num = episode_metadata.get('episode')
+                
+                if season_num is not None and episode_num is not None:
+                    # Create season directory
+                    season_dir = os.path.join(series_dir, f"Season {season_num}")
+                    os.makedirs(season_dir, exist_ok=True)
+                    
+                    # Create symlink in season directory
+                    symlink_path = os.path.join(season_dir, file_name)
+                else:
+                    # If we can't determine season/episode, place in the series root
+                    symlink_path = os.path.join(series_dir, file_name)
+                
+                # Create symlink
+                if os.path.exists(symlink_path):
+                    # Skip if symlink already exists
+                    self.logger.debug(f"Symlink already exists: {symlink_path}")
+                    continue
+                    
+                os.symlink(file_path, symlink_path)
+                self.logger.info(f"Created symlink: {symlink_path} -> {file_path}")
+                self.symlink_count += 1
+                
+            except Exception as e:
+                self.logger.error(f"Error processing TV file {file_path}: {e}")
+                self.errors += 1
+        
+        print(f"Processed {len(files)} TV files for '{title}'")
 
 # Main entry point
 if __name__ == "__main__":
