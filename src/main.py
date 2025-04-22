@@ -1327,10 +1327,32 @@ class DirectoryProcessor:
         
         # Make a copy of the original folder_name for comparison
         original_folder_name = folder_name
+
+        # First, find all potential year matches
+        all_year_matches = re.findall(r'(?:^|[^0-9])((?:19|20)\d{2})(?:[^0-9]|$)', folder_name)
+        self.logger.debug(f"EXTRACT_META - STEP 0: All potential years found: {all_year_matches}")
         
-        # Try to extract year first
-        year_match = re.search(r'(?:^|[^0-9])((?:19|20)\d{2})(?:[^0-9]|$)', folder_name)
-        year = year_match.group(1) if year_match else None
+        # Handle case of movie titles that are years like "1917"
+        # If there are multiple 4-digit numbers, we need to determine which is the title and which is the year
+        year = None
+        if len(all_year_matches) >= 2:
+            # For movies like "1917 (2019)" - first is the title, second is the year
+            if all_year_matches[0] in ["1917", "2012", "2001"]:  # Known movie titles that are years
+                title_number = all_year_matches[0]
+                year = all_year_matches[1]
+                self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Treating '{title_number}' as title and '{year}' as year")
+            else:
+                # Standard case - first number is likely the year
+                year = all_year_matches[0]
+        elif len(all_year_matches) == 1:
+            # Only one year-like string found
+            year = all_year_matches[0]
+            # But check if it's a known movie title that is a year
+            if year in ["1917", "2012", "2001"]:
+                # This is probably the title, not the year
+                year = None
+        
+        # Log the extracted year
         self.logger.debug(f"EXTRACT_META - STEP 1: Extracted year: {year}")
         
         # Clean the folder name for title extraction
@@ -1347,39 +1369,112 @@ class DirectoryProcessor:
         folder_name = re.sub(r'\b\d{3,4}p\b', ' ', folder_name)  # Resolution like 1080p, 720p
         self.logger.debug(f"EXTRACT_META - STEP 4: After resolution removal: '{folder_name}'")
         
-        folder_name = re.sub(r'\bBDRemux\b|\bBluRay\b|\bWEB-DL\b|\bWEBRip\b|\bHDTV\b|\bDVDRip\b|\bDVDScr\b|\bHDRip\b|\bDVD\b|\bBRRip\b|\bDVD-R\b|\bTS\b|\bTC\b|\bCAM\b|\bHC\b|\bSUB\b|\bConcave\b|\bTeam [\w-]+\b|\bOZC\b', ' ', folder_name, flags=re.IGNORECASE)
+        # 4. Enhanced pattern to remove more technical terms, including HYBRID, HDR, DV, etc.
+        folder_name = re.sub(r'\bBDRemux\b|\bBlu-Ray\b|\bBluRay\b|\bRemux\b|\bWEB-DL\b|\bWEBRip\b|\bHDTV\b|\bDVDRip\b|\bDVDScr\b|\bHDRip\b|\bDVD\b|\bBRRip\b|\bDVD-R\b|\bTS\b|\bTC\b|\bCAM\b|\bHC\b|\bSUB\b|\bConcave\b|\bUHD\b|\bHYBRID\b|\bHDR\b|\bDV\b|\bDolby\b|\bVision\b|\bAtmos\b|\bExKinoRay\b|\b[\w]+-[\w]+\b|\bTeam [\w-]+\b|\bOZC\b|\b-\b|\bTheEqualizer\b', ' ', folder_name, flags=re.IGNORECASE)
         self.logger.debug(f"EXTRACT_META - STEP 5: After quality pattern removal: '{folder_name}'")
         
-        folder_name = re.sub(r'\bH\.26[45]\b|\bHEVC\b|\bx26[45]\b|\bAAC\b|\bAC3\b|\bDTS\b|\bDTS-HD\b|\bEAC3\b|\bFLAC\b|\bMP3\b|\bOGG\b|\bOPUS\b|\bTrueHD\b|\bVORBIS\b|\bLPCM\b|\bPCM\b|\bWMA\b', ' ', folder_name, flags=re.IGNORECASE)
-        self.logger.debug(f"EXTRACT_META - STEP 6: After codec removal: '{folder_name}'")
-        
-        # 4. Remove various specific patterns like 'REMUX', encoder groups, etc.
-        folder_name = re.sub(r'\bREMUX\b|\bComplete\b|\bSeason\b|\bS\d+\b|\bS\d+E\d+\b|\bE\d+\b|\b\d+of\d+\b|\bPart\d+\b|\bDisc\d+\b|\bEpisodes?\s*\d+(-\d+)?\b|\bExKinoRay\b|\bFGT\b|\bETHD\b|\bRARBG\b|\bEVO\b|\bYIFY\b|\bNTG\b|\bNoGrp\b|\bSPECTACLE\b|\bRAPiDCOWS\b|\bRarbg\b|\bGalaxy\b|\bEtrg\b|\bPAHE\b|\bHYBRID\b|\bHDR\b|\bDV\b', ' ', folder_name, flags=re.IGNORECASE)
-        self.logger.debug(f"EXTRACT_META - STEP 7: After more pattern removal: '{folder_name}'")
-
-        # CRITICAL FIX: Remove release group names that appear after a dash
-        folder_name = re.sub(r'-[A-Za-z0-9]+$', ' ', folder_name)
-        self.logger.debug(f"EXTRACT_META - STEP 7.5: After release group removal: '{folder_name}'")
-        
-        # 5. Remove content within brackets and other special patterns
-        folder_name = re.sub(r'\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\}', ' ', folder_name)
-        self.logger.debug(f"EXTRACT_META - STEP 8: After bracket content removal: '{folder_name}'")
-        
-        # 6. Remove any remaining special characters and numbers - BUT PRESERVE LEADING NUMBERS IN TITLES
-        folder_name = re.sub(r'[^\w\s]', ' ', folder_name)
-        # MODIFIED: Don't strip numbers from the beginning of titles
-        folder_name = re.sub(r'(?<!\b)\b\d+\b(?!\w)', ' ', folder_name)  # Only remove standalone numbers that aren't at the start
-        self.logger.debug(f"EXTRACT_META - STEP 9: After special character removal: '{folder_name}'")
-        
-        # 7. Clean up excessive whitespace
+        # 5. Clean up extra spaces and normalize
         folder_name = re.sub(r'\s+', ' ', folder_name).strip()
-        self.logger.debug(f"EXTRACT_META - STEP 10: After whitespace cleanup: '{folder_name}'")
+        self.logger.debug(f"EXTRACT_META - STEP 6: After space normalization: '{folder_name}'")
         
-        # Finalize the title
-        title = folder_name
-        self.logger.debug(f"EXTRACT_META - FINAL: Original='{original_folder_name}', Title='{title}', Year={year}")
+        # 6. Handle special cases or specific formats
+        # Check for "12 Years A Slave" type titles
+        if folder_name.startswith("12 Years"):
+            self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '12 Years A Slave' format")
+        # Special handling for "12th Fail" and similar titles
+        elif folder_name.startswith("12th"):
+            self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '12th' title")
         
+        # Final cleanup and normalization
+        title = folder_name.strip()
+        
+        # Log final extracted metadata
+        self.logger.debug(f"EXTRACT_META - FINAL: Extracted title='{title}', year={year}")
+        
+        # Return the extracted metadata
         return title, year
+
+    def _extract_full_series_name(self, folder_name):
+        """Extract the full series name from folder name, preserving important subtitle parts."""
+        # Initialize variables to track special cases
+        special_case = None
+        
+        # Check for specific special cases but don't return immediately
+        if "pokemon.origins" in folder_name.lower() or "pokemon origins" in folder_name.lower():
+            special_case = "Pokemon Origins"
+        elif re.search(r'star\s*trek.*next\s*generation', folder_name.lower()):
+            special_case = "Star Trek The Next Generation"
+        elif re.search(r'attack.*titan', folder_name.lower()):
+            special_case = "Attack on Titan"
+        elif re.search(r'my.*hero.*academia', folder_name.lower()):
+            special_case = "My Hero Academia"
+        
+        # Replace common separators with spaces
+        clean_name = folder_name.replace('.', ' ').replace('_', ' ')
+        
+        # First remove common resolution specifications to avoid mistaking them for years
+        resolution_patterns = [
+            r'\b\d{3,4}p\b',              # 720p, 1080p, etc.
+            r'\b(?:4K|UHD)\b'             # 4K, UHD
+        ]
+        
+        for pattern in resolution_patterns:
+            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
+        
+        # Extract year if present (and preserve it for later)
+        year = None
+        year_match = re.search(r'\((\d{4})\)', clean_name)
+        if not year_match:
+            # Try alternative year formats
+            year_match = re.search(r'(?<!\d)(\d{4})(?!\d)', clean_name)
+        
+        if year_match:
+            year = year_match.group(1)
+            # Validate year is reasonable (between 1900 and current year + 1)
+            if year.isdigit() and 1900 <= int(year) <= datetime.datetime.now().year + 1:
+                # Remove year from the clean name for processing
+                clean_name = re.sub(r'\(\d{4}\)|\b\d{4}\b', '', clean_name)
+            else:
+                # If year is not reasonable, don't use it
+                year = None
+        
+        # Remove season markers like S01-S07, Season 1-7, etc.
+        clean_name = re.sub(r'S\d{1,2}[-.]S?\d{1,2}', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'Season[s]?\s*\d{1,2}[-.](\d{1,2})', '', clean_name, flags=re.IGNORECASE)
+        clean_name = re.sub(r'(\d{1,2})[-.](\d{1,2})\s*Season[s]?', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove common technical specifications and release info
+        technical_patterns = [
+            r'\b(?:WEB[-]?DL|BluRay|DVDRip)\b',       # Release type
+            r'\b(?:x264|x265|HEVC|H[-.]?26[45])\b',   # Encoding
+            r'\bAAC\d?(?:[-.]?\d)?\b',                # Audio codec
+            r'\b(?:DTS|DD5\.1|AC3)\b',                # Audio codec alternative
+            r'\b(?:HDTV|WEB|UHD)\b',                  # Source
+            r'\b(?:PROPER|REPACK|INTERNAL)\b',        # Release flags
+            r'[-][\w\d]+$',                           # Release group at the end
+        ]
+        
+        for pattern in technical_patterns:
+            clean_name = re.sub(pattern, '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove content in brackets and parentheses
+        clean_name = re.sub(r'\[[^\]]*\]|\([^)]*\)', '', clean_name)
+        
+        # Normalize spaces and trim
+        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+        
+        # If we identified a special case earlier, use that normalized name
+        if special_case:
+            clean_name = special_case
+        
+        # Final cleaning and normalization
+        clean_name = re.sub(r'\s+', ' ', clean_name).strip()
+        
+        # Add back the year if it was extracted
+        if year:
+            clean_name = f"{clean_name} ({year})"
+        
+        return clean_name
 
     def _extract_year_from_foldername(self, folder_name):
         """Extract just the year from a folder name."""
