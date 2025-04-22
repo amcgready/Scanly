@@ -1328,6 +1328,9 @@ class DirectoryProcessor:
         # Make a copy of the original folder_name for comparison
         original_folder_name = folder_name
 
+        # Known movie titles that are years
+        year_titles = ["1917", "2012", "2001"]
+        
         # First, find all potential year matches
         all_year_matches = re.findall(r'(?:^|[^0-9])((?:19|20)\d{2})(?:[^0-9]|$)', folder_name)
         self.logger.debug(f"EXTRACT_META - STEP 0: All potential years found: {all_year_matches}")
@@ -1335,34 +1338,40 @@ class DirectoryProcessor:
         # Handle case of movie titles that are years like "1917"
         # If there are multiple 4-digit numbers, we need to determine which is the title and which is the year
         year = None
+        title_year = None
+        
         if len(all_year_matches) >= 2:
             # For movies like "1917 (2019)" - first is the title, second is the year
-            if all_year_matches[0] in ["1917", "2012", "2001"]:  # Known movie titles that are years
-                title_number = all_year_matches[0]
+            if all_year_matches[0] in year_titles:
+                title_year = all_year_matches[0]
                 year = all_year_matches[1]
-                self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Treating '{title_number}' as title and '{year}' as year")
+                self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Treating '{title_year}' as title and '{year}' as year")
             else:
                 # Standard case - first number is likely the year
                 year = all_year_matches[0]
         elif len(all_year_matches) == 1:
             # Only one year-like string found
-            year = all_year_matches[0]
-            # But check if it's a known movie title that is a year
-            if year in ["1917", "2012", "2001"]:
+            # Check if it's a known movie title that is a year
+            if all_year_matches[0] in year_titles:
                 # This is probably the title, not the year
-                year = None
+                title_year = all_year_matches[0]
+            else:
+                # Just a regular year
+                year = all_year_matches[0]
         
         # Log the extracted year
-        self.logger.debug(f"EXTRACT_META - STEP 1: Extracted year: {year}")
+        self.logger.debug(f"EXTRACT_META - STEP 1: Extracted year: {year}, title_year: {title_year}")
         
         # Clean the folder name for title extraction
         # 1. Replace common delimiters with spaces
         folder_name = folder_name.replace('.', ' ').replace('_', ' ')
         self.logger.debug(f"EXTRACT_META - STEP 2: After delimiter replacement: '{folder_name}'")
         
-        # 2. Remove the year from the title if found
+        # 2. Remove the year from the title if found (but not if it's a title year)
         if year:
-            folder_name = re.sub(r'(?:^|[^0-9])((?:19|20)\d{2})(?:[^0-9]|$)', ' ', folder_name)
+            # Don't remove the year if it's also the title
+            if not title_year or year != title_year:
+                folder_name = re.sub(r'(?:^|[^0-9])' + re.escape(year) + r'(?:[^0-9]|$)', ' ', folder_name)
         self.logger.debug(f"EXTRACT_META - STEP 3: After year removal: '{folder_name}'")
         
         # 3. Remove common patterns like resolution, quality, etc.
@@ -1378,12 +1387,27 @@ class DirectoryProcessor:
         self.logger.debug(f"EXTRACT_META - STEP 6: After space normalization: '{folder_name}'")
         
         # 6. Handle special cases or specific formats
+        # If we have a title that is a year, force it
+        if title_year:
+            folder_name = title_year
+            self.logger.debug(f"EXTRACT_META - STEP 7: Forcing year title: '{folder_name}'")
         # Check for "12 Years A Slave" type titles
-        if folder_name.startswith("12 Years"):
+        elif folder_name.startswith("12 Years"):
             self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '12 Years A Slave' format")
         # Special handling for "12th Fail" and similar titles
         elif folder_name.startswith("12th"):
             self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Handling '12th' title")
+        
+        # 7. Check scanner lists for this title
+        from src.utils.scanner_utils import check_scanner_lists
+        scanner_result = check_scanner_lists(folder_name)
+        if scanner_result:
+            self.logger.debug(f"EXTRACT_META - STEP 8: Found in scanner lists: {scanner_result}")
+            if len(scanner_result) >= 3:
+                scanner_title = scanner_result[3] if len(scanner_result) > 3 else None
+                if scanner_title:
+                    folder_name = scanner_title
+                    self.logger.debug(f"EXTRACT_META - STEP 9: Using scanner title: '{folder_name}'")
         
         # Final cleanup and normalization
         title = folder_name.strip()
