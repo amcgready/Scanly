@@ -1644,7 +1644,7 @@ class DirectoryProcessor:
 
     def _get_media_ids(self, title, year, is_tv):
         """
-        Get media IDs from the TMDB API.
+        Get media IDs from the TMDB API with improved matching for year-based titles.
         
         Args:
             title: Title to search for
@@ -1656,7 +1656,21 @@ class DirectoryProcessor:
         """
         logger = logging.getLogger(__name__)
         
+        # Add caching to avoid repeated API calls for the same title
+        cache_key = f"{title}_{year}_{is_tv}"
+        
+        # Check if we already have this result in memory cache
+        if hasattr(self, '_media_id_cache') and cache_key in self._media_id_cache:
+            return self._media_id_cache[cache_key]
+        
+        # Initialize cache if it doesn't exist
+        if not hasattr(self, '_media_id_cache'):
+            self._media_id_cache = {}
+        
         try:
+            # Start timing for performance tracking
+            search_start_time = time.time()
+            
             # Import TMDB API
             from src.api.tmdb import TMDB
             
@@ -1670,6 +1684,17 @@ class DirectoryProcessor:
             # Initialize TMDB API
             tmdb = TMDB(api_key=tmdb_api_key)
             
+            # Special case handling for titles containing years
+            contains_year_in_title = False
+            title_year_match = re.search(r'\b(19\d{2}|20\d{2})\b', title)
+            if title_year_match:
+                year_in_title = title_year_match.group(1)
+                # Check if it's one of the known "year titles"
+                known_year_titles = ["1917", "2001", "2010", "2012"]
+                if year_in_title in known_year_titles:
+                    contains_year_in_title = True
+                    logger.debug(f"Detected title containing year: {title} (year in title: {year_in_title})")
+            
             # Clean the title to remove any resolution or technical specs that might have been missed
             clean_title = re.sub(r'\b\d{3,4}p\b', '', title, flags=re.IGNORECASE)  # Remove 1080p, 720p, etc.
             clean_title = re.sub(r'\(\d{3,4}\)', '', clean_title)  # Remove (1080), etc.
@@ -1681,81 +1706,247 @@ class DirectoryProcessor:
                 year_num = int(year)
                 if 1900 <= year_num <= datetime.datetime.now().year + 1:
                     valid_year = year
+                    
+            # Store candidate results with scores
+            candidates = []
             
             # Search differently based on content type
             if is_tv:
-                # Search for TV series
-                query = f"{clean_title}"
+                # TV series search strategy
+                query = clean_title
                 logger.debug(f"Searching for TV series with query: {query}")
                 
-                # First try searching by title only for better matching
-                results = tmdb.search_tv(query, limit=1)
+                # First search with just the title
+                results = tmdb.search_tv(query, limit=5)
                 
-                # If no results or low confidence, and we have a valid year, try with year
-                if (not results or len(results) == 0) and valid_year:
+                if results:
+                    for idx, result in enumerate(results):
+                        # Calculate match score - higher is better
+                        score = self._calculate_match_score(
+                            result.get('name', ''), 
+                            clean_title, 
+                            result.get('first_air_date', '')[:4] if result.get('first_air_date') else None, 
+                            valid_year,
+                            position=idx
+                        )
+                        candidates.append((result, score))
+                
+                # If we have a year, also try searching with the year included
+                if valid_year and not candidates:
                     query_with_year = f"{clean_title} {valid_year}"
-                    logger.debug(f"No results with title only, trying with year: {query_with_year}")
-                    results = tmdb.search_tv(query_with_year, limit=1)
-                
-                if results and len(results) > 0:
-                    show_id = results[0].get('id')
-                    if show_id:
-                        # Get detailed info which might include external IDs
-                        details = tmdb.get_tv_details(show_id)
-                        
-                        # Extract external IDs
-                        external_ids = details.get('external_ids', {})
-                        imdb_id = external_ids.get('imdb_id')
-                        tvdb_id = external_ids.get('tvdb_id')
-                        
-                        logger.debug(f"Found IDs for {clean_title}: TMDB={show_id}, IMDB={imdb_id}, TVDB={tvdb_id}")
-                        
-                        return {
-                            'tmdb_id': show_id,
-                            'imdb_id': imdb_id,
-                            'tvdb_id': tvdb_id
-                        }
+                    logger.debug(f"Trying TV search with year included: {query_with_year}")
+                    results_with_year = tmdb.search_tv(query_with_year, limit=5)
+                    
+                    if results_with_year:
+                        for idx, result in enumerate(results_with_year):
+                            score = self._calculate_match_score(
+                                result.get('name', ''), 
+                                clean_title, 
+                                result.get('first_air_date', '')[:4] if result.get('first_air_date') else None, 
+                                valid_year,
+                                position=idx
+                            )
+                            candidates.append((result, score))
             else:
-                # Search for movie
-                query = f"{clean_title}"
+                # Movie search strategy
+                query = clean_title
                 logger.debug(f"Searching for movie with query: {query}")
                 
-                # First try searching by title only
-                results = tmdb.search_movie(query, limit=1)
+                # Handle special case for titles like "2010: The Year We Make Contact"
+                if contains_year_in_title:
+                    # Search with more specific query for these special cases
+                    logger.debug(f"Special case: Title contains year, using more specific search terms")
+                    
+                    # Try searching with a more complete title if applicable
+                    expanded_title = None
+                    if "2001" in clean_title and "space" not in clean_title.lower():
+                        expanded_title = "2001: A Space Odyssey"
+                    elif "2010" in clean_title and "contact" not in clean_title.lower():
+                        expanded_title = "2010: The Year We Make Contact"
+                    
+                    if expanded_title:
+                        logger.debug(f"Trying expanded title search: '{expanded_title}'")
+                        expanded_results = tmdb.search_movie(expanded_title, limit=5)
+                        
+                        if expanded_results:
+                            for idx, result in enumerate(expanded_results):
+                                # Give higher scores to these special expanded matches
+                                score = self._calculate_match_score(
+                                    result.get('title', ''), 
+                                    expanded_title, 
+                                    result.get('release_date', '')[:4] if result.get('release_date') else None, 
+                                    valid_year,
+                                    position=idx,
+                                    bonus=20  # Bonus points for expanded title match
+                                )
+                                candidates.append((result, score))
                 
-                # If no results and we have a valid year, try with year
-                if (not results or len(results) == 0) and valid_year:
+                # Standard search approach - first try without year
+                results = tmdb.search_movie(query, limit=5)
+                
+                if results:
+                    for idx, result in enumerate(results):
+                        score = self._calculate_match_score(
+                            result.get('title', ''), 
+                            clean_title, 
+                            result.get('release_date', '')[:4] if result.get('release_date') else None, 
+                            valid_year,
+                            position=idx
+                        )
+                        candidates.append((result, score))
+                
+                # If we have a year and haven't found a good match, also try searching with year
+                if valid_year:
                     query_with_year = f"{clean_title} {valid_year}"
-                    logger.debug(f"No results with title only, trying with year: {query_with_year}")
-                    results = tmdb.search_movie(query_with_year, limit=1)
+                    logger.debug(f"Trying movie search with year included: {query_with_year}")
+                    results_with_year = tmdb.search_movie(query_with_year, limit=5)
+                    
+                    if results_with_year:
+                        for idx, result in enumerate(results_with_year):
+                            score = self._calculate_match_score(
+                                result.get('title', ''), 
+                                clean_title, 
+                                result.get('release_date', '')[:4] if result.get('release_date') else None, 
+                                valid_year,
+                                position=idx,
+                                bonus=5  # Small bonus for year-specific search
+                            )
+                            candidates.append((result, score))
+            
+            # Sort candidates by score (highest first)
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            
+            # Log top candidates for debugging
+            for idx, (candidate, score) in enumerate(candidates[:3]):
+                name = candidate.get('title', candidate.get('name', 'Unknown'))
+                year_str = candidate.get('release_date', candidate.get('first_air_date', ''))[:4]
+                logger.debug(f"Candidate {idx+1}: '{name}' ({year_str}) - Score: {score}")
+            
+            # Take the highest scoring candidate
+            if candidates:
+                best_match, score = candidates[0]
                 
-                if results and len(results) > 0:
-                    movie_id = results[0].get('id')
+                # Get the appropriate ID depending on content type
+                if is_tv:
+                    show_id = best_match.get('id')
+                    if show_id:
+                        # Get detailed info for external IDs
+                        details = tmdb.get_tv_details(show_id)
+                        external_ids = details.get('external_ids', {})
+                        
+                        result = {
+                            'tmdb_id': show_id,
+                            'imdb_id': external_ids.get('imdb_id'),
+                            'tvdb_id': external_ids.get('tvdb_id')
+                        }
+                        
+                        # Save to cache
+                        self._media_id_cache[cache_key] = result
+                        
+                        # Log performance
+                        search_time = time.time() - search_start_time
+                        logger.debug(f"TMDB lookup completed in {search_time:.2f}s")
+                        
+                        return result
+                else:
+                    movie_id = best_match.get('id')
                     if movie_id:
-                        # Get detailed info which might include external IDs
+                        # Get detailed info for external IDs
                         details = tmdb.get_movie_details(movie_id)
                         
-                        # Extract external IDs
-                        imdb_id = details.get('imdb_id')
-                        
-                        logger.debug(f"Found IDs for {clean_title}: TMDB={movie_id}, IMDB={imdb_id}")
-                        
-                        return {
+                        result = {
                             'tmdb_id': movie_id,
-                            'imdb_id': imdb_id,
+                            'imdb_id': details.get('imdb_id'),
                             'tvdb_id': None  # Movies don't have TVDB IDs
                         }
+                        
+                        # Save to cache
+                        self._media_id_cache[cache_key] = result
+                        
+                        # Log performance
+                        search_time = time.time() - search_start_time
+                        logger.debug(f"TMDB lookup completed in {search_time:.2f}s")
+                        
+                        return result
             
-            logger.warning(f"No IDs found for {clean_title}" + (f" ({valid_year})" if valid_year else ""))
-            return {'tmdb_id': None, 'imdb_id': None, 'tvdb_id': None}
+            # If we got here, no good match was found
+            logger.warning(f"No good match found for {clean_title}" + (f" ({valid_year})" if valid_year else ""))
+            result = {'tmdb_id': None, 'imdb_id': None, 'tvdb_id': None}
+            
+            # Cache the negative result to avoid repeated failures
+            self._media_id_cache[cache_key] = result
+            
+            # Log performance even for failures
+            search_time = time.time() - search_start_time
+            logger.debug(f"TMDB lookup failed in {search_time:.2f}s")
+            
+            return result
                     
         except Exception as e:
             logger.error(f"Error getting media IDs: {e}", exc_info=True)
             return {'tmdb_id': None, 'imdb_id': None, 'tvdb_id': None}
 
+    def _calculate_match_score(self, api_title, search_title, api_year, search_year, position=0, bonus=0):
+        """
+        Calculate a match score between API result and search criteria.
+        Higher scores are better matches.
+        
+        Args:
+            api_title: Title from the API
+            search_title: Title we're searching for
+            api_year: Year from the API
+            search_year: Year we're searching for
+            position: Position in search results (lower is better)
+            bonus: Extra points for special cases
+            
+        Returns:
+            Score as an integer
+        """
+        score = 100  # Base score
+        
+        # Lowercase everything for comparison
+        api_title_lower = api_title.lower()
+        search_title_lower = search_title.lower()
+        
+        # Exact match is best
+        if api_title_lower == search_title_lower:
+            score += 50
+        # Title contains search as a whole word
+        elif search_title_lower in api_title_lower:
+            score += 30
+            # If the API title starts with the search title, even better
+            if api_title_lower.startswith(search_title_lower):
+                score += 10
+        else:
+            # Calculate word overlap
+            api_words = set(re.findall(r'\w+', api_title_lower))
+            search_words = set(re.findall(r'\w+', search_title_lower))
+            
+            if search_words:
+                # Calculate percentage of search words found in API title
+                overlap = len(api_words.intersection(search_words)) / len(search_words)
+                score += int(overlap * 25)
+        
+        # Year matching
+        if api_year and search_year:
+            if api_year == search_year:
+                score += 20  # Exact year match
+            elif abs(int(api_year) - int(search_year)) <= 1:
+                score += 10  # Off by 1 year
+            elif abs(int(api_year) - int(search_year)) <= 3:
+                score += 5   # Off by up to 3 years
+        
+        # Position penalty - earlier results are likely more relevant
+        score -= position * 2
+        
+        # Special case bonus
+        score += bonus
+        
+        return score
+
     def _process_movies(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
         """
-        Process movie files from a subfolder.
+        Process movie files from a subfolder with optimized performance.
         
         Args:
             files: List of file paths to process
@@ -1797,35 +1988,20 @@ class DirectoryProcessor:
             return
         
         # Add metadata file if we have IDs - do this once per movie
-        if tmdb_id or imdb_id:
-            metadata_path = os.path.join(movie_dir, ".metadata")
+        metadata_path = os.path.join(movie_dir, ".metadata")
+        if (tmdb_id or imdb_id) and (not os.path.exists(metadata_path) or os.path.getsize(metadata_path) == 0):
             try:
-                # Only write metadata if it doesn't exist or IDs have changed
-                write_metadata = True
-                if os.path.exists(metadata_path):
-                    try:
-                        with open(metadata_path, 'r') as f:
-                            existing_metadata = json.load(f)
-                        # Only overwrite if IDs are different
-                        if (existing_metadata.get('tmdb_id') == tmdb_id and
-                            existing_metadata.get('imdb_id') == imdb_id):
-                            write_metadata = False
-                    except:
-                        # If reading fails, we'll rewrite
-                        pass
-                        
-                if write_metadata:
-                    with open(metadata_path, 'w') as f:
-                        metadata = {
-                            'title': title,
-                            'year': year,
-                            'type': 'movie',
-                            'is_anime': is_anime,
-                            'tmdb_id': tmdb_id,
-                            'imdb_id': imdb_id,
-                            'tvdb_id': tvdb_id
-                        }
-                        json.dump(metadata, f, indent=2)
+                with open(metadata_path, 'w') as f:
+                    metadata = {
+                        'title': title,
+                        'year': year,
+                        'type': 'movie',
+                        'is_anime': is_anime,
+                        'tmdb_id': tmdb_id,
+                        'imdb_id': imdb_id,
+                        'tvdb_id': tvdb_id
+                    }
+                    json.dump(metadata, f, indent=2)
             except Exception as e:
                 # Log error but continue processing
                 self.logger.error(f"Failed to write metadata for {title}: {e}")
@@ -1835,6 +2011,7 @@ class DirectoryProcessor:
         # Get existing files first to avoid repeated calls to os.path.exists
         existing_files = set(os.listdir(movie_dir) if os.path.exists(movie_dir) else [])
         
+        # Process files in bulk where possible
         for file_path in files:
             try:
                 # Extract file name
