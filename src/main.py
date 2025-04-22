@@ -1370,7 +1370,7 @@ class DirectoryProcessor:
         self.logger.debug(f"EXTRACT_META - STEP 4: After resolution removal: '{folder_name}'")
         
         # 4. Enhanced pattern to remove more technical terms, including HYBRID, HDR, DV, etc.
-        folder_name = re.sub(r'\bBDRemux\b|\bBlu-Ray\b|\bBluRay\b|\bRemux\b|\bWEB-DL\b|\bWEBRip\b|\bHDTV\b|\bDVDRip\b|\bDVDScr\b|\bHDRip\b|\bDVD\b|\bBRRip\b|\bDVD-R\b|\bTS\b|\bTC\b|\bCAM\b|\bHC\b|\bSUB\b|\bConcave\b|\bUHD\b|\bHYBRID\b|\bHDR\b|\bDV\b|\bDolby\b|\bVision\b|\bAtmos\b|\bExKinoRay\b|\b[\w]+-[\w]+\b|\bTeam [\w-]+\b|\bOZC\b|\b-\b|\bTheEqualizer\b', ' ', folder_name, flags=re.IGNORECASE)
+        folder_name = re.sub(r'\bBDRemux\b|\bYTS\b|\bYTS.MX\b|\bMX\b|\bBlu-Ray\b|\bBluRay\b|\bRemux\b|\bWEB-DL\b|\bWEBRip\b|\bHDTV\b|\bDVDRip\b|\bDVDScr\b|\bHDRip\b|\bDVD\b|\bBRRip\b|\bDVD-R\b|\bTS\b|\bTC\b|\bCAM\b|\bHC\b|\bSUB\b|\bConcave\b|\bUHD\b|\bHYBRID\b|\bHDR\b|\bDV\b|\bDolby\b|\bVision\b|\bAtmos\b|\bExKinoRay\b|\b[\w]+-[\w]+\b|\bTeam [\w-]+\b|\bOZC\b|\b-\b|\bTheEqualizer\b|\[|\]', ' ', folder_name, flags=re.IGNORECASE)
         self.logger.debug(f"EXTRACT_META - STEP 5: After quality pattern removal: '{folder_name}'")
         
         # 5. Clean up extra spaces and normalize
