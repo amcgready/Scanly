@@ -1371,7 +1371,12 @@ class DirectoryProcessor:
         if year:
             # Don't remove the year if it's also the title
             if not title_year or year != title_year:
-                folder_name = re.sub(r'(?:^|[^0-9])' + re.escape(year) + r'(?:[^0-9]|$)', ' ', folder_name)
+                # Special case for titles that start with years like "2001: A Space Odyssey"
+                if folder_name.lower().startswith(year.lower()):
+                    self.logger.debug(f"EXTRACT_META - SPECIAL CASE: Year {year} appears at start of title - keeping it")
+                    title_year = year  # Mark this as a title year to prevent removal
+                else:
+                    folder_name = re.sub(r'(?:^|[^0-9])' + re.escape(year) + r'(?:[^0-9]|$)', ' ', folder_name)
         self.logger.debug(f"EXTRACT_META - STEP 3: After year removal: '{folder_name}'")
         
         # 3. Remove common patterns like resolution, quality, etc.

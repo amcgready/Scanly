@@ -31,124 +31,90 @@ def load_scanner_entries(filename):
         logger.error(f"Error loading scanner entries from {filename}: {e}")
         return []
 
-def check_scanner_lists(filename, title_hint=None):
+def check_scanner_lists(title, check_full_path=False):
     """
-    Check if the filename matches any entries in scanner lists.
+    Check if a title matches any entry in the scanner lists.
     
     Args:
-        filename: The filename to check
-        title_hint: Optional title hint to improve matching accuracy
+        title: The title to check
+        check_full_path: If True, match against full paths instead of just titles
         
     Returns:
-        Tuple of (content_type, is_anime, tmdb_id, title) or None if no match
+        A tuple of (content_type, is_anime, tmdb_id, title_override) or None if no match
     """
     logger = logging.getLogger(__name__)
-    logger.debug(f"SCANNER - ENTRY: Checking scanner lists for: '{filename}'")
     
-    # Clean the filename for comparison
-    clean_name = filename.lower().replace('.', ' ').replace('_', ' ')
-    logger.debug(f"SCANNER - STEP 1: Cleaned name for matching: '{clean_name}'")
-    
-    # Special case for Pokemon Origins
-    if "pokemon origins" in clean_name or (title_hint and "pokemon origins" in title_hint.lower()):
-        logger.debug("SCANNER - SPECIAL CASE: Pokemon Origins")
-        return ('tv', True, None, "Pokemon Origins")
-    
-    # Special case for Pokemon Destiny Deoxys
-    if "pokemon destiny deoxys" in clean_name or (title_hint and "pokemon destiny deoxys" in title_hint.lower()):
-        logger.debug("SCANNER - SPECIAL CASE: Pokemon Destiny Deoxys")
-        return ('movie', True, None, "Pokemon Destiny Deoxys")
-    
-    # Common technical terms that should NOT be matched as titles
-    technical_terms = [
-        'hybrid', 'remux', 'bluray', 'web-dl', 'webrip', 'hdtv', 'dvdrip',
-        'hdr', 'dv', 'x264', 'x265', 'hevc', 'avc', '1080p', '2160p', '720p',
-        'aac', 'ac3', 'dts', 'dd5.1', 'atmos', 'truehd', 'uhd'
+    # Lists to check (in order of priority)
+    scanner_files = [
+        ('anime_series.txt', 'tv', True),
+        ('anime_movies.txt', 'movie', True),
+        ('tv_series.txt', 'tv', False),
+        ('movies.txt', 'movie', False)
     ]
     
-    # List of potential matches with their scores
-    potential_matches = []
+    # Get the base scanner directory
+    scanner_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scanners')
     
-    # Look for exact matches in scanner lists
-    for list_type, is_anime in [('tv_series', False), ('movies', False), ('anime_series', True), ('anime_movies', True)]:
-        entries = load_scanner_entries(f"{list_type}.txt")
-        logger.debug(f"SCANNER - STEP 2: Checking {list_type} list with {len(entries)} entries")
+    # Function to normalize titles for comparison
+    def normalize_title(text):
+        if not text:
+            return ""
+        # Convert to lowercase
+        text = text.lower()
+        # Replace dots, underscores with spaces
+        text = text.replace('.', ' ').replace('_', ' ')
+        # Normalize whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    
+    normalized_title = normalize_title(title)
+    
+    # Check each scanner list
+    for filename, content_type, is_anime in scanner_files:
+        file_path = os.path.join(scanner_dir, filename)
         
-        for entry in entries:
-            # Skip entries that are too short
-            clean_entry_for_length = re.sub(r'\s*\[\d+\]\s*$', '', entry).lower().strip()
-            if len(clean_entry_for_length) <= 1:
-                continue
+        if not os.path.exists(file_path):
+            continue
             
-            # Extract the clean title from the entry (no TMDB ID)
-            clean_entry = entry.lower()
-            clean_entry = re.sub(r'\s*\[\d+\]\s*$', '', clean_entry).strip()
-            
-            logger.debug(f"SCANNER - STEP 3: Comparing '{clean_name}' with entry '{clean_entry}'")
-            
-            # Only match technical terms if they're not in the technical_terms list
-            if clean_entry in technical_terms:
-                logger.debug(f"SCANNER - SKIPPING: '{clean_entry}' is a common technical term")
-                continue
-            
-            # Calculate match score - higher is better
-            match_score = 0
-            
-            # Check if entry is in the filename
-            if clean_entry in clean_name:
-                # Basic match
-                match_score = 1
-                
-                # For short entries (1-2 chars), ensure they're standalone
-                if len(clean_entry) <= 2:
-                    if not re.search(fr'\b{re.escape(clean_entry)}\b', clean_name):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
                         continue
-                
-                # Boost score for longer titles (more specific matches)
-                match_score += len(clean_entry) / 10
-                
-                # Boost score for titles at the beginning or end of the filename
-                if clean_name.startswith(clean_entry):
-                    match_score += 5
-                elif clean_name.endswith(clean_entry):
-                    match_score += 3
-                
-                # Boost score for exact matches with word boundaries
-                if re.search(fr'\b{re.escape(clean_entry)}\b', clean_name):
-                    match_score += 2
-                
-                # Check if entry appears to be a release group
-                # Release groups often appear at the end after a dash
-                if "-" in clean_name and clean_entry in clean_name.split("-")[-1]:
-                    # This might be a release group, reduce score
-                    match_score -= 3
-                
-                # Store potential match
-                content_type = 'tv' if 'series' in list_type else 'movie'
-                
-                # Extract TMDB ID if available
-                tmdb_id = None
-                if '[' in entry and ']' in entry:
-                    try:
-                        tmdb_id = re.search(r'\[(\d+)\]$', entry).group(1)
-                    except:
-                        pass
-                
-                # CRITICAL FIX: Get the original title WITHOUT the ID
-                original_entry = re.sub(r'\s*\[\d+\]\s*$', '', entry).strip()
-                potential_matches.append((match_score, content_type, is_anime, tmdb_id, original_entry))
+                    
+                    # Extract TMDB ID if present
+                    tmdb_id = None
+                    tmdb_match = re.search(r'\[(\d+)\]$', line)
+                    if tmdb_match:
+                        tmdb_id = tmdb_match.group(1)
+                        # Remove the TMDB ID from the line for title matching
+                        scanner_entry = line[:tmdb_match.start()].strip()
+                    else:
+                        scanner_entry = line
+                    
+                    # For full path matching, compare the normalized path
+                    if check_full_path:
+                        normalized_entry = normalize_title(scanner_entry)
+                        if normalized_entry in normalized_title or normalized_title.endswith(normalized_entry):
+                            logger.debug(f"Full path match found: '{scanner_entry}' in '{title}'")
+                            return (content_type, is_anime, tmdb_id, scanner_entry)
+                    else:
+                        # For title matching, normalize both and compare
+                        normalized_entry = normalize_title(scanner_entry)
+                        if normalized_entry == normalized_title:
+                            return (content_type, is_anime, tmdb_id, scanner_entry)
+                        
+                        # Also check if the scanner entry is a substring of the title
+                        # This helps with titles that might have extra information
+                        words_in_entry = normalized_entry.split()
+                        if len(words_in_entry) > 2:  # Only do substring matching for longer entries
+                            if normalized_entry in normalized_title:
+                                return (content_type, is_anime, tmdb_id, scanner_entry)
+        
+        except Exception as e:
+            logger.error(f"Error reading scanner file {filename}: {e}")
     
-    # Sort potential matches by score (highest first)
-    potential_matches.sort(reverse=True, key=lambda x: x[0])
-    
-    # Return the best match if any
-    if potential_matches:
-        best_match = potential_matches[0]
-        logger.info(f"SCANNER - BEST MATCH: '{best_match[4]}' with score {best_match[0]}")
-        return best_match[1:]
-    
-    # No match found
-    logger.debug("SCANNER - NO MATCH: No match found in scanner lists")
     return None
 
 def update_scanner_entry(scanner_file, entry, tmdb_id):
