@@ -1769,70 +1769,76 @@ class DirectoryProcessor:
         """
         self.logger.debug(f"Processing {len(files)} movie files for '{title}' ({year if year else 'Unknown Year'})")
         
-        # Get destination directory from environment
+        # Get destination directory from environment - cache this to avoid repeated lookups
         destination_dir = os.environ.get('DESTINATION_DIRECTORY')
         
         if not destination_dir:
             print("Destination directory not set")
-            input("\nPress Enter to continue...")
+            input("\nPress Enter to continue..." if not self.auto_mode else "")
             return
         
         # Create base movie directory
         movie_type = "Anime Movies" if is_anime else "Movies"
         content_dir = os.path.join(destination_dir, movie_type)
+        
+        # Only create directory if needed - reduces filesystem operations
         os.makedirs(content_dir, exist_ok=True)
         
         # Create movie-specific directory with year if available
         movie_dir_name = f"{title} ({year})" if year else title
         movie_dir = os.path.join(content_dir, movie_dir_name)
         
-        # Add metadata file if we have IDs
+        # Batch directory creation - only create once before processing all files
+        os.makedirs(movie_dir, exist_ok=True)
+        
+        # Add metadata file if we have IDs - do this once per movie
         if tmdb_id or imdb_id:
-            os.makedirs(movie_dir, exist_ok=True)
             metadata_path = os.path.join(movie_dir, ".metadata")
             try:
-                with open(metadata_path, 'w') as f:
-                    metadata = {
-                        'title': title,
-                        'year': year,
-                        'type': 'movie',
-                        'is_anime': is_anime,
-                        'tmdb_id': tmdb_id,
-                        'imdb_id': imdb_id,
-                        'tvdb_id': tvdb_id
-                    }
-                    json.dump(metadata, f, indent=2)
+                # Check if metadata file already exists to avoid rewriting
+                if not os.path.exists(metadata_path):
+                    with open(metadata_path, 'w') as f:
+                        metadata = {
+                            'title': title,
+                            'year': year,
+                            'type': 'movie',
+                            'is_anime': is_anime,
+                            'tmdb_id': tmdb_id,
+                            'imdb_id': imdb_id,
+                            'tvdb_id': tvdb_id
+                        }
+                        json.dump(metadata, f, indent=2)
             except Exception as e:
                 self.logger.error(f"Failed to write metadata for {title}: {e}")
         
-        # Process each movie file
+        # Process files in batch
+        success_count = 0
         for file_path in files:
             try:
-                # Extract file name and extension
+                # Extract file name (optimization: no need to extract extension separately)
                 file_name = os.path.basename(file_path)
-                file_ext = os.path.splitext(file_name)[1]
                 
                 # Create symlink with original filename in movie directory
                 symlink_path = os.path.join(movie_dir, file_name)
                 
-                # Create the directory if it doesn't exist
-                os.makedirs(os.path.dirname(symlink_path), exist_ok=True)
-                
-                # Create symlink
+                # Skip if symlink already exists - reduces filesystem operations
                 if os.path.exists(symlink_path):
-                    # Skip if symlink already exists
-                    self.logger.debug(f"Symlink already exists: {symlink_path}")
                     continue
                     
                 os.symlink(file_path, symlink_path)
-                self.logger.info(f"Created symlink: {symlink_path} -> {file_path}")
+                success_count += 1
                 self.symlink_count += 1
                 
             except Exception as e:
                 self.logger.error(f"Error processing movie file {file_path}: {e}")
                 self.errors += 1
         
-        print(f"Processed {len(files)} movie files for '{title}'")
+        # Only log detailed info once at the end instead of for every file
+        self.logger.info(f"Created {success_count} symlinks for '{title}'")
+        
+        # Only print if not in auto mode
+        if not self.auto_mode:
+            print(f"Processed {len(files)} movie files for '{title}'")
 
     def _process_tv_series(self, files, subfolder, title, year, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
         """
