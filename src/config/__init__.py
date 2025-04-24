@@ -61,52 +61,19 @@ MONITOR_SCAN_INTERVAL = int(os.getenv('MONITOR_SCAN_INTERVAL', '60'))
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 LOG_FILE = os.getenv('LOG_FILE', 'scanly.log')
 
-def get_settings() -> Dict[str, Any]:
+def get_settings():
     """
-    Get application settings from environment variables.
+    Get all the current settings as a dictionary.
     
     Returns:
-        Dictionary of settings
+        Dictionary of settings with their current values
     """
-    settings = {
-        'TMDB_API_KEY': TMDB_API_KEY,
-        'TMDB_BASE_URL': TMDB_BASE_URL,
-        'MDBLIST_API_KEY': MDBLIST_API_KEY,
-        
-        'DESTINATION_DIRECTORY': DESTINATION_DIRECTORY,
-        
-        'LINK_TYPE': LINK_TYPE,
-        'RELATIVE_SYMLINK': RELATIVE_SYMLINK,
-        
-        'CUSTOM_SHOW_FOLDER': CUSTOM_SHOW_FOLDER,
-        'CUSTOM_4KSHOW_FOLDER': CUSTOM_4KSHOW_FOLDER,
-        'CUSTOM_ANIME_SHOW_FOLDER': CUSTOM_ANIME_SHOW_FOLDER,
-        'CUSTOM_MOVIE_FOLDER': CUSTOM_MOVIE_FOLDER,
-        'CUSTOM_4KMOVIE_FOLDER': CUSTOM_4KMOVIE_FOLDER,
-        'CUSTOM_ANIME_MOVIE_FOLDER': CUSTOM_ANIME_MOVIE_FOLDER,
-        
-        'SHOW_RESOLUTION_STRUCTURE': SHOW_RESOLUTION_STRUCTURE,
-        'MOVIE_RESOLUTION_STRUCTURE': MOVIE_RESOLUTION_STRUCTURE,
-        
-        'ANIME_SCAN': ANIME_SCAN,
-        'ANIME_SEPARATION': ANIME_SEPARATION,
-        
-        'SCANNER_ENABLED': SCANNER_ENABLED,
-        'SCANNER_PRIORITY': SCANNER_PRIORITY,
-        
-        'TMDB_FOLDER_ID': TMDB_FOLDER_ID,
-        'IMDB_FOLDER_ID': IMDB_FOLDER_ID,
-        'TVDB_FOLDER_ID': TVDB_FOLDER_ID,
-        
-        'AUTO_EXTRACT_EPISODES': AUTO_EXTRACT_EPISODES,
-        'PROGRESS_FILE': PROGRESS_FILE,
-        
-        'DISCORD_WEBHOOK_URL': DISCORD_WEBHOOK_URL,
-        'ENABLE_DISCORD_NOTIFICATIONS': ENABLE_DISCORD_NOTIFICATIONS,
-        'MONITOR_SCAN_INTERVAL': MONITOR_SCAN_INTERVAL,
-        
-        'LOG_LEVEL': LOG_LEVEL,
-        'LOG_FILE': LOG_FILE
-    }
+    settings = {}
+    for key, value in os.environ.items():
+        settings[key] = value
+    
+    # Add default values for missing settings
+    if 'MONITOR_SCAN_INTERVAL' not in settings:
+        settings['MONITOR_SCAN_INTERVAL'] = '60'
     
     return settings

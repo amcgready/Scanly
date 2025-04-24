@@ -14,12 +14,24 @@ import unicodedata
 from pathlib import Path
 import datetime
 
+# Define a filter to exclude certain log messages from console
+class ConsoleFilter(logging.Filter):
+    def filter(self, record):
+        # Filter out monitor_manager loading messages
+        # Fix: use record.msg instead of record.message
+        if "monitor_manager" in record.name and record.msg and "Loaded" in str(record.msg):
+            return False
+        return True
+
 # Set up basic logging configuration
+console_handler = logging.StreamHandler()
+console_handler.addFilter(ConsoleFilter())
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
+        console_handler,
         logging.FileHandler(os.path.join(os.path.dirname(__file__), '..', 'logs', 'scanly.log'), 'a')
     ]
 )
@@ -273,12 +285,22 @@ class MainMenu:
             
             has_skipped = len(globals().get('skipped_items_registry', [])) > 0
             
+            # Check if monitored directories exist
+            from src.core.monitor_manager import MonitorManager
+            monitor_manager = MonitorManager()
+            has_monitored = bool(monitor_manager.get_monitored_directories())
+            
             next_option = 3  # Start at 3 since we added Multi Scan as option 2
             
             if has_history:
                 print(f"{next_option}. Resume Scan")
                 print(f"{next_option+1}. Clear History")
                 next_option += 2
+            
+            # Show monitored directories option if they exist
+            if has_monitored:
+                print(f"{next_option}. Review Monitored Directories")
+                next_option += 1
             
             # Keep the skipped items count, but make it look like regular information
             if has_skipped:
@@ -310,9 +332,14 @@ class MainMenu:
                 clear_scan_history()
                 print("Scan history cleared.")
                 input("\nPress Enter to continue...")
-            # Handle skipped items review
-            elif has_skipped and ((has_history and choice == '5') or (not has_history and choice == '3')):
-                review_skipped_items()
+            # Handle monitored directories option
+            elif has_monitored and ((has_history and choice == '5') or (not has_history and choice == '3')):
+                self.review_monitored_directories()
+            # Handle skipped items review with adjusted position
+            elif has_skipped:
+                skipped_position = next_option - 1
+                if choice == str(skipped_position):
+                    review_skipped_items()
             # Settings option
             elif choice == str(max_choice):
                 self.settings_menu()
@@ -339,18 +366,21 @@ class MainMenu:
         print("\nSelect scan mode:")
         print("1. Auto Scan (automatic content detection and processing without user interaction)")
         print("2. Manual Scan (interactive content selection and processing)")
+        print("3. Monitor Scan (add directory to continuously monitor for new files)")
         print("0. Back to Main Menu")
         
-        mode_choice = input("\nEnter choice (0-2): ").strip()
+        mode_choice = input("\nEnter choice (0-3): ").strip()
         
         if mode_choice == '0':
             return
             
         auto_mode = (mode_choice == "1")
+        monitor_mode = (mode_choice == "3")
         
-        if not auto_mode and mode_choice != "2":
+        if not auto_mode and not monitor_mode and mode_choice != "2":
             print("\nInvalid choice. Using manual scan mode.")
             auto_mode = False
+            monitor_mode = False
             input("\nPress Enter to continue...")
         
         # Get directory path from user
@@ -366,6 +396,37 @@ class MainMenu:
         # Validate directory exists
         if not os.path.isdir(dir_path):
             print(f"\nError: {dir_path} is not a valid directory.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # If monitor mode, handle monitor-specific logic
+        if monitor_mode:
+            from src.core.monitor_manager import MonitorManager
+            
+            print("\nAdding directory to monitoring...")
+            
+            # Get optional description
+            print("\nEnter a description for this directory (optional):")
+            description = input("> ").strip() or os.path.basename(dir_path)
+            
+            # Add to monitored directories
+            monitor_manager = MonitorManager()
+            if monitor_manager.add_directory(dir_path, description):
+                print(f"\nDirectory added to monitoring: {dir_path}")
+                
+                # Ask if user wants to start monitoring now
+                print("\nDo you want to start monitoring now? (y/n)")
+                start_now = input("> ").strip().lower()
+                
+                if start_now == 'y':
+                    from src.config import get_settings
+                    settings = get_settings()
+                    interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
+                    monitor_manager.start_monitoring(interval)
+                    print(f"\nMonitoring started with {interval} second interval.")
+            else:
+                print(f"\nFailed to add directory: {dir_path}")
+                
             input("\nPress Enter to continue...")
             return
         
@@ -917,6 +978,15 @@ class MainMenu:
             else:
                 print("\nInvalid option.")
                 input("\nPress Enter to continue...")
+
+    def review_monitored_directories(self):
+        """Review and manage monitored directories."""
+        # Import the MonitorMenu class to use its functionality
+        from src.ui.monitor_menu import MonitorMenu
+        
+        # Create instance of MonitorMenu and show it
+        monitor_menu = MonitorMenu()
+        monitor_menu.show()
 
 # DirectoryProcessor class definition
 class DirectoryProcessor:
