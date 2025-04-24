@@ -18,8 +18,15 @@ import datetime
 class ConsoleFilter(logging.Filter):
     def filter(self, record):
         # Filter out monitor_manager loading messages
-        # Fix: use record.msg instead of record.message
         if "monitor_manager" in record.name and record.msg and "Loaded" in str(record.msg):
+            return False
+        # Filter out folder ID related messages
+        if record.msg and any(pattern in str(record.msg) for pattern in [
+            "movies with TMDB ID", 
+            "Adding TMDB ID", 
+            "[tmdb-", 
+            "Updated with TMDB ID"
+        ]):
             return False
         return True
 
@@ -2044,8 +2051,12 @@ class DirectoryProcessor:
         movie_type = "Anime Movies" if is_anime else "Movies"
         content_dir = os.path.join(destination_dir, movie_type)
         
-        # Create movie-specific directory with year if available - do this once
-        movie_dir_name = f"{title} ({year})" if year else title
+        # Create movie-specific directory with year and TMDB ID if available
+        if tmdb_id:
+            movie_dir_name = f"{title} ({year}) [tmdb-{tmdb_id}]" if year else f"{title} [tmdb-{tmdb_id}]"
+        else:
+            movie_dir_name = f"{title} ({year})" if year else title
+            
         movie_dir = os.path.join(content_dir, movie_dir_name)
         
         # Batch all directory creation operations
@@ -2134,11 +2145,15 @@ class DirectoryProcessor:
             return
         
         # Create base TV directory
-        series_type = "Anime Series" if is_anime else "TV Series"
+        series_type = "Anime" if is_anime else "TV Shows"
         content_dir = os.path.join(destination_dir, series_type)
         
-        # Create series-specific directory with year if available - once per series
-        series_dir_name = f"{title} ({year})" if year else title
+        # Create series-specific directory with year and TMDB ID if available
+        if tmdb_id:
+            series_dir_name = f"{title} ({year}) [tmdb-{tmdb_id}]" if year else f"{title} [tmdb-{tmdb_id}]"
+        else:
+            series_dir_name = f"{title} ({year})" if year else title
+            
         series_dir = os.path.join(content_dir, series_dir_name)
         
         try:
@@ -2148,113 +2163,48 @@ class DirectoryProcessor:
             self.logger.error(f"Failed to create directories for {title}: {e}")
             self.errors += 1
             return
+
+    def _create_destination_folder(self, title, year=None, content_type="movie", is_anime=False, tmdb_id=None):
+        """
+        Create a destination folder for the media content.
         
-        # Add metadata file if we have IDs - once per series
-        if tmdb_id or imdb_id or tvdb_id:
-            metadata_path = os.path.join(series_dir, ".metadata")
-            try:
-                # Only write metadata if it doesn't exist or IDs have changed
-                write_metadata = True
-                if os.path.exists(metadata_path):
-                    try:
-                        with open(metadata_path, 'r') as f:
-                            existing_metadata = json.load(f)
-                        # Only overwrite if IDs are different
-                        if (existing_metadata.get('tmdb_id') == tmdb_id and
-                            existing_metadata.get('imdb_id') == imdb_id and
-                            existing_metadata.get('tvdb_id') == tvdb_id):
-                            write_metadata = False
-                    except:
-                        # If reading fails, we'll rewrite
-                        pass
-                        
-                if write_metadata:
-                    with open(metadata_path, 'w') as f:
-                        metadata = {
-                            'title': title,
-                            'year': year,
-                            'type': 'tv',
-                            'is_anime': is_anime,
-                            'tmdb_id': tmdb_id,
-                            'imdb_id': imdb_id,
-                            'tvdb_id': tvdb_id
-                        }
-                        json.dump(metadata, f, indent=2)
-            except Exception as e:
-                # Log but continue
-                self.logger.error(f"Failed to write metadata for {title}: {e}")
-        
-        # Pre-analyze files to identify all required seasons
-        season_dirs_needed = set()
-        episode_by_season = {}  # Store episode data by season
-        
-        for file_path in files:
-            file_name = os.path.basename(file_path)
-            episode_metadata = self._extract_tv_metadata(file_name, subfolder)
+        Args:
+            title: The title of the movie or TV show
+            year: The release year, if known
+            content_type: Either 'movie' or 'tv'
+            is_anime: Whether the content is anime
+            tmdb_id: The TMDB ID if available
             
-            season_num = episode_metadata.get('season')
-            episode_num = episode_metadata.get('episode')
-            
-            if season_num is not None:
-                season_dir = f"Season {season_num}"
-                season_dirs_needed.add(season_dir)
-                
-                # Group files by season for batch processing
-                if season_dir not in episode_by_season:
-                    episode_by_season[season_dir] = []
-                
-                episode_by_season[season_dir].append((file_path, file_name))
-            else:
-                # Files without season info go in root
-                if 'root' not in episode_by_season:
-                    episode_by_season['root'] = []
-                episode_by_season['root'].append((file_path, file_name))
+        Returns:
+            Path to the created folder
+        """
+        # Clean title for file system compatibility
+        clean_title = self._clean_title_for_path(title)
         
-        # Create all needed season directories at once
-        for season_dir_name in season_dirs_needed:
-            season_path = os.path.join(series_dir, season_dir_name)
-            os.makedirs(season_path, exist_ok=True)
+        # Determine appropriate subfolder based on content type and anime status
+        if content_type == "tv":
+            subfolder = "Anime" if is_anime else "TV Shows"
+        else:
+            subfolder = "Anime Movies" if is_anime else "Movies"
         
-        # Get existing files to avoid repeated os.path.exists calls
-        existing_files_by_dir = {}
-        for season_dir_name in season_dirs_needed:
-            season_path = os.path.join(series_dir, season_dir_name)
-            existing_files_by_dir[season_dir_name] = set(os.listdir(season_path) if os.path.exists(season_path) else [])
+        # Construct folder name with title and year
+        if year:
+            folder_name = f"{clean_title} ({year})"
+        else:
+            folder_name = clean_title
         
-        # Also check root directory
-        existing_files_by_dir['root'] = set(os.listdir(series_dir) if os.path.exists(series_dir) else [])
+        # Add TMDB ID if available
+        if tmdb_id:
+            folder_name = f"{folder_name} [tmdb-{tmdb_id}]"
         
-        # Process files by season in batch
-        success_count = 0
+        # Define destination path
+        destination_dir = os.path.join(os.environ.get('DESTINATION_DIRECTORY', ''), subfolder, folder_name)
         
-        for season_dir_name, file_entries in episode_by_season.items():
-            # Get existing files list for this season
-            existing_files = existing_files_by_dir.get(season_dir_name, set())
-            
-            for file_path, file_name in file_entries:
-                try:
-                    # Skip if file already exists
-                    if file_name in existing_files:
-                        continue
-                    
-                    # Create symlink in appropriate location
-                    if season_dir_name == 'root':
-                        symlink_path = os.path.join(series_dir, file_name)
-                    else:
-                        symlink_path = os.path.join(series_dir, season_dir_name, file_name)
-                    
-                    os.symlink(file_path, symlink_path)
-                    success_count += 1
-                    self.symlink_count += 1
-                    
-                except Exception as e:
-                    self.errors += 1
+        # Create the directory if it doesn't exist
+        os.makedirs(destination_dir, exist_ok=True)
         
-        elapsed_time = time.time() - start_time
-        self.logger.info(f"Processed {len(files)} TV files for '{title}' ({success_count} symlinks created) in {elapsed_time:.2f}s")
-        
-        if not self.auto_mode:
-            print(f"Processed {len(files)} TV files for '{title}'")
+        self.logger.info(f"Created destination directory: {destination_dir}")
+        return destination_dir
 
 # Main entry point
 if __name__ == "__main__":
