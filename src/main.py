@@ -2068,25 +2068,6 @@ class DirectoryProcessor:
             self.errors += 1
             return
         
-        # Add metadata file if we have IDs - do this once per movie
-        metadata_path = os.path.join(movie_dir, ".metadata")
-        if (tmdb_id or imdb_id) and (not os.path.exists(metadata_path) or os.path.getsize(metadata_path) == 0):
-            try:
-                with open(metadata_path, 'w') as f:
-                    metadata = {
-                        'title': title,
-                        'year': year,
-                        'type': 'movie',
-                        'is_anime': is_anime,
-                        'tmdb_id': tmdb_id,
-                        'imdb_id': imdb_id,
-                        'tvdb_id': tvdb_id
-                    }
-                    json.dump(metadata, f, indent=2)
-            except Exception as e:
-                # Log error but continue processing
-                self.logger.error(f"Failed to write metadata for {title}: {e}")
-        
         # Process all files in a batch
         success_count = 0
         # Get existing files first to avoid repeated calls to os.path.exists
@@ -2095,20 +2076,27 @@ class DirectoryProcessor:
         # Process files in bulk where possible
         for file_path in files:
             try:
-                # Extract file name
-                file_name = os.path.basename(file_path)
+                # Extract file extension
+                _, ext = os.path.splitext(file_path)
+                
+                # Create standardized filename: "MEDIA TITLE (YEAR).extension"
+                if year:
+                    new_filename = f"{title} ({year}){ext}"
+                else:
+                    new_filename = f"{title}{ext}"
                 
                 # Skip if file already exists in destination
-                if file_name in existing_files:
+                if new_filename in existing_files:
                     continue
                     
-                # Create symlink
-                symlink_path = os.path.join(movie_dir, file_name)
+                # Create symlink with the standardized filename
+                symlink_path = os.path.join(movie_dir, new_filename)
                 os.symlink(file_path, symlink_path)
                 success_count += 1
                 self.symlink_count += 1
                 
             except Exception as e:
+                self.logger.error(f"Error creating symlink for {file_path}: {e}")
                 self.errors += 1
         
         # Only log summary info, not per-file
