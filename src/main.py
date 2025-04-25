@@ -28,24 +28,40 @@ class ConsoleFilter(logging.Filter):
             "Updated with TMDB ID"
         ]):
             return False
+        # Filter out routine monitor scanning messages
+        if "monitor_processor" in record.name and any(pattern in str(record.msg) for pattern in [
+            "Checking for new files",
+            "No changes detected",
+            "Routine scan"
+        ]):
+            return False
         return True
 
 # Set up basic logging configuration
 console_handler = logging.StreamHandler()
 console_handler.addFilter(ConsoleFilter())
 
+# Create a file handler with proper path creation
+log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'a')
+
+# Add a separate file handler for monitor logs
+monitor_log_file = os.path.join(log_dir, 'monitor.log')
+monitor_handler = logging.FileHandler(monitor_log_file, 'a')
+monitor_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+monitor_filter = logging.Filter('src.core.monitor')
+monitor_handler.addFilter(monitor_filter)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         console_handler,
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), '..', 'logs', 'scanly.log'), 'a')
+        file_handler,
+        monitor_handler
     ]
 )
-
-# Create logs directory if it doesn't exist
-log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'logs')
-os.makedirs(log_dir, exist_ok=True)
 
 # Ensure parent directory is in path for imports
 parent_dir = os.path.dirname(os.path.dirname(__file__))
@@ -63,6 +79,45 @@ except ImportError:
 def get_logger(name):
     """Get a logger with the given name."""
     return logging.getLogger(name)
+
+# Add this function as a standalone function, outside of any class
+def _update_env_var(name, value):
+    """Update an environment variable both in memory and in .env file."""
+    # Update in memory
+    os.environ[name] = value
+    
+    # Update in .env file
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+        
+        # Read existing content
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                lines = f.readlines()
+        else:
+            lines = []
+        
+        # Check if the variable already exists in the file
+        var_exists = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"{name}="):
+                lines[i] = f"{name}={value}\n"
+                var_exists = True
+                break
+        
+        # Add the variable if it doesn't exist
+        if not var_exists:
+            lines.append(f"{name}={value}\n")
+        
+        # Write the updated content back to the file
+        with open(env_path, 'w') as f:
+            f.writelines(lines)
+        
+        return True
+    except Exception as e:
+        logger = get_logger(__name__)
+        logger.error(f"Error updating environment variable: {e}")
+        return False
 
 # Try to load the TMDB API 
 try:
@@ -261,7 +316,38 @@ def review_skipped_items():
             input("\nPress Enter to continue...")
     elif choice == "2":
         clear_skipped_items()
+
+def _check_monitor_status():
+    """Check and fix the monitor status if needed."""
+    from src.core.monitor_manager import MonitorManager
     
+    monitor_manager = MonitorManager()
+    monitored_dirs = monitor_manager.get_monitored_directories()
+    
+    # Print current state
+    print("Current monitored directories:")
+    for dir_id, info in monitored_dirs.items():
+        print(f" - ID: {dir_id}")
+        print(f"   Path: {info.get('path', 'Unknown')}")
+        print(f"   Active: {info.get('active', False)}")
+        print(f"   Pending files: {len(info.get('pending_files', []))}")
+    
+    # Check for invalid entries
+    invalid_entries = []
+    for dir_id, info in monitored_dirs.items():
+        if not info.get('path') or not os.path.isdir(info.get('path', '')):
+            invalid_entries.append(dir_id)
+    
+    # Remove invalid entries
+    if invalid_entries:
+        print(f"\nRemoving {len(invalid_entries)} invalid monitored directories...")
+        for dir_id in invalid_entries:
+            monitor_manager.remove_directory(dir_id)
+        monitor_manager._save_monitored_directories()
+        print("Done.")
+    
+    input("\nPress Enter to continue...")
+
 # DirectoryProcessor class
 # [Rest of DirectoryProcessor class implementation]
 
@@ -416,10 +502,22 @@ class MainMenu:
             print("\nEnter a description for this directory (optional):")
             description = input("> ").strip() or os.path.basename(dir_path)
             
-            # Add to monitored directories
+            # Ask for processing mode for existing files
+            print("\nHow should existing files in this directory be processed?")
+            print("1. Automatically (process files without user interaction)")
+            print("2. Manually (require manual review before processing)")
+            processing_choice = input("\nEnter choice (1-2): ").strip()
+            
+            auto_process = (processing_choice == "1")
+            
+            # Add to monitored directories with auto_process flag
             monitor_manager = MonitorManager()
-            if monitor_manager.add_directory(dir_path, description):
+            if monitor_manager.add_directory(dir_path, description, auto_process=auto_process):
                 print(f"\nDirectory added to monitoring: {dir_path}")
+                if auto_process:
+                    print("Existing files will be processed automatically.")
+                else:
+                    print("Existing files queued for manual processing.")
                 
                 # Ask if user wants to start monitoring now
                 print("\nDo you want to start monitoring now? (y/n)")
