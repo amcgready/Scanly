@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   scanly:
     build:
@@ -7,82 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: scanly
     environment:
-      # User/Group IDs - match these to your host system user for proper permissions
-      - PUID=1000
-      - PGID=1000
-      
-      # API Settings
-      - TMDB_API_KEY=${TMDB_API_KEY:-your_tmdb_api_key_here}
-      - TMDB_BASE_URL=${TMDB_BASE_URL:-https://api.themoviedb.org/3}
-      - MDBLIST_API_KEY=${MDBLIST_API_KEY:-your_mdblist_api_key_here}
-      
-      # File Settings
-      - ORIGIN_DIRECTORY=/media/source
-      - DESTINATION_DIRECTORY=/media/library
-      
-      # Folder Structure
-      - CUSTOM_SHOW_FOLDER=${CUSTOM_SHOW_FOLDER:-"TV Shows"}
-      - CUSTOM_MOVIE_FOLDER=${CUSTOM_MOVIE_FOLDER:-"Movies"}
-      - CUSTOM_4KSHOW_FOLDER=${CUSTOM_4KSHOW_FOLDER:-""}
-      - CUSTOM_4KMOVIE_FOLDER=${CUSTOM_4KMOVIE_FOLDER:-""}
-      - CUSTOM_ANIME_SHOW_FOLDER=${CUSTOM_ANIME_SHOW_FOLDER:-"Anime Shows"}
-      - CUSTOM_ANIME_MOVIE_FOLDER=${CUSTOM_ANIME_MOVIE_FOLDER:-"Anime Movies"}
-      
-      # Anime Settings
-      - ANIME_SCAN=${ANIME_SCAN:-true}
-      - ANIME_SEPARATION=${ANIME_SEPARATION:-true}
-      
-      # Folder ID Settings
-      - TMDB_FOLDER_ID=${TMDB_FOLDER_ID:-true}
-      - IMDB_FOLDER_ID=${IMDB_FOLDER_ID:-false}
-      - TVDB_FOLDER_ID=${TVDB_FOLDER_ID:-false}
-      
-      # Renaming Settings
-      - RENAME_ENABLED=${RENAME_ENABLED:-true}
-      - RENAME_TAGS=${RENAME_TAGS:-""}
-      
-      # System Settings
-      - MAX_PROCESSES=${MAX_PROCESSES:-1}
-      - LINK_TYPE=${LINK_TYPE:-symlink}
-      - RELATIVE_SYMLINK=${RELATIVE_SYMLINK:-false}
-      - ALLOWED_EXTENSIONS=${ALLOWED_EXTENSIONS:-.mp4,.mkv,.srt,.avi,.mov,.divx}
-      - SKIP_ADULT_PATTERNS=${SKIP_ADULT_PATTERNS:-true}
-      - SKIP_EXTRAS_FOLDER=${SKIP_EXTRAS_FOLDER:-true}
-      - EXTRAS_MAX_SIZE_MB=${EXTRAS_MAX_SIZE_MB:-30}
-      
-      # Rclone Settings
-      - RCLONE_MOUNT=${RCLONE_MOUNT:-false}
-      - MOUNT_CHECK_INTERVAL=${MOUNT_CHECK_INTERVAL:-30}
-      
-      # Monitoring Settings
-      - SLEEP_TIME=${SLEEP_TIME:-1}
-      - SYMLINK_CLEANUP_INTERVAL=${SYMLINK_CLEANUP_INTERVAL:-30}
-      
-      # Plex Integration
-      - ENABLE_PLEX_UPDATE=${ENABLE_PLEX_UPDATE:-false}
-      - PLEX_URL=${PLEX_URL:-http://localhost:32400}
-      - PLEX_TOKEN=${PLEX_TOKEN:-your_plex_token_here}
-      
-      # Logging Settings
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - LOG_FILE=${LOG_FILE:-scanly.log}
-      
-      # Application Settings
-      - AUTO_EXTRACT_EPISODES=${AUTO_EXTRACT_EPISODES:-True}
-      - PROGRESS_FILE=${PROGRESS_FILE:-scanly_progress.json}
-      
-      # Notification Settings
-      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-""}
-      - ENABLE_DISCORD_NOTIFICATIONS=${ENABLE_DISCORD_NOTIFICATIONS:-false}
-      - MONITOR_SCAN_INTERVAL=${MONITOR_SCAN_INTERVAL:-60}
-    
+      - FORCE_INTERACTIVE=true
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
       - ${MEDIA_SOURCE_DIR:-/path/to/your/media}:/media/source:ro
       - ${MEDIA_LIBRARY_DIR:-/path/to/your/library}:/media/library
-    stdin_open: true  # Keep STDIN open
-    tty: true         # Allocate a pseudo-TTY
+    stdin_open: true
+    tty: true
     restart: unless-stopped
-    # Add init system for proper signal handling
     init: true
