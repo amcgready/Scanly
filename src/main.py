@@ -44,11 +44,13 @@ console_handler.addFilter(ConsoleFilter())
 # Create a file handler with proper path creation
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
 os.makedirs(log_dir, exist_ok=True)
-file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'a')
 
-# Add a separate file handler for monitor logs
+# Use 'w' mode instead of 'a' to clear previous logs at startup
+file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'w')
+
+# Add a separate file handler for monitor logs - also use 'w' mode
 monitor_log_file = os.path.join(log_dir, 'monitor.log')
-monitor_handler = logging.FileHandler(monitor_log_file, 'a')
+monitor_handler = logging.FileHandler(monitor_log_file, 'w')
 monitor_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 monitor_filter = logging.Filter('src.core.monitor')
 monitor_handler.addFilter(monitor_filter)
