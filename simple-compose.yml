@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  scanly:
+    build: .
+    container_name: scanly
+    restart: unless-stopped
+    environment:
+      - PUID=1000  # Change to your user ID
+      - PGID=1000  # Change to your group ID
+      - TZ=America/New_York  # Change to your timezone
+      - TMDB_API_KEY=your_tmdb_api_key_here
+      - DESTINATION_DIRECTORY=/media/library
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - /path/to/your/media:/media/source:ro
+      - /path/to/your/library:/media/library
+    init: true

@@ -43,26 +43,38 @@ console_handler.addFilter(ConsoleFilter())
 
 # Create a file handler with proper path creation
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
-os.makedirs(log_dir, exist_ok=True)
+try:
+    os.makedirs(log_dir, exist_ok=True)
+except PermissionError:
+    print(f"Warning: Cannot create logs directory at {log_dir} - permission denied")
+    # Use a fallback directory in /tmp that should be writable
+    log_dir = '/tmp'
+    os.makedirs(os.path.join(log_dir, 'scanly_logs'), exist_ok=True)
+    log_dir = os.path.join(log_dir, 'scanly_logs')
 
-# Use 'w' mode instead of 'a' to clear previous logs at startup
-file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'w')
+# Configure logging handlers with error handling
+handlers = [console_handler]
 
-# Add a separate file handler for monitor logs - also use 'w' mode
-monitor_log_file = os.path.join(log_dir, 'monitor.log')
-monitor_handler = logging.FileHandler(monitor_log_file, 'w')
-monitor_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-monitor_filter = logging.Filter('src.core.monitor')
-monitor_handler.addFilter(monitor_filter)
+try:
+    # Use 'w' mode instead of 'a' to clear previous logs at startup
+    file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'w')
+    handlers.append(file_handler)
+    
+    # Add a separate file handler for monitor logs - also use 'w' mode
+    monitor_log_file = os.path.join(log_dir, 'monitor.log')
+    monitor_handler = logging.FileHandler(monitor_log_file, 'w')
+    monitor_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    monitor_filter = logging.Filter('src.core.monitor')
+    monitor_handler.addFilter(monitor_filter)
+    handlers.append(monitor_handler)
+except (PermissionError, IOError) as e:
+    print(f"Warning: Cannot write to log files - {e}")
+    print("Continuing with console logging only")
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        console_handler,
-        file_handler,
-        monitor_handler
-    ]
+    handlers=handlers
 )
 
 # Ensure parent directory is in path for imports

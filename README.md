@@ -156,6 +156,32 @@ To view the logs:
 docker-compose logs -f scanly
 ```
 
+## Special Instructions for Synology Users
+
+When running Scanly on Synology NAS, you may encounter permission issues. Follow these steps for a successful setup:
+
+1. Use the Synology Docker UI to create the container
+2. Set the correct PUID and PGID values:
+   - Run `id` in the Synology terminal to get your user's UID and GID
+   - Set these values as environment variables in the Docker UI
+3. Mount volumes properly:
+   - For media source: `/volume1/path/to/your/media:/media/source:ro`
+   - For destination library: `/volume1/path/to/your/library:/media/library`
+4. Set the DESTINATION_DIRECTORY environment variable to `/media/library`
+
+Alternatively, create a `.env` file in your Scanly directory with:
+```
+PUID=1026  # Replace with your actual user ID
+PGID=100   # Replace with your actual group ID
+MEDIA_SOURCE_DIR=/volume1/path/to/your/media
+MEDIA_LIBRARY_DIR=/volume1/path/to/your/library
+```
+
+Then run with:
+```bash
+docker-compose -f simple-compose.yml up -d
+```
+
 ## Configuration
 
 Scanly can be configured using the `.env` file. Here's a complete list of all available configuration options:

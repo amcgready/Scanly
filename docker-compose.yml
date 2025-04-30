@@ -7,6 +7,10 @@ services:
       dockerfile: Dockerfile
     container_name: scanly
     environment:
+      # User/Group IDs - match these to your host system user for proper permissions
+      - PUID=1000
+      - PGID=1000
+      
       # API Settings
       - TMDB_API_KEY=${TMDB_API_KEY:-your_tmdb_api_key_here}
       - TMDB_BASE_URL=${TMDB_BASE_URL:-https://api.themoviedb.org/3}
@@ -80,3 +84,5 @@ services:
     stdin_open: true  # Keep STDIN open
     tty: true         # Allocate a pseudo-TTY
     restart: unless-stopped
+    # Add init system for proper signal handling
+    init: true
