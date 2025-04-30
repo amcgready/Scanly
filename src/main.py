@@ -304,6 +304,7 @@ def review_skipped_items():
         print(f"Type: {content_type}{anime_label}")
         print(f"Path: {subfolder}")
         
+<<<<<<< HEAD
         print("\nOptions:")
         print("1. Process this item")
         print("2. Skip to next item")
@@ -319,6 +320,18 @@ def review_skipped_items():
             print("\nProcessing this item...")
             # After processing, we'd remove it from the registry
             # skipped_items_registry.remove(item)
+=======
+        try:
+            item_idx = int(item_num) - 1
+            if 0 <= item_idx < len(skipped_items_registry):
+                # Process the selected item
+                process_skipped_item(item_idx)
+            else:
+                print("Invalid item number.")
+                input("\nPress Enter to continue...")
+        except ValueError:
+            print("Invalid input.")
+>>>>>>> 71bd2b3 (Review skipped items fix)
             input("\nPress Enter to continue...")
             current_idx += 1
         elif choice == "2":
@@ -341,6 +354,204 @@ def review_skipped_items():
             print("\nReached the end of skipped items.")
             input("\nPress Enter to return to main menu...")
             return
+
+def process_skipped_item(item_idx):
+    """Process a single skipped item from the registry."""
+    global skipped_items_registry
+    
+    # Get the item details
+    item = skipped_items_registry[item_idx]
+    file_path = item.get('path')
+    subfolder = item.get('subfolder')
+    suggested_name = item.get('suggested_name')
+    is_tv = item.get('is_tv', False)
+    is_anime = item.get('is_anime', False)
+    
+    # Check if file still exists
+    if not os.path.exists(file_path):
+        print(f"\nError: File no longer exists: {file_path}")
+        # Remove from registry
+        skipped_items_registry.pop(item_idx)
+        save_skipped_items(skipped_items_registry)
+        input("\nPress Enter to continue...")
+        return
+    
+    clear_screen()
+    display_ascii_art()
+    print("=" * 60)
+    print("PROCESS SKIPPED ITEM")
+    print("=" * 60)
+    
+    content_type = "tv" if is_tv else "movie"
+    content_type_display = "TV Show" if is_tv else "Movie"
+    anime_label = " (Anime)" if is_anime else ""
+    
+    print(f"\nFile: {os.path.basename(file_path)}")
+    print(f"Type: {content_type_display}{anime_label}")
+    
+    # Extract suggested title and year
+    suggested_title = suggested_name
+    suggested_year = None
+    
+    # Try to extract year from suggested name
+    year_match = re.search(r'\((\d{4})\)$', suggested_name)
+    if year_match:
+        suggested_year = year_match.group(1)
+        suggested_title = suggested_name.replace(f"({suggested_year})", "").strip()
+    
+    print(f"Suggested title: {suggested_title}")
+    if suggested_year:
+        print(f"Suggested year: {suggested_year}")
+    
+    print("\nOptions:")
+    print("1. Accept suggested title and process")
+    print("2. Enter new title")
+    print("3. Change content type")
+    print("4. Skip (keep in registry)")
+    print("5. Remove from registry without processing")
+    
+    choice = input("\nEnter choice: ").strip()
+    
+    if choice == "1":
+        # Process with suggested title and existing content type
+        print(f"\nProcessing '{suggested_title}' as {content_type_display}{anime_label}")
+        
+        # Get media IDs for the title
+        from src.api.tmdb import TMDB
+        tmdb_api_key = os.environ.get('TMDB_API_KEY', '')
+        tmdb = TMDB(api_key=tmdb_api_key)
+        
+        ids = {}
+        try:
+            if content_type == "tv":
+                results = tmdb.search_tv(suggested_title)
+            else:
+                results = tmdb.search_movie(suggested_title)
+            
+            if results:
+                # Take the first result
+                result = results[0]
+                ids['tmdb_id'] = result.get('id')
+        except Exception as e:
+            print(f"Error searching TMDB: {e}")
+        
+        # Create a destination path
+        destination_dir = os.environ.get('DESTINATION_DIRECTORY', '')
+        if not destination_dir:
+            print("\nError: Destination directory not set.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Create destination filename and path
+        if content_type == "tv":
+            # Extract season and episode info
+            season, episode = 1, 1  # Default values
+            season_ep_match = re.search(r'S(\d+)E(\d+)', os.path.basename(file_path), re.IGNORECASE)
+            if season_ep_match:
+                season = int(season_ep_match.group(1))
+                episode = int(season_ep_match.group(2))
+            
+            # Create destination path
+            dest_folder = os.path.join(destination_dir, "TV", suggested_title)
+            season_folder = os.path.join(dest_folder, f"Season {season:02d}")
+            os.makedirs(season_folder, exist_ok=True)
+            
+            # Create symlink
+            filename = f"{suggested_title} - S{season:02d}E{episode:02d}.{file_path.split('.')[-1]}"
+            dest_path = os.path.join(season_folder, filename)
+        else:
+            # Movie
+            dest_folder = os.path.join(destination_dir, "Movies", suggested_title)
+            os.makedirs(dest_folder, exist_ok=True)
+            
+            # Create symlink
+            extension = file_path.split('.')[-1]
+            if suggested_year:
+                filename = f"{suggested_title} ({suggested_year}).{extension}"
+            else:
+                filename = f"{suggested_title}.{extension}"
+            dest_path = os.path.join(dest_folder, filename)
+        
+        try:
+            # Create symlink
+            if not os.path.exists(dest_path):
+                os.symlink(file_path, dest_path)
+                print(f"\nCreated symlink: {dest_path}")
+                
+                # Remove from registry
+                skipped_items_registry.pop(item_idx)
+                save_skipped_items(skipped_items_registry)
+                print("Item removed from registry.")
+            else:
+                print(f"\nError: Destination file already exists: {dest_path}")
+        except Exception as e:
+            print(f"\nError creating symlink: {e}")
+        
+        input("\nPress Enter to continue...")
+        
+    elif choice == "2":
+        # Let the user enter a new title
+        new_title = input("\nEnter new title: ").strip()
+        if new_title:
+            # Update registry with new title
+            skipped_items_registry[item_idx]['suggested_name'] = new_title
+            save_skipped_items(skipped_items_registry)
+            print(f"\nUpdated title to: {new_title}")
+            
+            # Process with new title
+            process_skipped_item(item_idx)
+        else:
+            print("\nNo title entered. Item not processed.")
+            input("\nPress Enter to continue...")
+    
+    elif choice == "3":
+        # Change content type
+        print("\nSelect content type:")
+        print("1. Movie")
+        print("2. TV Show")
+        print("3. Anime Movie")
+        print("4. Anime TV Show")
+        
+        type_choice = input("\nEnter choice: ").strip()
+        
+        if type_choice in ["1", "2", "3", "4"]:
+            # Update content type
+            new_is_tv = type_choice in ["2", "4"]
+            new_is_anime = type_choice in ["3", "4"]
+            
+            skipped_items_registry[item_idx]['is_tv'] = new_is_tv
+            skipped_items_registry[item_idx]['is_anime'] = new_is_anime
+            save_skipped_items(skipped_items_registry)
+            
+            new_type = "TV Show" if new_is_tv else "Movie"
+            anime_label = " (Anime)" if new_is_anime else ""
+            print(f"\nUpdated content type to: {new_type}{anime_label}")
+            
+            # Process with new content type
+            process_skipped_item(item_idx)
+        else:
+            print("\nInvalid choice. Content type not changed.")
+            input("\nPress Enter to continue...")
+    
+    elif choice == "4":
+        # Skip (keep in registry)
+        print("\nItem kept in registry for later processing.")
+        input("\nPress Enter to continue...")
+    
+    elif choice == "5":
+        # Remove from registry without processing
+        confirm = input("\nAre you sure you want to remove this item from the registry? (y/n): ").strip().lower()
+        if confirm == 'y':
+            skipped_items_registry.pop(item_idx)
+            save_skipped_items(skipped_items_registry)
+            print("\nItem removed from registry.")
+        else:
+            print("\nItem kept in registry.")
+        input("\nPress Enter to continue...")
+    
+    else:
+        print("\nInvalid choice.")
+        input("\nPress Enter to continue...")
 
 def _check_monitor_status():
     """Check and fix the monitor status if needed."""
