@@ -61,9 +61,9 @@ class MonitorMenu:
             
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
+            print("=" * 15)
             print("MONITORED DIRECTORIES")
-            print("=" * 60)
+            print("=" * 15)
             
             # Display all monitored directories
             print("\nCurrently monitoring:")
@@ -138,7 +138,7 @@ class MonitorMenu:
             # Start monitoring
             from src.config import get_settings
             settings = get_settings()
-            interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
+            interval = int(settings.get('MONITOR_SCAN_INTERVAL', '15'))  # Changed from 60 to 15
             if self.monitor_manager.start_monitoring(interval):
                 print(f"\nMonitoring started with {interval} second interval.")
             else:
@@ -307,7 +307,7 @@ class MonitorMenu:
             if start_now == 'y':
                 from src.config import get_settings
                 settings = get_settings()
-                interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
+                interval = int(settings.get('MONITOR_SCAN_INTERVAL', '15'))  # Changed from 60 to 15
                 self.monitor_manager.start_monitoring(interval)
                 print(f"\nMonitoring started with {interval} second interval.")
         else:
@@ -437,11 +437,23 @@ class MonitorMenu:
         monitor_settings = get_monitor_settings()
         
         auto_process = monitor_settings.get('MONITOR_AUTO_PROCESS', 'false').lower() == 'true'
-        scan_interval = int(monitor_settings.get('MONITOR_SCAN_INTERVAL', '60'))
+        scan_interval = int(monitor_settings.get('MONITOR_SCAN_INTERVAL', '15'))
+        enable_realtime = monitor_settings.get('MONITOR_ENABLE_REALTIME', 'false').lower() == 'true'
         
-        print("\nCurrent settings:")
+        # Discord notification settings
+        discord_enabled = monitor_settings.get('ENABLE_DISCORD_NOTIFICATIONS', 'false').lower() == 'true'
+        webhook_url = monitor_settings.get('DISCORD_WEBHOOK_URL', '')
+        webhook_configured = bool(webhook_url and webhook_url != "\"\"" and webhook_url != "''")
+        
+        print("\nMonitoring Settings:")
         print(f"1. Auto-process new files: {'Enabled' if auto_process else 'Disabled'}")
         print(f"2. Scan interval: {scan_interval} seconds")
+        print(f"3. Real-time monitoring: {'Enabled' if enable_realtime else 'Disabled'}")
+        
+        print("\nNotification Settings:")
+        print(f"4. Discord notifications: {'Enabled' if discord_enabled else 'Disabled'}")
+        print(f"5. Discord webhook URL: {webhook_url[:20] + '...' if webhook_configured else 'Not configured'}")
+        
         print("\n0. Back to monitor menu")
         
         choice = input("\nSelect setting to modify (0 to go back): ").strip()
@@ -473,10 +485,63 @@ class MonitorMenu:
                     print("Interval must be between 15 and 3600 seconds.")
             except ValueError:
                 print("Invalid input. Please enter a number.")
+        elif choice == '3':
+            # Toggle real-time monitoring
+            new_value = 'false' if enable_realtime else 'true'
+            self._update_monitor_setting('MONITOR_ENABLE_REALTIME', new_value)
+            print(f"\nReal-time monitoring is now {'enabled' if new_value == 'true' else 'disabled'}.")
+        elif choice == '4':
+            # Toggle Discord notifications
+            new_value = 'false' if discord_enabled else 'true'
+            self._update_monitor_setting('ENABLE_DISCORD_NOTIFICATIONS', new_value)
+            print(f"\nDiscord notifications are now {'enabled' if new_value == 'true' else 'disabled'}.")
+            
+            # If enabling but webhook not configured, prompt for webhook URL
+            if new_value == 'true' and not webhook_configured:
+                print("\nDiscord webhook URL is not configured.")
+                print("Would you like to configure it now? (y/n)")
+                if input("> ").strip().lower() == 'y':
+                    self._configure_discord_webhook()
+        elif choice == '5':
+            # Configure Discord webhook URL
+            self._configure_discord_webhook()
         else:
             print("Invalid choice.")
         
         input("\nPress Enter to continue...")
+    
+    def _configure_discord_webhook(self):
+        """Configure Discord webhook URL."""
+        print("\nEnter Discord webhook URL:")
+        print("(You can get this from Discord by right-clicking a channel → Integrations → Webhooks)")
+        webhook_url = input("> ").strip()
+        
+        if webhook_url:
+            # Test the webhook
+            print("\nTesting webhook connection...")
+            try:
+                from src.utils.discord_utils import send_discord_notification
+                result = send_discord_notification(
+                    webhook_url=webhook_url,
+                    title="Scanly Test Notification",
+                    message="This is a test notification from Scanly. If you can see this, Discord notifications are working correctly!",
+                )
+                
+                if result:
+                    print("\nWebhook test successful! Discord notifications will now work.")
+                    self._update_monitor_setting('DISCORD_WEBHOOK_URL', webhook_url)
+                else:
+                    print("\nWebhook test failed. Please check the URL and try again.")
+                    print("Would you like to save this webhook URL anyway? (y/n)")
+                    if input("> ").strip().lower() == 'y':
+                        self._update_monitor_setting('DISCORD_WEBHOOK_URL', webhook_url)
+            except Exception as e:
+                print(f"\nError testing webhook: {e}")
+                print("Would you like to save this webhook URL anyway? (y/n)")
+                if input("> ").strip().lower() == 'y':
+                    self._update_monitor_setting('DISCORD_WEBHOOK_URL', webhook_url)
+        else:
+            print("\nWebhook URL not provided. Discord notifications will not work.")
     
     def _update_monitor_setting(self, name, value):
         """Update a monitor setting."""

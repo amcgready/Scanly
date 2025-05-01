@@ -81,7 +81,7 @@ def get_monitor_settings():
             'description': 'Interval in seconds between monitor scans',
             'type': 'number',
             'category': 'Monitoring',
-            'default': '60'
+            'default': '15'
         }
     }
     

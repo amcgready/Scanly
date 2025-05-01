@@ -98,3 +98,47 @@ def send_discord_notification(
     except Exception as e:
         logger.error(f"Error sending Discord notification: {e}")
         return False
+
+def notify_new_files(directory_name, file_paths, auto_process=False):
+    """
+    Send a notification about new files detected in a monitored directory.
+    
+    This is a convenience wrapper around send_discord_notification that
+    automatically checks if notifications are enabled and gets the webhook URL.
+    
+    Args:
+        directory_name: Name of the monitored directory
+        file_paths: List of file paths that were detected
+        auto_process: Whether the files will be auto-processed
+        
+    Returns:
+        True if notification was sent, False otherwise
+    """
+    # Check if Discord notifications are enabled
+    from src.config import get_monitor_settings
+    monitor_settings = get_monitor_settings()
+    
+    notifications_enabled = monitor_settings.get('ENABLE_DISCORD_NOTIFICATIONS', 'false').lower() == 'true'
+    webhook_url = monitor_settings.get('DISCORD_WEBHOOK_URL', '')
+    
+    if not notifications_enabled or not webhook_url:
+        logger.debug("Discord notifications disabled or webhook URL not configured")
+        return False
+    
+    # Prepare message
+    title = f"New Files Detected: {directory_name}"
+    message = f"Scanly has detected {len(file_paths)} new file(s)."
+    
+    if auto_process:
+        message += "\n\nThese files will be processed automatically."
+    else:
+        message += "\n\nThese files are queued for manual processing."
+    
+    # Send notification
+    return send_discord_notification(
+        webhook_url=webhook_url,
+        title=title,
+        message=message,
+        files=file_paths,
+        directory=directory_name
+    )

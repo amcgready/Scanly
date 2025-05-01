@@ -313,28 +313,20 @@ def review_skipped_items():
         content_type = "TV Show" if is_tv else "Movie"
         anime_label = " (Anime)" if is_anime else ""
         
-        print(f"\nItem Details:")
-        print(f"Name: {suggested_name}")
-        print(f"Type: {content_type}{anime_label}")
-        print(f"Path: {subfolder}")
+        print(f"\n{i+1}. {suggested_name}")
+        print(f"   Type: {content_type}{anime_label}")
+        print(f"   Path: {subfolder}")
+    
+    print("\nOptions:")
+    print("1. Process a skipped item")
+    print("2. Clear all skipped items")
+    print("0. Return to main menu")
+    
+    choice = input("\nEnter choice: ").strip()
+    
+    if choice == "1":
+        item_num = input("\nEnter item number to process: ").strip()
         
-<<<<<<< HEAD
-        print("\nOptions:")
-        print("1. Process this item")
-        print("2. Skip to next item")
-        print("3. Go back to previous item")
-        print("4. Clear all skipped items")
-        print("0. Return to main menu")
-        
-        choice = input("\nEnter choice: ").strip()
-        
-        if choice == "1":
-            # Process the selected item
-            # Implementation for processing skipped items would go here
-            print("\nProcessing this item...")
-            # After processing, we'd remove it from the registry
-            # skipped_items_registry.remove(item)
-=======
         try:
             item_idx = int(item_num) - 1
             if 0 <= item_idx < len(skipped_items_registry):
@@ -345,29 +337,9 @@ def review_skipped_items():
                 input("\nPress Enter to continue...")
         except ValueError:
             print("Invalid input.")
->>>>>>> 71bd2b3 (Review skipped items fix)
             input("\nPress Enter to continue...")
-            current_idx += 1
-        elif choice == "2":
-            # Move to next item
-            current_idx += 1
-        elif choice == "3":
-            # Go back to previous item if possible
-            current_idx = max(0, current_idx - 1)
-        elif choice == "4":
-            clear_skipped_items()
-            return
-        elif choice == "0":
-            return
-        else:
-            print("\nInvalid choice. Please try again.")
-            input("\nPress Enter to continue...")
-        
-        # Check if we've reached the end of the list
-        if current_idx >= len(items_to_review):
-            print("\nReached the end of skipped items.")
-            input("\nPress Enter to return to main menu...")
-            return
+    elif choice == "2":
+        clear_skipped_items()
 
 def process_skipped_item(item_idx):
     """Process a single skipped item from the registry."""
@@ -628,6 +600,50 @@ class MainMenu:
                 print("0. Quit")
             else:
                 print("0. Quit")
+    
+            # No extra spacing between art and menu options
+            print("=" * 60)  # Add just a separator line
+            print("Select an option:")
+            print("1. Individual Scan")  # Renamed from "New Scan"
+            print("2. Multi Scan")  # New option
+            
+            # Dynamic menu options based on history existence
+            has_history = history_exists()
+            
+            has_skipped = len(globals().get('skipped_items_registry', [])) > 0
+            
+            # Check if monitored directories exist
+            from src.core.monitor_manager import MonitorManager
+            monitor_manager = MonitorManager()
+            has_monitored = bool(monitor_manager.get_monitored_directories())
+            
+            next_option = 3  # Start at 3 since we added Multi Scan as option 2
+            
+            if has_history:
+                print(f"{next_option}. Resume Scan")
+                print(f"{next_option+1}. Clear History")
+                next_option += 2
+            
+            # Show monitored directories option if they exist
+            if has_monitored:
+                print(f"{next_option}. Monitor Scan")
+                next_option += 1
+            
+            # Keep the skipped items count, but make it look like regular information
+            if has_skipped:
+                print(f"\nSkipped items: {len(skipped_items_registry)}")
+                print(f"{next_option}. Review Skipped Items ({len(skipped_items_registry)})")
+                next_option += 1
+            
+            # Add the Settings option
+            print(f"{next_option}. Settings")
+            next_option += 1
+            
+            print("0. Quit")
+            print("h. Help")
+            
+            # Determine the valid choices
+            max_choice = next_option - 1
             
             # Get user choice
             choice = input("\nEnter your choice: ").strip()

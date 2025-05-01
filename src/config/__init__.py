@@ -49,7 +49,21 @@ def get_monitor_settings():
             'description': 'Interval in seconds between monitor scans',
             'type': 'number',
             'category': 'Monitoring',
-            'default': '60'
+            'default': '15'
+        },
+        'ENABLE_DISCORD_NOTIFICATIONS': {
+            'name': 'ENABLE_DISCORD_NOTIFICATIONS',
+            'description': 'Send notifications to Discord webhook',
+            'type': 'bool',
+            'category': 'Notifications',
+            'default': 'false'
+        },
+        'DISCORD_WEBHOOK_URL': {
+            'name': 'DISCORD_WEBHOOK_URL',
+            'description': 'Discord webhook URL for notifications',
+            'type': 'string',
+            'category': 'Notifications',
+            'default': ''
         }
     }
     

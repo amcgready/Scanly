@@ -243,7 +243,7 @@ class MonitorManager:
         # Use detect_changes instead
         return self.detect_changes(directory_id)
     
-    def start_monitoring(self, interval: int = 60) -> bool:
+    def start_monitoring(self, interval: int = 15) -> bool:  # Changed from 60 to 15
         """
         Start monitoring all directories in a background thread.
         
@@ -313,89 +313,74 @@ class MonitorManager:
             self.stop_event.wait(interval)
 
     def handle_new_files(self, directory_id, new_files, auto_process=None):
-        """
-        Handle newly detected files in a monitored directory.
-        
-        Args:
-            directory_id: ID of the monitored directory
-            new_files: List of new file paths detected
-            auto_process: Override the directory's auto_process setting if provided
-        
-        Returns:
-            Tuple of (processed_count, error_count, skipped_count)
-        """
-        # Get directory info
-        directory_info = self.get_directory_by_id(directory_id)
+        """Handle newly detected files in a monitored directory."""
+        if not new_files:
+            return
+            
+        directory_info = self.get_monitored_directory(directory_id)
         if not directory_info:
-            self.logger.error(f"Cannot find directory with ID {directory_id}")
-            return 0, 0, 0
-        
-        directory_path = directory_info.get('path')
-        if not os.path.exists(directory_path):
-            self.logger.error(f"Directory no longer exists: {directory_path}")
-            return 0, 0, 0
-        
-        # Use the directory's auto_process setting if not explicitly overridden
-        should_auto_process = auto_process if auto_process is not None else directory_info.get('auto_process', False)
-        
-        # If auto-process is enabled, process the files immediately
-        if should_auto_process:
-            try:
-                from src.core.monitor_processor import MonitorProcessor
-                processor = MonitorProcessor(auto_mode=True)  # Force auto-mode for auto-processing
-                processed, errors, skipped = processor.process_new_files(directory_path, new_files)
-                
-                # Log the results
-                self.logger.info(f"Auto-processing completed for {directory_path}: "
-                                 f"{processed} processed, {errors} errors, {skipped} skipped")
-                
-                # Record the processing in the monitor history
-                self._record_processing(directory_id, processed, errors, skipped)
-                
-                # Only remove the successfully processed files from pending files
-                # Keep skipped files and error files in the pending queue for manual processing later
-                if 'pending_files' in directory_info and processed > 0:
-                    # We don't know exactly which files were processed vs. skipped/errored
-                    # So let's update the known_files list but keep all files in pending for now
-                    directory_info['known_files'] = list(set(directory_info.get('known_files', []) + new_files))
-                    
-                    # Let's update this to track which files were skipped
-                    try:
-                        from src.main import load_skipped_items
-                        skipped_items = load_skipped_items()
-                        skipped_paths = [item.get('path') for item in skipped_items]
-                        
-                        # Keep only skipped files in pending_files
-                        pending = directory_info['pending_files']
-                        pending = [f for f in pending if f in skipped_paths]
-                        pending.extend([f for f in new_files if f in skipped_paths])
-                        directory_info['pending_files'] = pending
-                    except Exception as e:
-                        self.logger.error(f"Error updating pending files: {e}")
-                    
-                    self._save_monitored_directories()
-                
-                return processed, errors, skipped
-            except Exception as e:
-                self.logger.error(f"Error in auto-processing: {e}", exc_info=True)
-                return 0, 0, 0
-        else:
-            # Store files for manual processing later
-            if 'pending_files' not in directory_info:
-                directory_info['pending_files'] = []
-                
-            # Add new files to pending list if they're not already there
-            for file_path in new_files:
-                if file_path not in directory_info['pending_files']:
-                    directory_info['pending_files'].append(file_path)
+            self.logger.error(f"Directory ID {directory_id} not found")
+            return
             
-            # Save the updated information
-            self._save_monitored_directories()
+        # Determine if auto-processing is enabled
+        if auto_process is None:
+            auto_process = directory_info.get('auto_process', False)
             
-            # Log that files were added to pending
-            self.logger.info(f"Added {len(new_files)} files to pending queue for {directory_path}")
+        # Get directory path and description for notifications
+        dir_path = directory_info.get('path', 'Unknown')
+        dir_name = directory_info.get('description', os.path.basename(dir_path))
+        
+        # Send Discord notification for new files
+        self._send_discord_notification(dir_name, dir_path, new_files, auto_process)
+        
+        # Update pending files list
+        pending_files = directory_info.get('pending_files', [])
+        pending_files.extend(new_files)
+        directory_info['pending_files'] = pending_files
+        
+        # Process files if auto-process is enabled
+        if auto_process:
+            self._process_files(directory_id, new_files)
+        
+        # Save the updated monitored directories
+        self._save_monitored_directories()
+
+    def _send_discord_notification(self, dir_name, dir_path, new_files, auto_process):
+        """Send Discord notification for new files."""
+        # Check if Discord notifications are enabled
+        from src.config import get_monitor_settings
+        monitor_settings = get_monitor_settings()
+        
+        notifications_enabled = monitor_settings.get('ENABLE_DISCORD_NOTIFICATIONS', 'false').lower() == 'true'
+        webhook_url = monitor_settings.get('DISCORD_WEBHOOK_URL', '')
+        
+        if not notifications_enabled or not webhook_url:
+            return
             
-            return 0, 0, len(new_files)
+        try:
+            from src.utils.discord_utils import send_discord_notification
+            
+            # Prepare notification details
+            title = f"New Files Detected: {dir_name}"
+            
+            message = f"Scanly has detected {len(new_files)} new file(s) in the monitored directory."
+            if auto_process:
+                message += "\n\nThese files will be processed automatically."
+            else:
+                message += "\n\nThese files are queued for manual processing."
+            
+            # Send the notification
+            send_discord_notification(
+                webhook_url=webhook_url,
+                title=title,
+                message=message,
+                files=new_files,
+                directory=dir_path
+            )
+            
+            self.logger.info(f"Discord notification sent for {len(new_files)} new files in {dir_name}")
+        except Exception as e:
+            self.logger.error(f"Failed to send Discord notification: {e}")
 
     def clear_pending_files(self, directory_id):
         """
@@ -557,6 +542,21 @@ class MonitorManager:
         self.logger.info(f"Directory {directory_id} monitoring status set to {status_str}")
         
         return True
+
+    def ensure_monitoring_active(self):
+        """
+        Ensure the monitoring thread is active and restart if needed.
+        
+        Returns:
+            bool: True if monitoring was restarted, False if already active
+        """
+        if not self.monitoring_thread or not self.monitoring_thread.is_alive():
+            self.logger.warning("Monitoring thread not active or has stopped - restarting")
+            from src.config import get_monitor_settings
+            settings = get_monitor_settings()
+            interval = int(settings.get('MONITOR_SCAN_INTERVAL', '15'))
+            return self.start_monitoring(interval)
+        return False
 
 # Add this for direct testing
 if __name__ == "__main__":
