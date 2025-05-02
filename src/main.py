@@ -20,6 +20,7 @@ class ConsoleFilter(logging.Filter):
         # Filter out monitor_manager loading messages
         if "monitor_manager" in record.name and record.msg and "Loaded" in str(record.msg):
             return False
+            
         # Filter out folder ID related messages
         if record.msg and any(pattern in str(record.msg) for pattern in [
             "movies with TMDB ID", 
@@ -28,6 +29,7 @@ class ConsoleFilter(logging.Filter):
             "Updated with TMDB ID"
         ]):
             return False
+            
         # Filter out routine monitor scanning messages
         if "monitor_processor" in record.name and any(pattern in str(record.msg) for pattern in [
             "Checking for new files",
@@ -35,6 +37,10 @@ class ConsoleFilter(logging.Filter):
             "Routine scan"
         ]):
             return False
+            
+        # Only show critical errors to console for specific loggers
+        if record.name.startswith('urllib3') or record.name.startswith('requests'):
+            return record.levelno >= logging.WARNING
         return True
 
 # Set up basic logging configuration
@@ -43,38 +49,24 @@ console_handler.addFilter(ConsoleFilter())
 
 # Create a file handler with proper path creation
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
-try:
-    os.makedirs(log_dir, exist_ok=True)
-except PermissionError:
-    print(f"Warning: Cannot create logs directory at {log_dir} - permission denied")
-    # Use a fallback directory in /tmp that should be writable
-    log_dir = '/tmp'
-    os.makedirs(os.path.join(log_dir, 'scanly_logs'), exist_ok=True)
-    log_dir = os.path.join(log_dir, 'scanly_logs')
+os.makedirs(log_dir, exist_ok=True)
+file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'a')
 
-# Configure logging handlers with error handling
-handlers = [console_handler]
-
-try:
-    # Use 'w' mode instead of 'a' to clear previous logs at startup
-    file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), 'w')
-    handlers.append(file_handler)
-    
-    # Add a separate file handler for monitor logs - also use 'w' mode
-    monitor_log_file = os.path.join(log_dir, 'monitor.log')
-    monitor_handler = logging.FileHandler(monitor_log_file, 'w')
-    monitor_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    monitor_filter = logging.Filter('src.core.monitor')
-    monitor_handler.addFilter(monitor_filter)
-    handlers.append(monitor_handler)
-except (PermissionError, IOError) as e:
-    print(f"Warning: Cannot write to log files - {e}")
-    print("Continuing with console logging only")
+# Add a separate file handler for monitor logs
+monitor_log_file = os.path.join(log_dir, 'monitor.log')
+monitor_handler = logging.FileHandler(monitor_log_file, 'a')
+monitor_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+monitor_filter = logging.Filter('src.core.monitor')
+monitor_handler.addFilter(monitor_filter)
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=handlers
+    handlers=[
+        console_handler,
+        file_handler,
+        monitor_handler
+    ]
 )
 
 # Ensure parent directory is in path for imports
@@ -93,6 +85,8 @@ except ImportError:
 def get_logger(name):
     """Get a logger with the given name."""
     return logging.getLogger(name)
+
+logger = get_logger(__name__)
 
 # Add this function as a standalone function, outside of any class
 def _update_env_var(name, value):
@@ -142,23 +136,43 @@ except ImportError as e:
     
     # Define a stub TMDB class
     class TMDB:
-        def __init__(self, api_key=None):
+        def __init__(self):
             pass
         
-        def search_movie(self, query, limit=5):
+        def search_movie(self, query):
+            logger.error("TMDB API not available. Cannot search for movies.")
             return []
         
-        def search_tv(self, query, limit=5):
+        def search_tv(self, query):
+            logger.error("TMDB API not available. Cannot search for TV shows.")
             return []
         
-        def get_tv_details(self, show_id):
+        def get_movie_details(self, movie_id):
+            logger.error("TMDB API not available. Cannot get movie details.")
             return {}
         
-        def get_tv_season(self, show_id, season_number):
+        def get_tv_details(self, tv_id):
+            logger.error("TMDB API not available. Cannot get TV details.")
             return {}
 
 # Get destination directory from environment variables
 DESTINATION_DIRECTORY = os.environ.get('DESTINATION_DIRECTORY', '')
+
+# Clean directory path
+def _clean_directory_path(path):
+    """Clean up the directory path."""
+    # Remove quotes and whitespace
+    path = path.strip()
+    if path.startswith('"') and path.endswith('"'):
+        path = path[1:-1]
+    elif path.startswith("'") and path.endswith("'"):
+        path = path[1:-1]
+    
+    # Convert to absolute path if needed
+    if path and not os.path.isabs(path):
+        path = os.path.abspath(path)
+    
+    return path
 
 # Import utility functions for scan history
 def load_scan_history():
@@ -169,26 +183,25 @@ def load_scan_history():
             with open(history_path, 'r') as f:
                 return json.load(f)
     except Exception as e:
-        logger = get_logger(__name__)
         logger.error(f"Error loading scan history: {e}")
     return None
 
 def save_scan_history(directory_path, processed_files=0, total_files=0, media_files=None):
     """Save scan history to file."""
     try:
+        history_path = os.path.join(os.path.dirname(__file__), 'scan_history.json')
         history = {
-            'directory': directory_path,
-            'timestamp': time.time(),
+            'path': directory_path,
             'processed_files': processed_files,
             'total_files': total_files,
             'media_files': media_files or []
         }
-        history_path = os.path.join(os.path.dirname(__file__), 'scan_history.json')
         with open(history_path, 'w') as f:
             json.dump(history, f)
+        return True
     except Exception as e:
-        logger = get_logger(__name__)
         logger.error(f"Error saving scan history: {e}")
+        return False
 
 def clear_scan_history():
     """Clear scan history file."""
@@ -196,9 +209,11 @@ def clear_scan_history():
         history_path = os.path.join(os.path.dirname(__file__), 'scan_history.json')
         if os.path.exists(history_path):
             os.remove(history_path)
+            return True
+        return False
     except Exception as e:
-        logger = get_logger(__name__)
         logger.error(f"Error clearing scan history: {e}")
+        return False
 
 def history_exists():
     """Check if scan history exists."""
@@ -214,7 +229,6 @@ def load_skipped_items():
             with open(skipped_path, 'r') as f:
                 return json.load(f)
     except Exception as e:
-        logger = get_logger(__name__)
         logger.error(f"Error loading skipped items: {e}")
     return []
 
@@ -225,11 +239,10 @@ def save_skipped_items(items):
         skipped_path = os.path.join(os.path.dirname(__file__), 'skipped_items.json')
         with open(skipped_path, 'w') as f:
             json.dump(items, f)
+        return True
     except Exception as e:
-        logger = get_logger(__name__)
         logger.error(f"Error saving skipped items: {e}")
-
-# Add this function after save_skipped_items() function
+        return False
 
 def clear_skipped_items():
     """Clear all skipped items from the registry."""
@@ -251,12 +264,12 @@ def clear_screen():
 def display_ascii_art():
     """Display the program's ASCII art."""
     try:
-        art_path = os.path.join(os.path.dirname(__file__), '..', 'art.txt')
+        art_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'art.txt')
         if os.path.exists(art_path):
             with open(art_path, 'r') as f:
                 print(f.read())
         else:
-            print("SCANLY")
+            print("\nSCANLY")
     except Exception as e:
         print("SCANLY")  # Fallback if art file can't be loaded
 
@@ -289,22 +302,13 @@ def review_skipped_items():
         return
     
     clear_screen()
+    display_ascii_art()
     print("=" * 60)
     print("SKIPPED ITEMS")
     print("=" * 60)
-    print(f"\nFound {len(skipped_items_registry)} skipped items.")
+    print(f"\nFound {len(skipped_items_registry)} skipped items:")
     
-    # Make a copy of the registry to work with
-    items_to_review = skipped_items_registry.copy()
-    current_idx = 0
-    
-    while current_idx < len(items_to_review):
-        clear_screen()
-        print("=" * 60)
-        print(f"REVIEWING ITEM {current_idx + 1}/{len(items_to_review)}")
-        print("=" * 60)
-        
-        item = items_to_review[current_idx]
+    for i, item in enumerate(skipped_items_registry):
         subfolder = item.get('subfolder', 'Unknown')
         suggested_name = item.get('suggested_name', 'Unknown')
         is_tv = item.get('is_tv', False)
@@ -313,259 +317,48 @@ def review_skipped_items():
         content_type = "TV Show" if is_tv else "Movie"
         anime_label = " (Anime)" if is_anime else ""
         
-        print(f"\nItem Details:")
-        print(f"Name: {suggested_name}")
-        print(f"Type: {content_type}{anime_label}")
-        print(f"Path: {subfolder}")
-        
-<<<<<<< HEAD
-        print("\nOptions:")
-        print("1. Process this item")
-        print("2. Skip to next item")
-        print("3. Go back to previous item")
-        print("4. Clear all skipped items")
-        print("0. Return to main menu")
-        
-        choice = input("\nEnter choice: ").strip()
-        
-        if choice == "1":
-            # Process the selected item
-            # Implementation for processing skipped items would go here
-            print("\nProcessing this item...")
-            # After processing, we'd remove it from the registry
-            # skipped_items_registry.remove(item)
-=======
-        try:
-            item_idx = int(item_num) - 1
-            if 0 <= item_idx < len(skipped_items_registry):
-                # Process the selected item
-                process_skipped_item(item_idx)
-            else:
-                print("Invalid item number.")
-                input("\nPress Enter to continue...")
-        except ValueError:
-            print("Invalid input.")
->>>>>>> 71bd2b3 (Review skipped items fix)
-            input("\nPress Enter to continue...")
-            current_idx += 1
-        elif choice == "2":
-            # Move to next item
-            current_idx += 1
-        elif choice == "3":
-            # Go back to previous item if possible
-            current_idx = max(0, current_idx - 1)
-        elif choice == "4":
-            clear_skipped_items()
-            return
-        elif choice == "0":
-            return
-        else:
-            print("\nInvalid choice. Please try again.")
-            input("\nPress Enter to continue...")
-        
-        # Check if we've reached the end of the list
-        if current_idx >= len(items_to_review):
-            print("\nReached the end of skipped items.")
-            input("\nPress Enter to return to main menu...")
-            return
-
-def process_skipped_item(item_idx):
-    """Process a single skipped item from the registry."""
-    global skipped_items_registry
-    
-    # Get the item details
-    item = skipped_items_registry[item_idx]
-    file_path = item.get('path')
-    subfolder = item.get('subfolder')
-    suggested_name = item.get('suggested_name')
-    is_tv = item.get('is_tv', False)
-    is_anime = item.get('is_anime', False)
-    
-    # Check if file still exists
-    if not os.path.exists(file_path):
-        print(f"\nError: File no longer exists: {file_path}")
-        # Remove from registry
-        skipped_items_registry.pop(item_idx)
-        save_skipped_items(skipped_items_registry)
-        input("\nPress Enter to continue...")
-        return
-    
-    clear_screen()
-    display_ascii_art()
-    print("=" * 60)
-    print("PROCESS SKIPPED ITEM")
-    print("=" * 60)
-    
-    content_type = "tv" if is_tv else "movie"
-    content_type_display = "TV Show" if is_tv else "Movie"
-    anime_label = " (Anime)" if is_anime else ""
-    
-    print(f"\nFile: {os.path.basename(file_path)}")
-    print(f"Type: {content_type_display}{anime_label}")
-    
-    # Extract suggested title and year
-    suggested_title = suggested_name
-    suggested_year = None
-    
-    # Try to extract year from suggested name
-    year_match = re.search(r'\((\d{4})\)$', suggested_name)
-    if year_match:
-        suggested_year = year_match.group(1)
-        suggested_title = suggested_name.replace(f"({suggested_year})", "").strip()
-    
-    print(f"Suggested title: {suggested_title}")
-    if suggested_year:
-        print(f"Suggested year: {suggested_year}")
+        print(f"\n{i+1}. {suggested_name}")
+        print(f"   Type: {content_type}{anime_label}")
+        print(f"   Path: {subfolder}")
     
     print("\nOptions:")
-    print("1. Accept suggested title and process")
-    print("2. Enter new title")
-    print("3. Change content type")
-    print("4. Skip (keep in registry)")
-    print("5. Remove from registry without processing")
+    print("1. Process a skipped item")
+    print("2. Clear all skipped items")
+    print("0. Return to main menu")
     
     choice = input("\nEnter choice: ").strip()
     
     if choice == "1":
-        # Process with suggested title and existing content type
-        print(f"\nProcessing '{suggested_title}' as {content_type_display}{anime_label}")
-        
-        # Get media IDs for the title
-        from src.api.tmdb import TMDB
-        tmdb_api_key = os.environ.get('TMDB_API_KEY', '')
-        tmdb = TMDB(api_key=tmdb_api_key)
-        
-        ids = {}
-        try:
-            if content_type == "tv":
-                results = tmdb.search_tv(suggested_title)
-            else:
-                results = tmdb.search_movie(suggested_title)
-            
-            if results:
-                # Take the first result
-                result = results[0]
-                ids['tmdb_id'] = result.get('id')
-        except Exception as e:
-            print(f"Error searching TMDB: {e}")
-        
-        # Create a destination path
-        destination_dir = os.environ.get('DESTINATION_DIRECTORY', '')
-        if not destination_dir:
-            print("\nError: Destination directory not set.")
-            input("\nPress Enter to continue...")
-            return
-        
-        # Create destination filename and path
-        if content_type == "tv":
-            # Extract season and episode info
-            season, episode = 1, 1  # Default values
-            season_ep_match = re.search(r'S(\d+)E(\d+)', os.path.basename(file_path), re.IGNORECASE)
-            if season_ep_match:
-                season = int(season_ep_match.group(1))
-                episode = int(season_ep_match.group(2))
-            
-            # Create destination path
-            dest_folder = os.path.join(destination_dir, "TV", suggested_title)
-            season_folder = os.path.join(dest_folder, f"Season {season:02d}")
-            os.makedirs(season_folder, exist_ok=True)
-            
-            # Create symlink
-            filename = f"{suggested_title} - S{season:02d}E{episode:02d}.{file_path.split('.')[-1]}"
-            dest_path = os.path.join(season_folder, filename)
-        else:
-            # Movie
-            dest_folder = os.path.join(destination_dir, "Movies", suggested_title)
-            os.makedirs(dest_folder, exist_ok=True)
-            
-            # Create symlink
-            extension = file_path.split('.')[-1]
-            if suggested_year:
-                filename = f"{suggested_title} ({suggested_year}).{extension}"
-            else:
-                filename = f"{suggested_title}.{extension}"
-            dest_path = os.path.join(dest_folder, filename)
-        
-        try:
-            # Create symlink
-            if not os.path.exists(dest_path):
-                os.symlink(file_path, dest_path)
-                print(f"\nCreated symlink: {dest_path}")
-                
-                # Remove from registry
-                skipped_items_registry.pop(item_idx)
+        idx = input("Enter item number to process: ").strip()
+        if idx.isdigit() and 1 <= int(idx) <= len(skipped_items_registry):
+            item = skipped_items_registry[int(idx) - 1]
+            path = item.get('path', '')
+            if path and os.path.exists(path):
+                # Process the skipped item
+                print(f"\nProcessing {path}...")
+                # Remove from skipped items
+                skipped_items_registry.pop(int(idx) - 1)
                 save_skipped_items(skipped_items_registry)
-                print("Item removed from registry.")
+                # Process the file
+                if os.path.isfile(path):
+                    # For files, process the parent directory
+                    processor = DirectoryProcessor(os.path.dirname(path))
+                    processor.process()
+                else:
+                    # For directories, process directly
+                    processor = DirectoryProcessor(path)
+                    processor.process()
             else:
-                print(f"\nError: Destination file already exists: {dest_path}")
-        except Exception as e:
-            print(f"\nError creating symlink: {e}")
-        
-        input("\nPress Enter to continue...")
-        
+                print("\nFile no longer exists.")
+                print("Removing from skipped items list.")
+                skipped_items_registry.pop(int(idx) - 1)
+                save_skipped_items(skipped_items_registry)
+                input("\nPress Enter to continue...")
+        else:
+            print("\nInvalid item number.")
+            input("\nPress Enter to continue...")
     elif choice == "2":
-        # Let the user enter a new title
-        new_title = input("\nEnter new title: ").strip()
-        if new_title:
-            # Update registry with new title
-            skipped_items_registry[item_idx]['suggested_name'] = new_title
-            save_skipped_items(skipped_items_registry)
-            print(f"\nUpdated title to: {new_title}")
-            
-            # Process with new title
-            process_skipped_item(item_idx)
-        else:
-            print("\nNo title entered. Item not processed.")
-            input("\nPress Enter to continue...")
-    
-    elif choice == "3":
-        # Change content type
-        print("\nSelect content type:")
-        print("1. Movie")
-        print("2. TV Show")
-        print("3. Anime Movie")
-        print("4. Anime TV Show")
-        
-        type_choice = input("\nEnter choice: ").strip()
-        
-        if type_choice in ["1", "2", "3", "4"]:
-            # Update content type
-            new_is_tv = type_choice in ["2", "4"]
-            new_is_anime = type_choice in ["3", "4"]
-            
-            skipped_items_registry[item_idx]['is_tv'] = new_is_tv
-            skipped_items_registry[item_idx]['is_anime'] = new_is_anime
-            save_skipped_items(skipped_items_registry)
-            
-            new_type = "TV Show" if new_is_tv else "Movie"
-            anime_label = " (Anime)" if new_is_anime else ""
-            print(f"\nUpdated content type to: {new_type}{anime_label}")
-            
-            # Process with new content type
-            process_skipped_item(item_idx)
-        else:
-            print("\nInvalid choice. Content type not changed.")
-            input("\nPress Enter to continue...")
-    
-    elif choice == "4":
-        # Skip (keep in registry)
-        print("\nItem kept in registry for later processing.")
-        input("\nPress Enter to continue...")
-    
-    elif choice == "5":
-        # Remove from registry without processing
-        confirm = input("\nAre you sure you want to remove this item from the registry? (y/n): ").strip().lower()
-        if confirm == 'y':
-            skipped_items_registry.pop(item_idx)
-            save_skipped_items(skipped_items_registry)
-            print("\nItem removed from registry.")
-        else:
-            print("\nItem kept in registry.")
-        input("\nPress Enter to continue...")
-    
-    else:
-        print("\nInvalid choice.")
-        input("\nPress Enter to continue...")
+        clear_skipped_items()
 
 def _check_monitor_status():
     """Check and fix the monitor status if needed."""
@@ -1348,16 +1141,6 @@ class DirectoryProcessor:
     """Process a directory of media files."""
     
     def __init__(self, directory_path, resume=False, auto_mode=False):
-        """
-        Initialize the directory processor.
-        
-        Args:
-            directory_path: Path to the directory to process
-            resume: Whether to resume a previous scan
-            auto_mode: Whether to process in automatic mode without user interaction
-        """
-        self.logger = get_logger(__name__)
-        self.logger.info(f"Initializing DirectoryProcessor with auto_mode={auto_mode}")
         self.directory_path = directory_path
         self.resume = resume
         self.auto_mode = auto_mode
@@ -1972,7 +1755,7 @@ class DirectoryProcessor:
         return clean_name
 
     def clear_skipped_items(self):
-        """Clear all skipped items from the registry."""
+        """Clear all skipped items."""
         global skipped_items_registry
         skipped_items_registry = []
         save_skipped_items(skipped_items_registry)
