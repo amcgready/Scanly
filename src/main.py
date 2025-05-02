@@ -816,6 +816,33 @@ class MainMenu:
                     input("\nPress Enter to continue...")
                     continue
                 
+                # For select/dropdown type settings
+                if selected_setting.get("type") == "select" and "options" in selected_setting:
+                    options = selected_setting.get("options", [])
+                    print(f"\nCurrent value: {current_value}")
+                    print("\nAvailable options:")
+                    for i, option in enumerate(options, 1):
+                        print(f"{i}. {option}")
+                    
+                    option_choice = input("\nSelect an option (or 0 to cancel): ").strip()
+                    
+                    if option_choice == '0':
+                        continue
+                        
+                    try:
+                        option_idx = int(option_choice) - 1
+                        if 0 <= option_idx < len(options):
+                            new_value = options[option_idx]
+                            self._update_env_var(env_var, new_value)
+                            print(f"Setting updated: {new_value}")
+                        else:
+                            print("Invalid option selected.")
+                    except ValueError:
+                        print("Please enter a number.")
+                    
+                    input("\nPress Enter to continue...")
+                    continue
+                
                 # For all other settings, prompt for new value
                 print(f"\nCurrent value: {current_value}")
                 print("Enter new value or leave blank to keep current value:")
@@ -829,42 +856,504 @@ class MainMenu:
                 input("\nPress Enter to continue...")
     
     def _load_settings(self):
-        """Load application settings."""
-        # Define the settings schema
+        """Load application settings from environment variables based on .env.template"""
+        # Define the settings schema with proper categorization
         settings = [
-            {
-                'name': 'DESTINATION_DIRECTORY',
-                'description': 'Media destination directory',
-                'type': 'directory',
-                'category': 'Paths',
-                'default': ''
-            },
+            # API Settings
             {
                 'name': 'TMDB_API_KEY',
                 'description': 'TMDB API Key',
                 'type': 'password',
-                'category': 'API',
+                'category': 'API Settings',
+                'default': 'your_tmdb_api_key_here'
+            },
+            {
+                'name': 'TMDB_BASE_URL',
+                'description': 'TMDB Base URL',
+                'type': 'text',
+                'category': 'API Settings',
+                'default': 'https://api.themoviedb.org/3'
+            },
+            {
+                'name': 'MDBLIST_API_KEY',
+                'description': 'MDBList API Key',
+                'type': 'password',
+                'category': 'API Settings',
+                'default': 'your_mdblist_api_key_here'
+            },
+            
+            # File System Settings
+            {
+                'name': 'DESTINATION_DIRECTORY',
+                'description': 'Media destination directory',
+                'type': 'directory',
+                'category': 'File System',
+                'default': '/mnt/Scanly'
+            },
+            {
+                'name': 'LINK_TYPE',
+                'description': 'Link type (symlink or hardlink)',
+                'type': 'select',
+                'options': ['symlink', 'hardlink'],
+                'category': 'File System',
+                'default': 'symlink'
+            },
+            {
+                'name': 'RELATIVE_SYMLINK',
+                'description': 'Use relative symlinks',
+                'type': 'bool',
+                'category': 'File System',
+                'default': 'false'
+            },
+            
+            # Folder Structure Settings
+            {
+                'name': 'CUSTOM_SHOW_FOLDER',
+                'description': 'TV Shows folder name',
+                'type': 'text',
+                'category': 'Folder Structure',
+                'default': 'TV Shows'
+            },
+            {
+                'name': 'CUSTOM_4KSHOW_FOLDER',
+                'description': '4K TV Shows folder name',
+                'type': 'text',
+                'category': 'Folder Structure',
                 'default': ''
             },
             {
-                'name': 'AUTO_EXTRACT_EPISODES',
-                'description': 'Auto-extract episode information',
+                'name': 'CUSTOM_ANIME_SHOW_FOLDER',
+                'description': 'Anime TV Shows folder name',
+                'type': 'text',
+                'category': 'Folder Structure',
+                'default': 'Anime Shows'
+            },
+            {
+                'name': 'CUSTOM_MOVIE_FOLDER',
+                'description': 'Movies folder name',
+                'type': 'text',
+                'category': 'Folder Structure',
+                'default': 'Movies'
+            },
+            {
+                'name': 'CUSTOM_4KMOVIE_FOLDER',
+                'description': '4K Movies folder name',
+                'type': 'text',
+                'category': 'Folder Structure',
+                'default': ''
+            },
+            {
+                'name': 'CUSTOM_ANIME_MOVIE_FOLDER',
+                'description': 'Anime Movies folder name',
+                'type': 'text',
+                'category': 'Folder Structure',
+                'default': 'Anime Movies'
+            },
+            
+            # Resolution Structure Settings
+            {
+                'name': 'SHOW_RESOLUTION_STRUCTURE',
+                'description': 'Organize TV shows by resolution',
                 'type': 'bool',
-                'category': 'Processing',
+                'category': 'Resolution Structure',
                 'default': 'false'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_STRUCTURE',
+                'description': 'Organize movies by resolution',
+                'type': 'bool',
+                'category': 'Resolution Structure',
+                'default': 'false'
+            },
+            
+            # TV Show Resolution Folders
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_REMUX_4K',
+                'description': '4K Remux TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'UltraHDRemuxShows'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_REMUX_1080P',
+                'description': '1080p Remux TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': '1080pRemuxLibrary'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_REMUX_DEFAULT',
+                'description': 'Default Remux TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'RemuxShows'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_2160P',
+                'description': '4K/2160p TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'UltraHD'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_1080P',
+                'description': '1080p TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'FullHD'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_720P',
+                'description': '720p TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'SDClassics'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_480P',
+                'description': '480p TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'Retro480p'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_DVD',
+                'description': 'DVD TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'RetroDVD'
+            },
+            {
+                'name': 'SHOW_RESOLUTION_FOLDER_DEFAULT',
+                'description': 'Default TV Shows folder',
+                'type': 'text',
+                'category': 'TV Resolution Folders',
+                'default': 'Shows'
+            },
+            
+            # Movie Resolution Folders
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_REMUX_4K',
+                'description': '4K Remux Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': '4KRemux'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_REMUX_1080P',
+                'description': '1080p Remux Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': '1080pRemux'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_REMUX_DEFAULT',
+                'description': 'Default Remux Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'MoviesRemux'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_2160P',
+                'description': '4K/2160p Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'UltraHD'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_1080P',
+                'description': '1080p Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'FullHD'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_720P',
+                'description': '720p Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'SDMovies'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_480P',
+                'description': '480p Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'Retro480p'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_DVD',
+                'description': 'DVD Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'DVDClassics'
+            },
+            {
+                'name': 'MOVIE_RESOLUTION_FOLDER_DEFAULT',
+                'description': 'Default Movies folder',
+                'type': 'text',
+                'category': 'Movie Resolution Folders',
+                'default': 'Movies'
+            },
+            
+            # Anime Settings
+            {
+                'name': 'ANIME_SCAN',
+                'description': 'Enable anime scanning',
+                'type': 'bool',
+                'category': 'Anime Settings',
+                'default': 'true'
+            },
+            {
+                'name': 'ANIME_SEPARATION',
+                'description': 'Separate anime content',
+                'type': 'bool',
+                'category': 'Anime Settings',
+                'default': 'true'
+            },
+            
+            # ID Folder Settings
+            {
+                'name': 'TMDB_FOLDER_ID',
+                'description': 'Add TMDB ID to folder names',
+                'type': 'bool',
+                'category': 'Folder ID Settings',
+                'default': 'true'
+            },
+            {
+                'name': 'IMDB_FOLDER_ID',
+                'description': 'Add IMDB ID to folder names',
+                'type': 'bool',
+                'category': 'Folder ID Settings',
+                'default': 'false'
+            },
+            {
+                'name': 'TVDB_FOLDER_ID',
+                'description': 'Add TVDB ID to folder names',
+                'type': 'bool',
+                'category': 'Folder ID Settings',
+                'default': 'false'
+            },
+            
+            # Renaming Settings
+            {
+                'name': 'RENAME_ENABLED',
+                'description': 'Enable file renaming',
+                'type': 'bool',
+                'category': 'Renaming Settings',
+                'default': 'true'
+            },
+            {
+                'name': 'RENAME_TAGS',
+                'description': 'Tags to keep when renaming',
+                'type': 'text',
+                'category': 'Renaming Settings',
+                'default': ''
+            },
+            
+            # System Settings
+            {
+                'name': 'MAX_PROCESSES',
+                'description': 'Maximum parallel processes',
+                'type': 'int',
+                'category': 'System Settings',
+                'default': '1'
+            },
+            {
+                'name': 'ALLOWED_EXTENSIONS',
+                'description': 'Allowed file extensions',
+                'type': 'text',
+                'category': 'System Settings',
+                'default': '.mp4,.mkv,.srt,.avi,.mov,.divx'
+            },
+            {
+                'name': 'SKIP_ADULT_PATTERNS',
+                'description': 'Skip adult content',
+                'type': 'bool',
+                'category': 'System Settings',
+                'default': 'true'
+            },
+            {
+                'name': 'SKIP_EXTRAS_FOLDER',
+                'description': 'Skip extras folders',
+                'type': 'bool',
+                'category': 'System Settings',
+                'default': 'true'
+            },
+            {
+                'name': 'EXTRAS_MAX_SIZE_MB',
+                'description': 'Maximum size for extras (MB)',
+                'type': 'int',
+                'category': 'System Settings',
+                'default': '30'
+            },
+            
+            # Rclone Settings
+            {
+                'name': 'RCLONE_MOUNT',
+                'description': 'Use Rclone mounts',
+                'type': 'bool',
+                'category': 'Rclone Settings',
+                'default': 'false'
+            },
+            {
+                'name': 'MOUNT_CHECK_INTERVAL',
+                'description': 'Mount check interval (seconds)',
+                'type': 'int',
+                'category': 'Rclone Settings',
+                'default': '30'
+            },
+            
+            # Monitoring Settings
+            {
+                'name': 'SLEEP_TIME',
+                'description': 'Sleep time between operations (seconds)',
+                'type': 'int',
+                'category': 'Monitoring Settings',
+                'default': '1'
+            },
+            {
+                'name': 'SYMLINK_CLEANUP_INTERVAL',
+                'description': 'Symlink cleanup interval (seconds)',
+                'type': 'int',
+                'category': 'Monitoring Settings',
+                'default': '30'
+            },
+            {
+                'name': 'MONITOR_AUTO_PROCESS',
+                'description': 'Auto process monitored directories',
+                'type': 'bool',
+                'category': 'Monitoring Settings',
+                'default': 'false'
+            },
+            {
+                'name': 'MONITOR_SCAN_INTERVAL',
+                'description': 'Monitor scan interval (seconds)',
+                'type': 'int',
+                'category': 'Monitoring Settings',
+                'default': '60'
+            },
+            
+            # Discord Notification Settings
+            {
+                'name': 'DISCORD_WEBHOOK_URL',
+                'description': 'Discord webhook URL',
+                'type': 'password',
+                'category': 'Discord Notifications',
+                'default': ''
+            },
+            {
+                'name': 'ENABLE_DISCORD_NOTIFICATIONS',
+                'description': 'Enable Discord notifications',
+                'type': 'bool',
+                'category': 'Discord Notifications',
+                'default': 'false'
+            },
+            
+            # Plex Integration
+            {
+                'name': 'ENABLE_PLEX_UPDATE',
+                'description': 'Enable Plex library updates',
+                'type': 'bool',
+                'category': 'Plex Integration',
+                'default': 'false'
+            },
+            {
+                'name': 'PLEX_URL',
+                'description': 'Plex server URL',
+                'type': 'text',
+                'category': 'Plex Integration',
+                'default': 'http://localhost:32400'
+            },
+            {
+                'name': 'PLEX_TOKEN',
+                'description': 'Plex auth token',
+                'type': 'password',
+                'category': 'Plex Integration',
+                'default': 'your_plex_token_here'
+            },
+            
+            # Database Settings
+            {
+                'name': 'DB_THROTTLE_RATE',
+                'description': 'Database throttle rate',
+                'type': 'int',
+                'category': 'Database Settings',
+                'default': '100'
+            },
+            {
+                'name': 'DB_MAX_RETRIES',
+                'description': 'Database max retries',
+                'type': 'int',
+                'category': 'Database Settings',
+                'default': '10'
+            },
+            {
+                'name': 'DB_RETRY_DELAY',
+                'description': 'Database retry delay (seconds)',
+                'type': 'float',
+                'category': 'Database Settings',
+                'default': '1.0'
+            },
+            {
+                'name': 'DB_BATCH_SIZE',
+                'description': 'Database batch size',
+                'type': 'int',
+                'category': 'Database Settings',
+                'default': '1000'
+            },
+            {
+                'name': 'DB_MAX_WORKERS',
+                'description': 'Database max workers',
+                'type': 'int',
+                'category': 'Database Settings',
+                'default': '4'
+            },
+            
+            # Logging Settings
+            {
+                'name': 'LOG_LEVEL',
+                'description': 'Logging level',
+                'type': 'select',
+                'options': ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                'category': 'Logging Settings',
+                'default': 'INFO'
+            },
+            {
+                'name': 'LOG_FILE',
+                'description': 'Log file name',
+                'type': 'text',
+                'category': 'Logging Settings',
+                'default': 'scanly.log'
+            },
+            
+            # Application Settings
+            {
+                'name': 'AUTO_EXTRACT_EPISODES',
+                'description': 'Auto extract episode information',
+                'type': 'bool',
+                'category': 'Application Settings',
+                'default': 'True'
+            },
+            {
+                'name': 'PROGRESS_FILE',
+                'description': 'Progress tracking file',
+                'type': 'text',
+                'category': 'Application Settings',
+                'default': 'scanly_progress.json'
             },
             {
                 'name': 'SCANNER_LISTS',
                 'description': 'Manage scanner lists',
                 'type': 'custom_handler',
                 'handler': '_manage_scanner_lists',
-                'category': 'Content',
+                'category': 'Content Management',
                 'default': ''
             }
         ]
         
         return settings
-    
+
     def _update_env_var(self, name, value):
         """Update an environment variable both in memory and in .env file."""
         # Update in memory
