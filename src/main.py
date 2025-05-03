@@ -13,6 +13,7 @@ import logging
 import unicodedata
 from pathlib import Path
 import datetime
+import shutil
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -679,8 +680,14 @@ class DirectoryProcessor:
                     if choice == "1":
                         # Process with current detection
                         print(f"\nProcessing {subfolder_name} as {content_type}{anime_label}...")
-                        # Further processing would go here
-                        # ...
+                        
+                        # Create symlinks
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        
+                        if symlink_success:
+                            print(f"Successfully processed {subfolder_name}")
+                        else:
+                            print(f"Failed to create symlinks for {subfolder_name}")
                         
                     elif choice == "2":
                         # Search with new title
@@ -696,8 +703,14 @@ class DirectoryProcessor:
                             year = new_year
                         
                         print(f"\nProcessing {subfolder_name} with new title: {title} ({year if year else 'Unknown year'})...")
-                        # Further processing would go here
-                        # ...
+                        
+                        # Create symlinks with the updated title/year
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        
+                        if symlink_success:
+                            print(f"Successfully processed {subfolder_name}")
+                        else:
+                            print(f"Failed to create symlinks for {subfolder_name}")
                         
                     elif choice == "3":
                         # Change content type
@@ -728,8 +741,14 @@ class DirectoryProcessor:
                         anime_label = " (Anime)" if is_anime else ""
                         
                         print(f"\nProcessing {subfolder_name} as {content_type}{anime_label}...")
-                        # Further processing would go here
-                        # ...
+                        
+                        # Create symlinks with the updated content type
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        
+                        if symlink_success:
+                            print(f"Successfully processed {subfolder_name}")
+                        else:
+                            print(f"Failed to create symlinks for {subfolder_name}")
                         
                     elif choice == "4":
                         # Skip this folder
@@ -815,7 +834,7 @@ class DirectoryProcessor:
             r'(?i)\b(720p|1080p|1440p|2160p|4320p|480p|576p|8K|4K|UHD|HD|FHD|QHD)\b',
             
             # Format patterns
-            r'(?i)\b(BluRay|BD|REMUX|BDRip|DVDRip|HDTV|WebRip|WEB-DL|WEBRip|Web|HDRip|DVD|DVDR)\b',
+            r'(?i)\b(BluRay|BD|REMUX|BDRemux|BDRip|DVDRip|HDTV|WebRip|WEB-DL|WEBRip|Web|HDRip|DVD|DVDR)\b',
             
             # Codec patterns
             r'(?i)\b(xvid|divx|x264|x265|hevc|h264|h265|HEVC|avc|vp9|av1)\b',
@@ -827,7 +846,7 @@ class DirectoryProcessor:
             r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
 
             # Common release group names
-            r'(?i)\b(AMZN|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM)\b',
+            r'(?i)\b(AMZN|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
 
             # Scanner patterns
             r'(?i)\b(ERROR|Error)\b',
@@ -878,7 +897,7 @@ class DirectoryProcessor:
         best_tmdb_id = None
         
         # Check each scanner list
-        for list_type in ['movies', 'tv', 'anime']:
+        for list_type in ['movies', 'tv_series', 'anime_movies', 'anime_series']:
             match, score, tmdb_id = self._get_best_match_from_list(clean_title, year, list_type)
             if match and score > best_match_score:
                 best_match = match
@@ -892,10 +911,17 @@ class DirectoryProcessor:
             # Store the content type for later use
             if best_match_type == 'movies':
                 self._detected_content_type = 'movie'
-            elif best_match_type == 'tv':
+            elif best_match_type == 'tv_series':
                 self._detected_content_type = 'tv'
-            elif best_match_type == 'anime':
-                self._detected_content_type = 'anime'
+            elif best_match_type == 'anime_movies':
+                self._detected_content_type = 'anime_movie'
+            elif best_match_type == 'anime_series':
+                self._detected_content_type = 'anime_tv'
+            
+            # Store the TMDB ID
+            if best_tmdb_id:
+                self._detected_tmdb_id = best_tmdb_id
+                
             return best_match, best_tmdb_id
         
         return None, None
@@ -911,17 +937,21 @@ class DirectoryProcessor:
             scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
             
             # Determine which file to check based on list_type
-            if list_type == 'tv':
-                file_path = os.path.join(scanners_dir, 'tv_shows.txt')
+            if list_type == 'tv_series':
+                file_path = os.path.join(scanners_dir, 'tv_series.txt')
             elif list_type == 'movies':
                 file_path = os.path.join(scanners_dir, 'movies.txt')
-            elif list_type == 'anime':
-                file_path = os.path.join(scanners_dir, 'anime.txt')
+            elif list_type == 'anime_movies':
+                file_path = os.path.join(scanners_dir, 'anime_movies.txt')
+            elif list_type == 'anime_series':
+                file_path = os.path.join(scanners_dir, 'anime_series.txt')
             else:
+                self.logger.debug(f"Unknown scanner list type: {list_type}")
                 return None, 0, None
             
             # Check if the file exists
             if not os.path.exists(file_path):
+                self.logger.debug(f"Scanner list file does not exist: {file_path}")
                 return None, 0, None
             
             # Read the file and find the best match
@@ -930,106 +960,162 @@ class DirectoryProcessor:
             best_tmdb_id = None
             
             # Convert title to lowercase for case-insensitive comparison
-            title_lower = title.lower()
+            title_lower = title.lower().strip()
+            
+            # Debug output
+            self.logger.debug(f"Looking for '{title_lower}' in {list_type} list")
             
             with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith('#'):  # Skip empty lines and comments
-                        continue
+                lines = f.readlines()
+                
+            # First pass: Check for exact matches or direct containment
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith('#'):  # Skip empty lines and comments
+                    continue
+                
+                # Parse the line: MEDIA TITLE (YEAR) [TMDB ID]
+                # Extract the TMDB ID from the line
+                tmdb_id = None
+                tmdb_match = re.search(r'\[([^\]]+)\]', line)
+                if tmdb_match:
+                    tmdb_id = tmdb_match.group(1)
+                    # Don't skip Error entries for exact title matches
+                    # We should still match the title even if it has [Error]
+
+                # Clean the line by removing the TMDB ID part (including [Error])
+                clean_line = re.sub(r'\s*\[[^\]]+\]\s*$', '', line)
+                
+                # Extract year from the line if present
+                line_year = None
+                year_match = re.search(r'\((\d{4})\)', clean_line)
+                if year_match:
+                    line_year = year_match.group(1)
+                    # Remove the year part for title comparison
+                    clean_line_without_year = re.sub(r'\s*\(\d{4}\)\s*', ' ', clean_line)
+                else:
+                    clean_line_without_year = clean_line
+                
+                clean_line_without_year = clean_line_without_year.lower().strip()
+                
+                # Debug exact match attempts
+                self.logger.debug(f"Comparing '{title_lower}' with '{clean_line_without_year}'")
+                
+                # Exact match check - absolute priority
+                if title_lower == clean_line_without_year:
+                    self.logger.info(f"EXACT MATCH: Found perfect match for '{title}' in {list_type} list: '{clean_line}'")
+                    return clean_line, 1.0, tmdb_id  # Perfect match
+                
+                # Check if the title is fully contained in the entry
+                # Special case for entries like "12 Angry" matching "12 Angry Men"
+                # Only apply this if the match is substantial
+                if clean_line_without_year in title_lower and len(clean_line_without_year) >= 5:
+                    containment_ratio = len(clean_line_without_year) / len(title_lower)
+                    if containment_ratio > 0.7:  # The entry covers at least 70% of our title
+                        self.logger.info(f"STRONG CONTAINMENT: Scanner entry '{clean_line_without_year}' is contained in '{title_lower}' with ratio {containment_ratio:.2f}")
+                        return clean_line, 0.95, tmdb_id  # Strong match
+                
+                # Also check if our title is fully contained in the scanner entry
+                # This works for cases like "12 Angry Men" being a substring of "12 Angry Men (1957)"
+                if title_lower in clean_line_without_year:
+                    containment_ratio = len(title_lower) / len(clean_line_without_year)
+                    if containment_ratio > 0.7:  # Our title covers at least 70% of the scanner entry
+                        self.logger.info(f"STRONG SUBSTRING: Title '{title_lower}' is contained in scanner entry '{clean_line_without_year}' with ratio {containment_ratio:.2f}")
+                        return clean_line, 0.92, tmdb_id  # Strong match
+            
+            # Second pass: Calculate fuzzy matches if no direct/substring match was found
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith('#'):  # Skip empty lines and comments
+                    continue
+                
+                # For fuzzy matching (but not direct matching), skip Error entries
+                if "[Error]" in line and (title_lower not in line.lower()):
+                    continue
                     
-                    # Parse the line: MEDIA TITLE (YEAR) [TMDB ID]
-                    # Extract the TMDB ID from the line
-                    tmdb_id = None
-                    tmdb_match = re.search(r'\[([^\]]+)\]', line)
-                    if tmdb_match:
-                        tmdb_id = tmdb_match.group(1)
-                        # Skip if it's an error entry
-                        if tmdb_id == 'Error':
-                            continue
+                # Parse the line again
+                tmdb_id = None
+                tmdb_match = re.search(r'\[([^\]]+)\]', line)
+                if tmdb_match:
+                    tmdb_id = tmdb_match.group(1)
+                
+                # Clean the line
+                clean_line = re.sub(r'\s*\[[^\]]+\]\s*$', '', line)
+                
+                # Extract year
+                line_year = None
+                year_match = re.search(r'\((\d{4})\)', clean_line)
+                if year_match:
+                    line_year = year_match.group(1)
+                    clean_line_without_year = re.sub(r'\s*\(\d{4}\)\s*', ' ', clean_line)
+                else:
+                    clean_line_without_year = clean_line
+                
+                clean_line_without_year = clean_line_without_year.lower().strip()
+                
+                # Word set comparison
+                title_words = set(re.findall(r'\b\w+\b', title_lower))
+                line_words = set(re.findall(r'\b\w+\b', clean_line_without_year))
+                
+                if not title_words or not line_words:  # Avoid division by zero
+                    continue
+                
+                # Calculate Jaccard similarity (intersection over union)
+                intersection = len(title_words.intersection(line_words))
+                union = len(title_words.union(line_words))
+                
+                if union > 0:
+                    jaccard = intersection / union
                     
-                    # Clean the line by removing the TMDB ID part
-                    clean_line = re.sub(r'\s*\[[^\]]+\]\s*$', '', line)
+                    # Boost score if title is a subset of line
+                    if title_words.issubset(line_words):
+                        jaccard += 0.2
                     
-                    # Extract year from the line if present
-                    line_year = None
-                    year_match = re.search(r'\((\d{4})\)', clean_line)
-                    if year_match:
-                        line_year = year_match.group(1)
-                        # Remove the year part for title comparison
-                        clean_line_without_year = re.sub(r'\s*\(\d{4}\)\s*', ' ', clean_line)
-                    else:
-                        clean_line_without_year = clean_line
-                    
-                    clean_line_without_year = clean_line_without_year.strip()
-                    
-                    # Calculate match score using multiple strategies
-                    
-                    # Direct comparison (case insensitive)
-                    if title_lower == clean_line_without_year.lower():
-                        return clean_line_without_year, 1.0, tmdb_id  # Perfect match
-                    
-                    # Word set comparison
-                    title_words = set(re.findall(r'\b\w+\b', title_lower))
-                    line_words = set(re.findall(r'\b\w+\b', clean_line_without_year.lower()))
-                    
-                    if not title_words or not line_words:  # Avoid division by zero
-                        continue
-                    
-                    # Calculate Jaccard similarity (intersection over union)
-                    intersection = len(title_words.intersection(line_words))
-                    union = len(title_words.union(line_words))
-                    
-                    if union > 0:
-                        jaccard = intersection / union
+                    # Calculate word order similarity for multi-word titles
+                    if len(title_words) > 1 and len(line_words) > 1:
+                        title_words_list = [w.lower() for w in re.findall(r'\b\w+\b', title)]
+                        line_words_list = [w.lower() for w in re.findall(r'\b\w+\b', clean_line_without_year)]
                         
-                        # Boost score if title is a subset of line
-                        if title_words.issubset(line_words):
-                            jaccard += 0.2
-                        
-                        # Calculate word order similarity for multi-word titles
-                        if len(title_words) > 1 and len(line_words) > 1:
-                            title_words_list = [w.lower() for w in re.findall(r'\b\w+\b', title)]
-                            line_words_list = [w.lower() for w in re.findall(r'\b\w+\b', clean_line_without_year)]
-                            
-                            # Check if words appear in the same order
-                            same_order = True
-                            for i in range(len(title_words_list)-1):
-                                if title_words_list[i] in line_words_list and title_words_list[i+1] in line_words_list:
+                        # Check if words appear in the same order
+                        same_order = True
+                        for i in range(len(title_words_list)-1):
+                            if title_words_list[i] in line_words_list and title_words_list[i+1] in line_words_list:
+                                try:
                                     idx1 = line_words_list.index(title_words_list[i])
                                     idx2 = line_words_list.index(title_words_list[i+1])
                                     if idx1 >= idx2:  # Words are in wrong order
                                         same_order = False
                                         break
-                            
-                            if same_order and intersection > 1:  # At least 2 words in common and in order
-                                jaccard += 0.1
+                                except ValueError:
+                                    # Handle case where word might not be found
+                                    pass
                         
-                        # Give extra weight to exact matches of words rather than just character similarity
-                        if intersection > 0:
+                        if same_order and intersection > 1:  # At least 2 words in common and in order
                             jaccard += 0.1
-                        
-                        # Apply a penalty for large differences in length
-                        length_ratio = min(len(title), len(clean_line_without_year)) / max(len(title), len(clean_line_without_year))
-                        jaccard *= (0.5 + 0.5 * length_ratio)  # Dampen but don't eliminate matches with size differences
-                        
-                        # Boost score if years match
-                        if year and line_year and year == line_year:
-                            jaccard += 0.15
-                        
-                        if jaccard > best_score:
-                            best_score = jaccard
-                            best_match = clean_line_without_year
-                            best_tmdb_id = tmdb_id
                     
-                    # For short titles like "12 Angry Men", also check if the title appears as a substring
-                    if len(title.split()) <= 4:  # For titles with 4 or fewer words
-                        if title.lower() in clean_line_without_year.lower():
-                            substring_score = 0.8 * (len(title) / len(clean_line_without_year))  # Adjust based on how much of the line is the title
-                            if substring_score > best_score:
-                                best_score = substring_score
-                                best_match = clean_line_without_year
-                                best_tmdb_id = tmdb_id
+                    # Give extra weight to exact matches of words rather than just character similarity
+                    if intersection > 0:
+                        jaccard += 0.1
+                    
+                    # Apply a penalty for large differences in length
+                    length_ratio = min(len(title), len(clean_line_without_year)) / max(len(title), len(clean_line_without_year))
+                    jaccard *= (0.5 + 0.5 * length_ratio)  # Dampen but don't eliminate matches with size differences
+                    
+                    # Boost score if years match
+                    if year and line_year and year == line_year:
+                        jaccard += 0.15
+                    
+                    # Apply a small penalty for year mismatches
+                    elif year and line_year and year != line_year:
+                        jaccard -= 0.05
+                    
+                    if jaccard > best_score:
+                        best_score = jaccard
+                        best_match = clean_line
+                        best_tmdb_id = tmdb_id
+            
+            if best_match:
+                self.logger.debug(f"Best fuzzy match in {list_type}: '{best_match}' with score {best_score:.2f}")
             
             return best_match, best_score, best_tmdb_id
             
@@ -1041,31 +1127,103 @@ class DirectoryProcessor:
         """Detect if a folder contains a TV show based on its name and scanner lists."""
         # Check if we've already determined the content type through title matching
         if hasattr(self, '_detected_content_type'):
-            return self._detected_content_type == 'tv'
+            if self._detected_content_type in ['tv', 'anime_tv']:
+                return True
+            elif self._detected_content_type in ['movie', 'anime_movie']:
+                return False
         
         # First clean the folder name
         clean_title, year = self._extract_folder_metadata(folder_name)
         
+        self.logger.info(f"Detecting content type for '{clean_title}' (year: {year})")
+        
         # Check scanner lists with weighted matching
         movie_match, movie_score, movie_tmdb_id = self._get_best_match_from_list(clean_title, year, 'movies')
-        tv_match, tv_score, tv_tmdb_id = self._get_best_match_from_list(clean_title, year, 'tv')
+        tv_match, tv_score, tv_tmdb_id = self._get_best_match_from_list(clean_title, year, 'tv_series')
+        anime_movie_match, anime_movie_score, anime_movie_tmdb_id = self._get_best_match_from_list(clean_title, year, 'anime_movies')
+        anime_tv_match, anime_tv_score, anime_tv_tmdb_id = self._get_best_match_from_list(clean_title, year, 'anime_series')
         
-        # If one list has a significantly better match, use that
-        if movie_score > tv_score + 0.2:  # Movie is clearly better
-            self.logger.debug(f"'{clean_title}' matched movie '{movie_match}' with score {movie_score:.2f}")
-            # Store the discovered TMDB ID if it wasn't already found
-            if movie_tmdb_id and not hasattr(self, '_detected_tmdb_id'):
+        # Log all scores for debugging
+        self.logger.info(f"Match scores - Movie: {movie_score:.2f}, TV: {tv_score:.2f}, Anime Movie: {anime_movie_score:.2f}, Anime TV: {anime_tv_score:.2f}")
+        
+        # DIRECT MATCH HANDLING - perfect or near-perfect matches (score > 0.9) take absolute priority
+        if movie_score > 0.9:
+            self.logger.info(f"Direct movie match: '{movie_match}' (score: {movie_score:.2f})")
+            self._detected_content_type = 'movie'
+            if movie_tmdb_id:
                 self._detected_tmdb_id = movie_tmdb_id
             return False
-        elif tv_score > movie_score + 0.2:  # TV is clearly better
-            self.logger.debug(f"'{clean_title}' matched TV show '{tv_match}' with score {tv_score:.2f}")
-            # Store the discovered TMDB ID if it wasn't already found
-            if tv_tmdb_id and not hasattr(self, '_detected_tmdb_id'):
+            
+        if tv_score > 0.9:
+            self.logger.info(f"Direct TV match: '{tv_match}' (score: {tv_score:.2f})")
+            self._detected_content_type = 'tv'
+            if tv_tmdb_id:
                 self._detected_tmdb_id = tv_tmdb_id
             return True
+            
+        if anime_movie_score > 0.9:
+            self.logger.info(f"Direct anime movie match: '{anime_movie_match}' (score: {anime_movie_score:.2f})")
+            self._detected_content_type = 'anime_movie'
+            if anime_movie_tmdb_id:
+                self._detected_tmdb_id = anime_movie_tmdb_id
+            return False
+            
+        if anime_tv_score > 0.9:
+            self.logger.info(f"Direct anime TV match: '{anime_tv_match}' (score: {anime_tv_score:.2f})")
+            self._detected_content_type = 'anime_tv'
+            if anime_tv_tmdb_id:
+                self._detected_tmdb_id = anime_tv_tmdb_id
+            return True
         
-        # If scores are close, fall back to pattern detection
-        # Simple detection logic - look for common patterns in TV show folder names
+        # If no direct match, compare best scores across categories
+        best_movie_score = max(movie_score, anime_movie_score)
+        best_tv_score = max(tv_score, anime_tv_score)
+        
+        # If there's a clear winner (with significant score difference)
+        if best_movie_score > best_tv_score + 0.15:  # Movies score is significantly better
+            if movie_score >= anime_movie_score:
+                self._detected_content_type = 'movie'
+                if movie_tmdb_id:
+                    self._detected_tmdb_id = movie_tmdb_id
+            else:
+                self._detected_content_type = 'anime_movie'
+                if anime_movie_tmdb_id:
+                    self._detected_tmdb_id = anime_movie_tmdb_id
+            self.logger.info(f"Selected movie based on score difference: best movie {best_movie_score:.2f} vs best TV {best_tv_score:.2f}")
+            return False
+            
+        elif best_tv_score > best_movie_score + 0.15:  # TV score is significantly better
+            if tv_score >= anime_tv_score:
+                self._detected_content_type = 'tv'
+                if tv_tmdb_id:
+                    self._detected_tmdb_id = tv_tmdb_id
+            else:
+                self._detected_content_type = 'anime_tv'
+                if anime_tv_tmdb_id:
+                    self._detected_tmdb_id = anime_tv_tmdb_id
+            self.logger.info(f"Selected TV based on score difference: best TV {best_tv_score:.2f} vs best movie {best_movie_score:.2f}")
+            return True
+        
+        # If scores are close, look for TV indicators in the filename
+        if self._has_tv_indicators(folder_name):
+            self.logger.info(f"Scores are close ({best_movie_score:.2f} vs {best_tv_score:.2f}) but found TV indicators in filename")
+            self._detected_content_type = 'tv'
+            return True
+        
+        # Default to movie if scores are close and no TV indicators (movies are more common)
+        self.logger.info(f"Scores are close ({best_movie_score:.2f} vs {best_tv_score:.2f}) - defaulting to movie")
+        if movie_score >= anime_movie_score:
+            self._detected_content_type = 'movie'
+            if movie_tmdb_id:
+                self._detected_tmdb_id = movie_tmdb_id
+        else:
+            self._detected_content_type = 'anime_movie'
+            if anime_movie_tmdb_id:
+                self._detected_tmdb_id = anime_movie_tmdb_id
+        return False
+
+    def _has_tv_indicators(self, folder_name):
+        """Check if a folder name contains TV show indicators."""
         tv_indicators = ['season', 'episode', 's\d+e\d+', 'complete', 'series']
         
         # Case insensitive search for TV show indicators
@@ -1084,7 +1242,6 @@ class DirectoryProcessor:
             if re.search(indicator, lower_name, re.IGNORECASE):
                 return True
         
-        # If no strong indicators, default to movie
         return False
 
     def _detect_if_anime(self, folder_name):
@@ -1096,19 +1253,65 @@ class DirectoryProcessor:
         # First clean the folder name
         clean_title, year = self._extract_folder_metadata(folder_name)
         
-        # Check anime scanner list
-        anime_match, anime_score, anime_tmdb_id = self._get_best_match_from_list(clean_title, year, 'anime')
+        # Check specific anime scanner lists (we need separate checks for anime_movies and anime_series)
+        anime_movie_match, anime_movie_score, anime_movie_tmdb_id = self._get_best_match_from_list(clean_title, year, 'anime_movies')
+        anime_series_match, anime_series_score, anime_series_tmdb_id = self._get_best_match_from_list(clean_title, year, 'anime_series')
         
-        # If there's a good match in the anime list
-        if anime_score > 0.7:  # 70% confidence threshold
+        # Get the best anime match
+        anime_match = None
+        anime_score = 0
+        anime_tmdb_id = None
+        
+        if anime_movie_score > anime_series_score:
+            anime_match = anime_movie_match
+            anime_score = anime_movie_score
+            anime_tmdb_id = anime_movie_tmdb_id
+        else:
+            anime_match = anime_series_match
+            anime_score = anime_series_score
+            anime_tmdb_id = anime_series_tmdb_id
+        
+        # Now check regular movies and TV series for comparison
+        movie_match, movie_score, movie_tmdb_id = self._get_best_match_from_list(clean_title, year, 'movies')
+        tv_match, tv_score, tv_tmdb_id = self._get_best_match_from_list(clean_title, year, 'tv_series')
+        
+        # Get the best non-anime match
+        non_anime_match = None
+        non_anime_score = 0
+        non_anime_tmdb_id = None
+        
+        if movie_score > tv_score:
+            non_anime_match = movie_match
+            non_anime_score = movie_score
+            non_anime_tmdb_id = non_anime_tmdb_id
+        else:
+            non_anime_match = tv_match
+            non_anime_score = tv_score
+            non_anime_tmdb_id = tv_tmdb_id
+        
+        # Compare anime vs non-anime scores
+        # We require a significantly higher score for anime to avoid false positives
+        if anime_score > 0.8 and anime_score > non_anime_score + 0.1:
             self.logger.debug(f"'{clean_title}' matched anime '{anime_match}' with score {anime_score:.2f}")
             # Store the discovered TMDB ID if it wasn't already found
             if anime_tmdb_id and not hasattr(self, '_detected_tmdb_id'):
                 self._detected_tmdb_id = anime_tmdb_id
             return True
         
-        # Simple detection - check for common anime indicators
-        anime_indicators = ['anime', 'subbed', 'dubbed', '[jp]', '[jpn]']
+        # If we have a strong non-anime match, it's definitely not anime
+        if non_anime_score > 0.7:
+            return False
+        
+        # If we don't have strong matches in our scanner lists, look for specific anime indicators
+        anime_indicators = [
+            r'(?i)\banime\b', 
+            r'(?i)\bsubbed\b', 
+            r'(?i)\bdubbed\b', 
+            r'\[jp\]', 
+            r'\[jpn\]',
+            r'(?i)\bova\b',
+            r'(?i)\bova\d+\b'
+        ]
         
         lower_name = folder_name.lower()
         
@@ -1117,7 +1320,168 @@ class DirectoryProcessor:
             if re.search(indicator, lower_name, re.IGNORECASE):
                 return True
         
+        # Default to not anime if no strong indicators
         return False
+
+    def _create_symlinks(self, subfolder_path, title, year, is_tv, is_anime):
+        """
+        Create symlinks from the source directory to the destination directory.
+        
+        Args:
+            subfolder_path: Path to the source subfolder
+            title: Cleaned title of the media
+            year: Year of the media (or None)
+            is_tv: Whether the media is a TV show
+            is_anime: Whether the media is anime
+        """
+        # Check if destination directory is configured
+        if not DESTINATION_DIRECTORY:
+            self.logger.warning("Destination directory not configured. Skipping symlink creation.")
+            print("\nDestination directory not configured. Skipping symlink creation.")
+            print("Use Settings > Set destination directory to configure.")
+            return False
+        
+        # Make sure destination directory exists
+        if not os.path.exists(DESTINATION_DIRECTORY):
+            try:
+                os.makedirs(DESTINATION_DIRECTORY, exist_ok=True)
+            except Exception as e:
+                self.logger.error(f"Failed to create destination directory: {e}")
+                print(f"\nError: Could not create destination directory: {e}")
+                return False
+        
+        # Determine appropriate subdirectory based on content type
+        if is_anime and is_tv:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime TV Shows")
+        elif is_anime and not is_tv:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
+        elif not is_anime and is_tv:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Shows")
+        else:  # Regular movie
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
+        
+        # Create content type subdirectory if it doesn't exist
+        if not os.path.exists(dest_subdir):
+            try:
+                os.makedirs(dest_subdir, exist_ok=True)
+            except Exception as e:
+                self.logger.error(f"Failed to create subdirectory {dest_subdir}: {e}")
+                print(f"\nError: Could not create subdirectory {dest_subdir}: {e}")
+                return False
+        
+        # Format the target directory name
+        target_dir_name = f"{title}"
+        if year:
+            target_dir_name += f" ({year})"
+        
+        # Add TMDB ID if available
+        if hasattr(self, '_detected_tmdb_id') and self._detected_tmdb_id:
+            target_dir_name += f" [tmdb-{self._detected_tmdb_id}]"
+        
+        # Create full path for the target directory
+        target_dir_path = os.path.join(dest_subdir, target_dir_name)
+        
+        # If this is a single movie file rather than a directory of files
+        if os.path.isfile(subfolder_path):
+            # For individual movie files, create a properly named symlink
+            file_ext = os.path.splitext(subfolder_path)[1]
+            target_file_name = f"{title}"
+            if year:
+                target_file_name += f" ({year})"
+            target_file_name += file_ext
+            
+            # Create full path for the target file
+            target_file_path = os.path.join(dest_subdir, target_file_name)
+            
+            # Check if target file already exists
+            if os.path.exists(target_file_path):
+                self.logger.info(f"Target file already exists: {target_file_path}")
+                print(f"\nNotice: Target file already exists: {target_file_path}")
+                
+                # Ask if user wants to replace it
+                if not self.auto_mode:
+                    choice = input("Replace existing file? (y/n): ").strip().lower()
+                    if choice != 'y':
+                        print("Skipping symlink creation.")
+                        return False
+                    
+                    # Remove existing symlink if user confirmed
+                    try:
+                        if os.path.islink(target_file_path):
+                            os.unlink(target_file_path)
+                        else:
+                            os.remove(target_file_path)
+                    except Exception as e:
+                        self.logger.error(f"Failed to remove existing target: {e}")
+                        print(f"Error: Could not remove existing target: {e}")
+                        return False
+            
+            # Create the symlink for the file
+            try:
+                # Use relative paths if possible
+                if os.path.commonpath([subfolder_path, dest_subdir]):
+                    # Get relative path
+                    rel_path = os.path.relpath(subfolder_path, os.path.dirname(target_file_path))
+                    os.symlink(rel_path, target_file_path)
+                else:
+                    # Use absolute path if on different drives/mounts
+                    os.symlink(subfolder_path, target_file_path)
+                    
+                self.logger.info(f"Created symlink: {target_file_path} -> {subfolder_path}")
+                print(f"\nCreated symlink: {target_file_path}")
+                return True
+                    
+            except Exception as e:
+                self.logger.error(f"Failed to create symlink: {e}")
+                print(f"Error: Could not create symlink: {e}")
+                return False
+        
+        # For directories, create a symlink to the directory
+        else:
+            # Check if target directory already exists
+            if os.path.exists(target_dir_path):
+                self.logger.info(f"Target directory already exists: {target_dir_path}")
+                print(f"\nNotice: Target directory already exists: {target_dir_path}")
+                
+                # Ask if user wants to replace it
+                if not self.auto_mode:
+                    choice = input("Replace existing directory? (y/n): ").strip().lower()
+                    if choice != 'y':
+                        print("Skipping symlink creation.")
+                        return False
+                    
+                    # Remove existing symlink if user confirmed
+                    try:
+                        if os.path.islink(target_dir_path):
+                            os.unlink(target_dir_path)
+                        elif os.path.isdir(target_dir_path):
+                            shutil.rmtree(target_dir_path)
+                        else:
+                            os.remove(target_dir_path)
+                    except Exception as e:
+                        self.logger.error(f"Failed to remove existing target: {e}")
+                        print(f"Error: Could not remove existing target: {e}")
+                        return False
+            
+            # Create the symlink for the directory
+            try:
+                # Use relative paths if possible
+                if os.path.commonpath([subfolder_path, dest_subdir]):
+                    # Get relative path
+                    rel_path = os.path.relpath(subfolder_path, os.path.dirname(target_dir_path))
+                    os.symlink(rel_path, target_dir_path, target_is_directory=True)
+                else:
+                    # Use absolute path if on different drives/mounts
+                    os.symlink(subfolder_path, target_dir_path, target_is_directory=True)
+                    
+                self.logger.info(f"Created symlink: {target_dir_path} -> {subfolder_path}")
+                print(f"\nCreated symlink: {target_dir_path}")
+                return True
+                
+            except Exception as e:
+                self.logger.error(f"Failed to create symlink: {e}")
+                print(f"Error: Could not create symlink: {e}")
+                return False
 
 # MainMenu class
 class MainMenu:
@@ -1344,8 +1708,68 @@ class MainMenu:
     
     def _set_destination_directory(self):
         """Set the destination directory for media files."""
-        # Implementation for setting destination directory
-        print("\nSetting destination directory...")
+        global DESTINATION_DIRECTORY
+        
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("SET DESTINATION DIRECTORY")
+        print("=" * 60)
+        
+        current_dir = DESTINATION_DIRECTORY or "Not set"
+        print(f"\nCurrent destination directory: {current_dir}")
+        
+        print("\nEnter the new destination directory (or 'q' to cancel):")
+        dir_path = input("> ").strip()
+        
+        if dir_path.lower() == 'q':
+            return
+        
+        # Clean up the directory path
+        dir_path = _clean_directory_path(dir_path)
+        
+        if not dir_path:
+            print("\nInvalid directory path.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Create the directory if it doesn't exist
+        try:
+            if not os.path.exists(dir_path):
+                confirm = input(f"\nDirectory '{dir_path}' doesn't exist. Create it? (y/n): ").strip().lower()
+                if confirm == 'y':
+                    os.makedirs(dir_path, exist_ok=True)
+                else:
+                    print("\nOperation cancelled.")
+                    input("\nPress Enter to continue...")
+                    return
+                    
+            # Test if we have write permission
+            test_file = os.path.join(dir_path, '.scanly_test')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('test')
+                os.remove(test_file)
+            except Exception as e:
+                print(f"\nError: Cannot write to directory: {e}")
+                input("\nPress Enter to continue...")
+                return
+            
+            # Update the destination directory
+            DESTINATION_DIRECTORY = dir_path
+            _update_env_var('DESTINATION_DIRECTORY', dir_path)
+            
+            print(f"\nDestination directory set to: {dir_path}")
+            
+            # Create standard subdirectories
+            for subdir in ["Movies", "TV Shows", "Anime Movies", "Anime TV Shows"]:
+                os.makedirs(os.path.join(dir_path, subdir), exist_ok=True)
+            
+            print("Created standard subdirectories.")
+            
+        except Exception as e:
+            print(f"\nError setting destination directory: {e}")
+        
         input("\nPress Enter to continue...")
     
     def _configure_monitor_settings(self):
