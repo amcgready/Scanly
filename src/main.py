@@ -936,6 +936,116 @@ class DirectoryProcessor:
         
         return None, None
 
+    def _get_tmdb_id_for_title(self, title, year=None, content_type='movie'):
+        """
+        Search TMDB for a title and get its ID.
+        
+        Args:
+            title: The title to search for
+            year: The release year (optional)
+            content_type: 'movie' or 'tv'
+            
+        Returns:
+            The TMDB ID if found, None otherwise
+        """
+        try:
+            # Import TMDB API integration
+            from src.api.tmdb import TMDB
+            from src.config import TMDB_API_KEY
+            
+            if not TMDB_API_KEY:
+                self.logger.warning("TMDB API key not configured in .env. Cannot fetch TMDB ID.")
+                return None
+            
+            # Initialize TMDB client
+            tmdb_client = TMDB(TMDB_API_KEY)
+            
+            self.logger.info(f"Searching TMDB for '{title}' ({content_type}) with year: {year}")
+            
+            # Search based on content type
+            if content_type in ['tv', 'anime_tv']:
+                results = tmdb_client.search_tv(title)
+            else:
+                results = tmdb_client.search_movie(title)
+            
+            if results and len(results) > 0:
+                tmdb_id = str(results[0]['id'])
+                self.logger.info(f"Found TMDB ID for '{title}': {tmdb_id}")
+                return tmdb_id
+            
+            self.logger.warning(f"No TMDB results found for '{title}' ({content_type}) with year: {year}")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error searching TMDB: {e}", exc_info=True)
+            return None
+
+    def _update_scanner_entry(self, list_type, title, tmdb_id):
+        """
+        Update a scanner list entry with a new TMDB ID
+        
+        Args:
+            list_type: The type of scanner list ('movies', 'tv_series', etc.)
+            title: The title to update
+            tmdb_id: The new TMDB ID
+        
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            # Path to scanners directory
+            scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+            
+            # Determine which file to update based on list_type
+            if list_type == 'tv_series':
+                file_path = os.path.join(scanners_dir, 'tv_series.txt')
+            elif list_type == 'movies':
+                file_path = os.path.join(scanners_dir, 'movies.txt')
+            elif list_type == 'anime_movies':
+                file_path = os.path.join(scanners_dir, 'anime_movies.txt')
+            elif list_type == 'anime_series':
+                file_path = os.path.join(scanners_dir, 'anime_series.txt')
+            else:
+                self.logger.debug(f"Unknown scanner list type: {list_type}")
+                return False
+            
+            # Check if the file exists
+            if not os.path.exists(file_path):
+                self.logger.debug(f"Scanner list file does not exist: {file_path}")
+                return False
+            
+            # Read the file contents
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Find and update the entry
+            updated = False
+            for i, line in enumerate(lines):
+                line_lower = line.lower().strip()
+                title_lower = title.lower().strip()
+                
+                # Look for the exact title or title with [Error] tag
+                if f"{title_lower} [error]" in line_lower or f"{title_lower}" == line_lower.split('[')[0].strip():
+                    # Replace the line with the updated version (with TMDB ID)
+                    clean_title = re.sub(r'\s*\[[^\]]+\]\s*$', '', line.strip())
+                    lines[i] = f"{clean_title} [{tmdb_id}]\n"
+                    updated = True
+                    self.logger.info(f"Updated scanner entry in {list_type}: '{clean_title}' with TMDB ID: {tmdb_id}")
+                    break
+            
+            # If updated, write the changes back to the file
+            if updated:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.writelines(lines)
+                return True
+            else:
+                self.logger.warning(f"Could not find entry for '{title}' in {list_type} list")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error updating scanner entry: {e}", exc_info=True)
+            return False
+
     def _get_best_match_from_list(self, title, year, list_type):
         """
         Find the best match for a title in a scanner list.
@@ -977,8 +1087,8 @@ class DirectoryProcessor:
             
             with open(file_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
-                
-            # First pass: Check for exact matches or direct containment
+            
+            # First pass: Check for exact matches
             for line in lines:
                 line = line.strip()
                 if not line or line.startswith('#'):  # Skip empty lines and comments
@@ -990,10 +1100,8 @@ class DirectoryProcessor:
                 tmdb_match = re.search(r'\[([^\]]+)\]', line)
                 if tmdb_match:
                     tmdb_id = tmdb_match.group(1)
-                    # Don't skip Error entries for exact title matches
-                    # We should still match the title even if it has [Error]
-
-                # Clean the line by removing the TMDB ID part (including [Error])
+                
+                # Clean the line by removing the TMDB ID part
                 clean_line = re.sub(r'\s*\[[^\]]+\]\s*$', '', line)
                 
                 # Extract year from the line if present
@@ -1024,7 +1132,7 @@ class DirectoryProcessor:
                             content_type = 'tv'
                         else:
                             content_type = 'movie'
-                            
+                        
                         # Try to get TMDB ID from the API
                         fetched_tmdb_id = self._get_tmdb_id_for_title(clean_line_without_year, year, content_type)
                         if fetched_tmdb_id:
@@ -1035,7 +1143,7 @@ class DirectoryProcessor:
                             self._update_scanner_entry(list_type, clean_line_without_year, fetched_tmdb_id)
                     
                     return clean_line, 1.0, tmdb_id  # Perfect match
-
+                
                 # For substring matches
                 if title_lower in clean_line_without_year:
                     containment_ratio = len(title_lower) / len(clean_line_without_year)
@@ -1051,7 +1159,7 @@ class DirectoryProcessor:
                                 content_type = 'tv'
                             else:
                                 content_type = 'movie'
-                                
+                            
                             # Try to get TMDB ID from the API
                             fetched_tmdb_id = self._get_tmdb_id_for_title(clean_line_without_year, year, content_type)
                             if fetched_tmdb_id:
@@ -1062,8 +1170,8 @@ class DirectoryProcessor:
                                 self._update_scanner_entry(list_type, clean_line, fetched_tmdb_id)
                         
                         return clean_line, 0.92, tmdb_id  # Strong match
-
-                # For containment matches:
+                
+                # For containment matches
                 if clean_line_without_year in title_lower and len(clean_line_without_year) >= 5:
                     containment_ratio = len(clean_line_without_year) / len(title_lower)
                     if containment_ratio > 0.7:  # The entry covers at least 70% of our title
@@ -1078,7 +1186,7 @@ class DirectoryProcessor:
                                 content_type = 'tv'
                             else:
                                 content_type = 'movie'
-                                
+                            
                             # Try to get TMDB ID from the API
                             fetched_tmdb_id = self._get_tmdb_id_for_title(clean_line_without_year, year, content_type)
                             if fetched_tmdb_id:
@@ -1089,15 +1197,15 @@ class DirectoryProcessor:
                                 self._update_scanner_entry(list_type, clean_line, fetched_tmdb_id)
                         
                         return clean_line, 0.95, tmdb_id  # Strong match
-                
+            
             # Second pass: Calculate fuzzy matches if no direct/substring match was found
             for line in lines:
                 line = line.strip()
                 if not line or line.startswith('#'):  # Skip empty lines and comments
                     continue
                 
-                # For fuzzy matching (but not direct matching), skip Error entries
-                if "[Error]" in line and (title_lower not in line.lower()):
+                # Skip Error entries in the fuzzy matching phase
+                if "[Error]" in line:
                     continue
                     
                 # Parse the line again
@@ -1189,136 +1297,6 @@ class DirectoryProcessor:
         except Exception as e:
             self.logger.error(f"Error finding best match in scanner list: {e}", exc_info=True)
             return None, 0, None
-
-    def _get_tmdb_id_for_title(self, title, year=None, content_type='movie'):
-        """
-        Search TMDB for a title and get its ID.
-        
-        Args:
-            title: The title to search for
-            year: The release year (optional)
-            content_type: 'movie' or 'tv'
-            
-        Returns:
-            The TMDB ID if found, None otherwise
-        """
-        try:
-            # Check if TMDB API key is set
-            if not TMDB_API_KEY:
-                self.logger.warning("TMDB API key not configured. Cannot fetch TMDB ID.")
-                return None
-                
-            import requests
-            
-            # Prepare search parameters
-            params = {
-                'api_key': TMDB_API_KEY,
-                'query': title,
-                'include_adult': 'false',
-                'language': 'en-US'
-            }
-            
-            # Add year to query if available
-            if year:
-                params['year'] = year
-                
-            # Determine search endpoint based on content type
-            if content_type in ['tv', 'anime_tv']:
-                search_url = 'https://api.themoviedb.org/3/search/tv'
-            else:
-                search_url = 'https://api.themoviedb.org/3/search/movie'
-                
-            # Make the request
-            response = requests.get(search_url, params=params)
-            data = response.json()
-            
-            # Check if we got results
-            if 'results' in data and data['results']:
-                # Get the first result's ID
-                tmdb_id = data['results'][0]['id']
-                self.logger.info(f"Found TMDB ID for '{title}': {tmdb_id}")
-                return str(tmdb_id)
-                
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Error searching TMDB: {e}")
-            return None
-
-    def _update_scanner_entry(self, list_type, title, tmdb_id):
-        """
-        Update a scanner list entry with a new TMDB ID
-        
-        Args:
-            list_type: The type of scanner list ('movies', 'tv_series', etc.)
-            title: The title to update
-            tmdb_id: The new TMDB ID
-        
-        Returns:
-            bool: True if updated successfully, False otherwise
-        """
-        try:
-            # Path to scanners directory
-            scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
-            
-            # Determine which file to update based on list_type
-            if list_type == 'tv_series':
-                file_path = os.path.join(scanners_dir, 'tv_series.txt')
-            elif list_type == 'movies':
-                file_path = os.path.join(scanners_dir, 'movies.txt')
-            elif list_type == 'anime_movies':
-                file_path = os.path.join(scanners_dir, 'anime_movies.txt')
-            elif list_type == 'anime_series':
-                file_path = os.path.join(scanners_dir, 'anime_series.txt')
-            else:
-                self.logger.debug(f"Unknown scanner list type: {list_type}")
-                return False
-            
-            # Check if the file exists
-            if not os.path.exists(file_path):
-                self.logger.debug(f"Scanner list file does not exist: {file_path}")
-                return False
-                
-            # Read the entire file
-            with open(file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                
-            # Find the line with the title and update it
-            updated = False
-            for i, line in enumerate(lines):
-                clean_line = re.sub(r'\s*\[[^\]]+\]\s*$', '', line).strip()
-                title_lower = title.lower().strip()
-                
-                # First check for exact matches
-                if title_lower == clean_line.lower():
-                    # Update the line with the new TMDB ID
-                    lines[i] = f"{clean_line} [{tmdb_id}]\n"
-                    updated = True
-                    self.logger.info(f"Updated scanner entry in {list_type}: '{clean_line}' with TMDB ID: {tmdb_id}")
-                    break
-                
-                # Also check for entries where the title is in the clean_line
-                # This is useful for cases where the entry includes the year but our title doesn't
-                elif title_lower in clean_line.lower():
-                    # Update the line with the new TMDB ID
-                    lines[i] = f"{clean_line} [{tmdb_id}]\n"
-                    updated = True
-                    self.logger.info(f"Updated scanner entry in {list_type}: '{clean_line}' with TMDB ID: {tmdb_id}")
-                    break
-            
-            # If we found and updated the entry, write the updated file
-            if updated:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.writelines(lines)
-                    
-                return True
-            else:
-                self.logger.warning(f"Could not find entry for '{title}' in {list_type} list to update")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Error updating scanner entry: {e}", exc_info=True)
-            return False
 
     def _detect_if_tv_show(self, folder_name):
         """Detect if a folder contains a TV show based on its name and scanner lists."""
