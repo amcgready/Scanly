@@ -1004,25 +1004,77 @@ class DirectoryProcessor:
                 # Exact match check - absolute priority
                 if title_lower == clean_line_without_year:
                     self.logger.info(f"EXACT MATCH: Found perfect match for '{title}' in {list_type} list: '{clean_line}'")
+                    
+                    # Check if we have an [Error] TMDB ID
+                    if tmdb_id and tmdb_id.lower() == "error":
+                        self.logger.info(f"Title found in scanner list but has [Error] tag. Trying to fetch TMDB ID...")
+                        
+                        # Determine content type for TMDB search
+                        if list_type in ['tv_series', 'anime_series']:
+                            content_type = 'tv'
+                        else:
+                            content_type = 'movie'
+                            
+                        # Try to get TMDB ID from the API
+                        fetched_tmdb_id = self._get_tmdb_id_for_title(clean_line_without_year, year, content_type)
+                        if fetched_tmdb_id:
+                            self.logger.info(f"Successfully retrieved TMDB ID: {fetched_tmdb_id}")
+                            tmdb_id = fetched_tmdb_id
+                    
                     return clean_line, 1.0, tmdb_id  # Perfect match
-                
-                # Check if the title is fully contained in the entry
-                # Special case for entries like "12 Angry" matching "12 Angry Men"
-                # Only apply this if the match is substantial
-                if clean_line_without_year in title_lower and len(clean_line_without_year) >= 5:
-                    containment_ratio = len(clean_line_without_year) / len(title_lower)
-                    if containment_ratio > 0.7:  # The entry covers at least 70% of our title
-                        self.logger.info(f"STRONG CONTAINMENT: Scanner entry '{clean_line_without_year}' is contained in '{title_lower}' with ratio {containment_ratio:.2f}")
-                        return clean_line, 0.95, tmdb_id  # Strong match
-                
+
+                # For substring match:
+
                 # Also check if our title is fully contained in the scanner entry
-                # This works for cases like "12 Angry Men" being a substring of "12 Angry Men (1957)"
                 if title_lower in clean_line_without_year:
                     containment_ratio = len(title_lower) / len(clean_line_without_year)
                     if containment_ratio > 0.7:  # Our title covers at least 70% of the scanner entry
                         self.logger.info(f"STRONG SUBSTRING: Title '{title_lower}' is contained in scanner entry '{clean_line_without_year}' with ratio {containment_ratio:.2f}")
+                        
+                        # Check if we have an [Error] TMDB ID
+                        if tmdb_id and tmdb_id.lower() == "error":
+                            self.logger.info(f"Title found in scanner list but has [Error] tag. Trying to fetch TMDB ID...")
+                            
+                            # Determine content type for TMDB search
+                            if list_type in ['tv_series', 'anime_series']:
+                                content_type = 'tv'
+                            else:
+                                content_type = 'movie'
+                                
+                            # Try to get TMDB ID from the API
+                            fetched_tmdb_id = self._get_tmdb_id_for_title(clean_line_without_year, year, content_type)
+                            if fetched_tmdb_id:
+                                self.logger.info(f"Successfully retrieved TMDB ID: {fetched_tmdb_id}")
+                                tmdb_id = fetched_tmdb_id
+                        
                         return clean_line, 0.92, tmdb_id  # Strong match
-            
+
+                # For containment matches:
+
+                # Check if the title is fully contained in the entry
+                if clean_line_without_year in title_lower and len(clean_line_without_year) >= 5:
+                    containment_ratio = len(clean_line_without_year) / len(title_lower)
+                    if containment_ratio > 0.7:  # The entry covers at least 70% of our title
+                        self.logger.info(f"STRONG CONTAINMENT: Scanner entry '{clean_line_without_year}' is contained in '{title_lower}' with ratio {containment_ratio:.2f}")
+                        
+                        # Check if we have an [Error] TMDB ID
+                        if tmdb_id and tmdb_id.lower() == "error":
+                            self.logger.info(f"Title found in scanner list but has [Error] tag. Trying to fetch TMDB ID...")
+                            
+                            # Determine content type for TMDB search
+                            if list_type in ['tv_series', 'anime_series']:
+                                content_type = 'tv'
+                            else:
+                                content_type = 'movie'
+                                
+                            # Try to get TMDB ID from the API
+                            fetched_tmdb_id = self._get_tmdb_id_for_title(clean_line_without_year, year, content_type)
+                            if fetched_tmdb_id:
+                                self.logger.info(f"Successfully retrieved TMDB ID: {fetched_tmdb_id}")
+                                tmdb_id = fetched_tmdb_id
+                        
+                        return clean_line, 0.95, tmdb_id  # Strong match
+                
             # Second pass: Calculate fuzzy matches if no direct/substring match was found
             for line in lines:
                 line = line.strip()
@@ -1122,6 +1174,61 @@ class DirectoryProcessor:
         except Exception as e:
             self.logger.error(f"Error finding best match in scanner list: {e}", exc_info=True)
             return None, 0, None
+
+    def _get_tmdb_id_for_title(self, title, year=None, content_type='movie'):
+        """
+        Search TMDB for a title and get its ID.
+        
+        Args:
+            title: The title to search for
+            year: The release year (optional)
+            content_type: 'movie' or 'tv'
+            
+        Returns:
+            The TMDB ID if found, None otherwise
+        """
+        try:
+            # Check if TMDB API key is set
+            if not TMDB_API_KEY:
+                self.logger.warning("TMDB API key not configured. Cannot fetch TMDB ID.")
+                return None
+                
+            import requests
+            
+            # Prepare search parameters
+            params = {
+                'api_key': TMDB_API_KEY,
+                'query': title,
+                'include_adult': 'false',
+                'language': 'en-US'
+            }
+            
+            # Add year to query if available
+            if year:
+                params['year'] = year
+                
+            # Determine search endpoint based on content type
+            if content_type in ['tv', 'anime_tv']:
+                search_url = 'https://api.themoviedb.org/3/search/tv'
+            else:
+                search_url = 'https://api.themoviedb.org/3/search/movie'
+                
+            # Make the request
+            response = requests.get(search_url, params=params)
+            data = response.json()
+            
+            # Check if we got results
+            if 'results' in data and data['results']:
+                # Get the first result's ID
+                tmdb_id = data['results'][0]['id']
+                self.logger.info(f"Found TMDB ID for '{title}': {tmdb_id}")
+                return str(tmdb_id)
+                
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error searching TMDB: {e}")
+            return None
 
     def _detect_if_tv_show(self, folder_name):
         """Detect if a folder contains a TV show based on its name and scanner lists."""
