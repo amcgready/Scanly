@@ -2028,7 +2028,7 @@ class MainMenu:
             
             # Show monitored directories option if they exist
             if has_monitored:
-                print(f"{next_option}. Review Monitored Directories")
+                print(f"{next_option}. Monitor Scan")
                 monitored_dirs_option = next_option
                 next_option += 1
             
