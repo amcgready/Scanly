@@ -887,10 +887,10 @@ class DirectoryProcessor:
             r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
 
             # Common release group names
-            r'(?i)\b(AMZN|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
+            r'(?i)\b(AMZN|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
             
             # Other common patterns
-            r'(?i)\b(HDR|10bit|8bit|Hi10P|IMAX|PROPER|REPACK)\b'
+            r'(?i)\b(HDR|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV)\b'
         ]
         
         # Apply all patterns
@@ -1281,6 +1281,386 @@ class DirectoryProcessor:
             self.logger.error(f"Error searching for TMDB ID: {e}", exc_info=True)
             print(f"Error searching for TMDB ID: {str(e)}")
             return None
+
+class SettingsMenu:
+    """Settings menu handler for the application."""
+    
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    
+    def display(self):
+        """Display the settings menu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("SETTINGS")
+            print("=" * 60)
+            
+            print("\nSettings Categories:")
+            print("1. Directory Settings")
+            print("2. TMDB API Settings")
+            print("3. File Management Settings")
+            print("4. Monitoring Settings")
+            print("5. Advanced Settings")
+            print("6. View Current Configuration")
+            print("q. Return to Main Menu")
+            
+            choice = input("\nSelect category (1-6, q): ").strip().lower()
+            
+            if choice == '1':
+                self._directory_settings()
+            elif choice == '2':
+                self._tmdb_settings()
+            elif choice == '3':
+                self._file_management_settings()
+            elif choice == '4':
+                self._monitoring_settings()
+            elif choice == '5':
+                self._advanced_settings()
+            elif choice == '6':
+                self._view_all_settings()
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+    
+    def _directory_settings(self):
+        """Directory settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("DIRECTORY SETTINGS")
+            print("=" * 60)
+            
+            destination_dir = os.environ.get('DESTINATION_DIRECTORY', 'Not set')
+            
+            print(f"\nCurrent Destination Directory: {destination_dir}")
+            print("\nOptions:")
+            print("1. Change Destination Directory")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nEnter choice: ").strip().lower()
+            
+            if choice == '1':
+                print("\nEnter new Destination Directory path:")
+                new_path = input("> ").strip()
+                new_path = _clean_directory_path(new_path)
+                
+                if not new_path:
+                    print("\nError: Invalid directory path.")
+                else:
+                    # Create directory if it doesn't exist
+                    if not os.path.exists(new_path):
+                        try:
+                            os.makedirs(new_path, exist_ok=True)
+                            print(f"\nCreated directory: {new_path}")
+                        except Exception as e:
+                            self.logger.error(f"Failed to create directory: {e}")
+                            print(f"\nError creating directory: {e}")
+                            input("\nPress Enter to continue...")
+                            continue
+                    
+                    # Update environment variable
+                    if _update_env_var('DESTINATION_DIRECTORY', new_path):
+                        print(f"\nDestination Directory updated to: {new_path}")
+                    else:
+                        print("\nError updating environment variable.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+    
+    def _tmdb_settings(self):
+        """TMDB API settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("TMDB API SETTINGS")
+            print("=" * 60)
+            
+            api_key = os.environ.get('TMDB_API_KEY', 'Not set')
+            masked_key = self._mask_sensitive_info(api_key) if api_key != 'Not set' else 'Not set'
+            include_tmdb_id = os.environ.get('INCLUDE_TMDB_ID', 'true').lower() == 'true'
+            
+            print(f"\nCurrent TMDB API Key: {masked_key}")
+            print(f"Include TMDB ID in Filenames: {'Enabled' if include_tmdb_id else 'Disabled'}")
+            
+            print("\nOptions:")
+            print("1. Set TMDB API Key")
+            print("2. Toggle TMDB ID inclusion")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nEnter choice: ").strip().lower()
+            
+            if choice == '1':
+                print("\nEnter new TMDB API Key:")
+                new_key = input("> ").strip()
+                
+                if new_key:
+                    if _update_env_var('TMDB_API_KEY', new_key):
+                        print("\nTMDB API Key updated successfully.")
+                    else:
+                        print("\nError updating TMDB API Key.")
+                else:
+                    print("\nAPI Key cannot be empty.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                new_value = 'false' if include_tmdb_id else 'true'
+                if _update_env_var('INCLUDE_TMDB_ID', new_value):
+                    print(f"\nTMDB ID inclusion is now {'Enabled' if new_value == 'true' else 'Disabled'}.")
+                else:
+                    print("\nError updating setting.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+    
+    def _file_management_settings(self):
+        """File management settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("FILE MANAGEMENT SETTINGS")
+            print("=" * 60)
+            
+            use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+            
+            print(f"\nUse Symlinks (instead of copying files): {'Enabled' if use_symlinks else 'Disabled'}")
+            
+            print("\nOptions:")
+            print("1. Toggle Symlink Usage")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nEnter choice: ").strip().lower()
+            
+            if choice == '1':
+                new_value = 'false' if use_symlinks else 'true'
+                if _update_env_var('USE_SYMLINKS', new_value):
+                    print(f"\nSymlink usage is now {'Enabled' if new_value == 'true' else 'Disabled'}.")
+                else:
+                    print("\nError updating setting.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+    
+    def _monitoring_settings(self):
+        """Directory monitoring settings."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("MONITORING SETTINGS")
+            print("=" * 60)
+            
+            monitor_interval = int(os.environ.get('MONITOR_INTERVAL_MINUTES', '60'))
+            
+            print(f"\nCurrent monitoring interval: {monitor_interval} minutes")
+            
+            print("\nOptions:")
+            print("1. Change Monitoring Interval")
+            print("2. Review Monitored Directories")
+            print("3. Check Monitoring Service Status")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nEnter choice: ").strip().lower()
+            
+            if choice == '1':
+                print("\nEnter new monitoring interval (minutes):")
+                try:
+                    new_interval = int(input("> ").strip())
+                    if new_interval < 1:
+                        print("\nInterval must be at least 1 minute.")
+                    else:
+                        if _update_env_var('MONITOR_INTERVAL_MINUTES', str(new_interval)):
+                            print(f"\nMonitoring interval updated to {new_interval} minutes.")
+                        else:
+                            print("\nError updating monitoring interval.")
+                except ValueError:
+                    print("\nPlease enter a valid number.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                # Call the function to review monitored directories
+                _check_monitor_status()
+            elif choice == '3':
+                # Check if monitoring service is active
+                try:
+                    from src.core.monitor_manager import MonitorManager
+                    mm = MonitorManager()
+                    status = mm.is_monitoring_active()
+                    print(f"\nMonitoring service status: {'Active' if status else 'Inactive'}")
+                    
+                    if not status:
+                        print("\nOptions:")
+                        print("1. Start monitoring service")
+                        print("q. Cancel")
+                        
+                        sub_choice = input("\nEnter choice: ").strip().lower()
+                        if sub_choice == '1':
+                            interval = int(os.environ.get('MONITOR_INTERVAL_MINUTES', '60'))
+                            if mm.start_monitoring(interval):
+                                print("\nMonitoring service started successfully.")
+                            else:
+                                print("\nFailed to start monitoring service.")
+                except ImportError:
+                    print("\nMonitoring module not available.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+    
+    def _advanced_settings(self):
+        """Advanced settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("ADVANCED SETTINGS")
+            print("=" * 60)
+            
+            print("\nWarning: These settings may affect application stability.")
+            print("\nOptions:")
+            print("1. Edit Environment File Directly")
+            print("2. Reset All Settings to Default")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nEnter choice: ").strip().lower()
+            
+            if choice == '1':
+                # Let user know we're opening the editor
+                print(f"\nOpening environment file: {self.env_path}")
+                print("The file will open in your default text editor.")
+                print("Save and close the editor when finished.")
+                input("\nPress Enter to open editor...")
+                
+                try:
+                    # Use the appropriate command based on the OS
+                    if os.name == 'nt':  # Windows
+                        os.system(f'notepad "{self.env_path}"')
+                    else:  # Unix-like
+                        editor = os.environ.get('EDITOR', 'nano')
+                        os.system(f'{editor} "{self.env_path}"')
+                    
+                    # Reload environment variables
+                    try:
+                        from dotenv import load_dotenv
+                        load_dotenv(override=True)
+                        print("\nEnvironment variables reloaded successfully.")
+                    except ImportError:
+                        print("\nCouldn't reload environment variables automatically.")
+                        print("You may need to restart the application for changes to take effect.")
+                except Exception as e:
+                    self.logger.error(f"Error opening environment file: {e}")
+                    print(f"\nError opening environment file: {e}")
+                
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                print("\nWARNING: This will reset all settings to their default values.")
+                print("Are you sure you want to continue?")
+                confirm = input("Type 'RESET' to confirm: ").strip()
+                
+                if confirm == 'RESET':
+                    try:
+                        # Define default settings
+                        default_settings = {
+                            'DESTINATION_DIRECTORY': os.path.join(os.path.expanduser('~'), 'Scanly', 'Media'),
+                            'USE_SYMLINKS': 'true',
+                            'INCLUDE_TMDB_ID': 'true',
+                            'MONITOR_INTERVAL_MINUTES': '60'
+                        }
+                        
+                        # Update all settings to defaults
+                        for key, value in default_settings.items():
+                            _update_env_var(key, value)
+                        
+                        print("\nAll settings have been reset to defaults.")
+                    except Exception as e:
+                        self.logger.error(f"Error resetting settings: {e}")
+                        print(f"\nError resetting settings: {e}")
+                else:
+                    print("\nReset cancelled.")
+                
+                input("\nPress Enter to continue...")
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+    
+    def _view_all_settings(self):
+        """View all current configuration settings."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("CURRENT CONFIGURATION")
+        print("=" * 60)
+        
+        # Read all environment variables from .env file
+        env_vars = {}
+        if os.path.exists(self.env_path):
+            with open(self.env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        env_vars[key.strip()] = value.strip()
+        
+        # Display in categories
+        print("\nDirectory Settings:")
+        print(f"  Destination Directory: {os.environ.get('DESTINATION_DIRECTORY', 'Not set')}")
+        
+        print("\nTMDB API Settings:")
+        api_key = os.environ.get('TMDB_API_KEY', 'Not set')
+        print(f"  API Key: {self._mask_sensitive_info(api_key) if api_key != 'Not set' else 'Not set'}")
+        print(f"  Include TMDB ID: {'Enabled' if os.environ.get('INCLUDE_TMDB_ID', 'true').lower() == 'true' else 'Disabled'}")
+        
+        print("\nFile Management Settings:")
+        print(f"  Use Symlinks: {'Enabled' if os.environ.get('USE_SYMLINKS', 'true').lower() == 'true' else 'Disabled'}")
+        
+        print("\nMonitoring Settings:")
+        print(f"  Monitoring Interval: {os.environ.get('MONITOR_INTERVAL_MINUTES', '60')} minutes")
+        
+        print("\nOther Settings:")
+        # Display any other environment variables that don't fit into the above categories
+        other_keys = set(env_vars.keys()) - {'DESTINATION_DIRECTORY', 'TMDB_API_KEY', 'INCLUDE_TMDB_ID', 'USE_SYMLINKS', 'MONITOR_INTERVAL_MINUTES'}
+        for key in sorted(other_keys):
+            value = env_vars.get(key, 'Not set')
+            if 'key' in key.lower() or 'password' in key.lower() or 'secret' in key.lower() or 'token' in key.lower():
+                value = self._mask_sensitive_info(value)
+            print(f"  {key}: {value}")
+        
+        input("\nPress Enter to return to Settings Menu...")
+    
+    def _mask_sensitive_info(self, text):
+        """Mask sensitive information for display."""
+        if not text or text == 'Not set':
+            return 'Not set'
+        
+        # Show first 4 and last 4 characters, mask the rest
+        if len(text) <= 8:
+            return '*' * len(text)
+        else:
+            return text[:4] + '*' * (len(text) - 8) + text[-4:]
 
 # MainMenu class
 class MainMenu:
@@ -1776,98 +2156,9 @@ class MainMenu:
                 input("\nPress Enter to continue...")
     
     def settings_menu(self):
-        """Display and handle settings menu."""
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("SETTINGS")
-        print("=" * 60)
-        print("\n1. Set destination directory")
-        print("2. Configure monitor settings")
-        print("q. Return to main menu")  # Changed from "0" to "q"
-        
-        choice = input("\nEnter your choice: ").strip().lower()  # Convert to lowercase
-        
-        # Handle settings choices
-        if choice == "1":
-            self._set_destination_directory()
-        elif choice == "2":
-            self._configure_monitor_settings()
-        elif choice != "q":  # Changed from "0" to "q"
-            print("\nInvalid choice.")
-            input("\nPress Enter to continue...")
-    
-    def _set_destination_directory(self):
-        """Set the destination directory for media files."""
-        global DESTINATION_DIRECTORY
-        
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("SET DESTINATION DIRECTORY")
-        print("=" * 60)
-        
-        current_dir = DESTINATION_DIRECTORY or "Not set"
-        print(f"\nCurrent destination directory: {current_dir}")
-        
-        print("\nEnter the new destination directory (or 'q' to cancel):")
-        dir_path = input("> ").strip()
-        
-        if dir_path.lower() == 'q':
-            return
-        
-        # Clean up the directory path
-        dir_path = _clean_directory_path(dir_path)
-        
-        if not dir_path:
-            print("\nInvalid directory path.")
-            input("\nPress Enter to continue...")
-            return
-        
-        # Create the directory if it doesn't exist
-        try:
-            if not os.path.exists(dir_path):
-                confirm = input(f"\nDirectory '{dir_path}' doesn't exist. Create it? (y/n): ").strip().lower()
-                if confirm == 'y':
-                    os.makedirs(dir_path, exist_ok=True)
-                else:
-                    print("\nOperation cancelled.")
-                    input("\nPress Enter to continue...")
-                    return
-                    
-            # Test if we have write permission
-            test_file = os.path.join(dir_path, '.scanly_test')
-            try:
-                with open(test_file, 'w') as f:
-                    f.write('test')
-                os.remove(test_file)
-            except Exception as e:
-                print(f"\nError: Cannot write to directory: {e}")
-                input("\nPress Enter to continue...")
-                return
-            
-            # Update the destination directory
-            DESTINATION_DIRECTORY = dir_path
-            _update_env_var('DESTINATION_DIRECTORY', dir_path)
-            
-            print(f"\nDestination directory set to: {dir_path}")
-            
-            # Create standard subdirectories
-            for subdir in ["Movies", "TV Shows", "Anime Movies", "Anime TV Shows"]:
-                os.makedirs(os.path.join(dir_path, subdir), exist_ok=True)
-            
-            print("Created standard subdirectories.")
-            
-        except Exception as e:
-            print(f"\nError setting destination directory: {e}")
-        
-        input("\nPress Enter to continue...")
-    
-    def _configure_monitor_settings(self):
-        """Configure monitor settings."""
-        # Implementation for configuring monitor settings
-        print("\nConfiguring monitor settings...")
-        input("\nPress Enter to continue...")
+        """Display the settings menu."""
+        menu = SettingsMenu()
+        menu.display()
     
     def show(self):
         """Show the main menu and handle user input."""
