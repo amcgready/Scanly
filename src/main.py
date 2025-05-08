@@ -15,6 +15,7 @@ from pathlib import Path
 import datetime
 import shutil
 import threading
+import requests
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -853,7 +854,6 @@ class DirectoryProcessor:
 
     def _extract_folder_metadata(self, folder_name):
         """Extract title and year from a folder name."""
-        # Initialize
         title = folder_name
         year = None
         
@@ -1095,6 +1095,17 @@ class DirectoryProcessor:
                                 print(f"Copied file: {os.path.basename(target_file_path)}")
             
             print(f"\nSuccessfully created links in: {target_dir_path}")
+            
+            # Trigger Plex library refresh after creating the symlinks
+            should_refresh_plex = os.environ.get('REFRESH_PLEX', 'true').lower() == 'true'
+            if should_refresh_plex:
+                print("\nTriggering Plex library refresh...")
+                success = self._refresh_plex_library(dest_subdir, is_tv)
+                if success:
+                    print("Plex library refresh triggered successfully.")
+                else:
+                    print("Failed to trigger Plex library refresh. Check logs for details.")
+            
             return True
             
         except Exception as e:
@@ -1282,6 +1293,146 @@ class DirectoryProcessor:
             print(f"Error searching for TMDB ID: {str(e)}")
             return None
 
+    def _refresh_plex_library(self, library_path, is_tv=False):
+        """Trigger a refresh of the Plex library for the given path."""
+        try:
+            # Get Plex configuration from environment variables
+            plex_url = os.environ.get('PLEX_URL', '')
+            plex_token = os.environ.get('PLEX_TOKEN', '')
+            
+            # Check if Plex is configured
+            if not plex_url or not plex_token:
+                self.logger.warning("Plex server URL or token not configured. Skipping library refresh.")
+                print("Plex server not configured. To enable Plex refresh, set PLEX_URL and PLEX_TOKEN in settings.")
+                return False
+            
+            # Remove trailing slash from URL if present
+            if plex_url.endswith('/'):
+                plex_url = plex_url[:-1]
+            
+            self.logger.debug(f"Using Plex server URL: {plex_url}")
+            
+            # Determine the section to refresh based on the library path
+            # Map destination subdirectories to Plex section IDs/names
+            section_mappings = {
+                "Movies": os.environ.get('PLEX_MOVIES_SECTION', '1'),
+                "TV Shows": os.environ.get('PLEX_TV_SECTION', '2'),
+                "Anime Movies": os.environ.get('PLEX_ANIME_MOVIES_SECTION', '3'),
+                "Anime Series": os.environ.get('PLEX_ANIME_TV_SECTION', '4')
+            }
+            
+            # Try to determine the library name from the path
+            try:
+                # Normalize the path for consistent comparison
+                norm_library_path = os.path.normpath(library_path)
+                library_name = os.path.basename(norm_library_path)
+                self.logger.debug(f"Detected library name from path: '{library_name}'")
+            except Exception as e:
+                self.logger.error(f"Error extracting library name from path: {e}")
+                library_name = None
+            
+            # Determine library section ID
+            library_section = None
+            
+            # Check if we found a direct match in our mappings
+            if library_name and library_name in section_mappings:
+                library_section = section_mappings[library_name]
+                self.logger.info(f"Using library section {library_section} for {library_name}")
+            else:
+                # Use default section based on content type
+                content_type = "TV Shows" if is_tv else "Movies"
+                library_section = section_mappings[content_type]
+                self.logger.info(f"Using default section {library_section} based on content type: {content_type}")
+            
+            # First, verify the section exists by getting all sections
+            try:
+                verify_endpoint = f"{plex_url}/library/sections"
+                params = {'X-Plex-Token': plex_token}
+                
+                self.logger.debug(f"Verifying section with endpoint: {verify_endpoint}")
+                verify_response = requests.get(verify_endpoint, params=params, timeout=10)
+                
+                if verify_response.status_code != 200:
+                    self.logger.error(f"Failed to get Plex library sections: {verify_response.status_code} {verify_response.text}")
+                    print(f"Error: Unable to connect to Plex server. Status code: {verify_response.status_code}")
+                    return False
+                
+                # Parse XML to find available sections
+                from xml.etree import ElementTree
+                root = ElementTree.fromstring(verify_response.content)
+                
+                # Log all available sections for debugging
+                available_sections = []
+                for directory in root.findall('.//Directory'):
+                    section_id = directory.get('key', '')
+                    section_title = directory.get('title', '')
+                    section_type = directory.get('type', '')
+                    available_sections.append({
+                        'id': section_id,
+                        'title': section_title,
+                        'type': section_type
+                    })
+                
+                self.logger.debug(f"Available Plex sections: {available_sections}")
+                
+                # Check if our section exists
+                section_exists = any(section['id'] == library_section for section in available_sections)
+                if not section_exists:
+                    self.logger.error(f"Section {library_section} does not exist in Plex")
+                    print(f"Error: Library section {library_section} not found in Plex server")
+                    
+                    # Suggest available sections
+                    print("Available library sections:")
+                    for section in available_sections:
+                        print(f" - {section['title']} (ID: {section['id']}, Type: {section['type']})")
+                    print("\nPlease update your library section settings.")
+                    return False
+                    
+            except Exception as e:
+                self.logger.error(f"Error verifying Plex library section: {e}", exc_info=True)
+                print(f"Error verifying Plex library: {str(e)}")
+                return False
+            
+            # Construct the API endpoint for refresh
+            refresh_endpoint = f"{plex_url}/library/sections/{library_section}/refresh"
+            params = {'X-Plex-Token': plex_token}
+            
+            # Log the request we're about to make
+            self.logger.debug(f"Sending refresh request to: {refresh_endpoint}")
+            
+            # Make the API request
+            self.logger.info(f"Triggering Plex library refresh for section {library_section}")
+            response = requests.get(refresh_endpoint, params=params, timeout=10)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                self.logger.info(f"Successfully triggered Plex library refresh for section {library_section}")
+                return True
+            else:
+                self.logger.error(f"Failed to trigger Plex library refresh: {response.status_code} {response.text}")
+                print(f"Error: Unable to refresh Plex library. Status code: {response.status_code}")
+                
+                # Provide more helpful error message
+                if response.status_code == 401:
+                    print("Authentication error. Please check your Plex token.")
+                elif response.status_code == 404:
+                    print(f"Section ID {library_section} not found. Please verify your library section IDs.")
+                
+                return False
+                
+        except requests.exceptions.ConnectionError:
+            self.logger.error("Connection error while connecting to Plex server", exc_info=True)
+            print("Error: Unable to connect to Plex server. Please check the server URL and ensure it is running.")
+            return False
+        except requests.exceptions.Timeout:
+            self.logger.error("Timeout while connecting to Plex server", exc_info=True)
+            print("Error: Connection to Plex server timed out. Please check your network settings.")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error refreshing Plex library: {e}", exc_info=True)
+            print(f"Error: {str(e)}")
+            return False
+
 class SettingsMenu:
     """Settings menu handler for the application."""
     
@@ -1436,30 +1587,197 @@ class SettingsMenu:
             print("FILE MANAGEMENT SETTINGS")
             print("=" * 60)
             
+            # Get current settings
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+            refresh_plex = os.environ.get('REFRESH_PLEX', 'true').lower() == 'true'
             
-            print(f"\nUse Symlinks (instead of copying files): {'Enabled' if use_symlinks else 'Disabled'}")
-            
-            print("\nOptions:")
-            print("1. Toggle Symlink Usage")
+            print("\nCurrent Settings:")
+            print(f"1. Use Symlinks: {'On' if use_symlinks else 'Off'}")
+            print(f"2. Refresh Plex: {'On' if refresh_plex else 'Off'}")
+            print("3. Configure Plex Connection")
             print("q. Return to Settings Menu")
             
-            choice = input("\nEnter choice: ").strip().lower()
+            choice = input("\nSelect option (1-3, q): ").strip().lower()
             
             if choice == '1':
+                # Toggle symlinks setting
                 new_value = 'false' if use_symlinks else 'true'
-                if _update_env_var('USE_SYMLINKS', new_value):
-                    print(f"\nSymlink usage is now {'Enabled' if new_value == 'true' else 'Disabled'}.")
-                else:
-                    print("\nError updating setting.")
+                _update_env_var('USE_SYMLINKS', new_value)
+                print(f"Use Symlinks: {'On' if new_value == 'true' else 'Off'}")
+                input("Press Enter to continue...")
                 
-                input("\nPress Enter to continue...")
+            elif choice == '2':
+                # Toggle Plex refresh setting
+                new_value = 'false' if refresh_plex else 'true'
+                _update_env_var('REFRESH_PLEX', new_value)
+                print(f"Refresh Plex: {'On' if new_value == 'true' else 'Off'}")
+                input("Press Enter to continue...")
+                
+            elif choice == '3':
+                # Configure Plex connection settings
+                self._configure_plex_settings()
+                
             elif choice == 'q':
                 return
+                
             else:
-                print("\nInvalid choice.")
-                input("\nPress Enter to continue...")
-    
+                print("Invalid choice.")
+                input("Press Enter to continue...")
+
+    def _configure_plex_settings(self):
+        """Configure Plex connection settings."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 60)
+        print("PLEX CONNECTION SETTINGS")
+        print("=" * 60)
+        
+        # Get current settings
+        current_url = os.environ.get('PLEX_URL', '')
+        current_token = os.environ.get('PLEX_TOKEN', '')
+        movies_section = os.environ.get('PLEX_MOVIES_SECTION', '1')
+        tv_section = os.environ.get('PLEX_TV_SECTION', '2')
+        anime_movies_section = os.environ.get('PLEX_ANIME_MOVIES_SECTION', '3')
+        anime_tv_section = os.environ.get('PLEX_ANIME_TV_SECTION', '4')
+        
+        # Mask token display for security
+        masked_token = "****" if current_token else ""
+        
+        print("\nCurrent Plex Settings:")
+        print(f"1. Plex Server URL: {current_url or 'Not Set'}")
+        print(f"2. Plex Token: {masked_token or 'Not Set'}")
+        print(f"3. Movies Library Section: {movies_section}")
+        print(f"4. TV Shows Library Section: {tv_section}")
+        print(f"5. Anime Movies Library Section: {anime_movies_section}")
+        print(f"6. Anime TV Library Section: {anime_tv_section}")
+        print("7. Test Plex Connection")
+        print("q. Return to File Management Settings")
+        
+        choice = input("\nSelect option (1-7, q): ").strip().lower()
+        
+        if choice == '1':
+            # Set Plex server URL
+            print("\nEnter Plex server URL (e.g., http://localhost:32400):")
+            url = input("> ").strip()
+            if url:
+                # Remove trailing slash if present
+                if url.endswith('/'):
+                    url = url[:-1]
+                _update_env_var('PLEX_URL', url)
+                print(f"Plex server URL updated to: {url}")
+            input("Press Enter to continue...")
+            
+        elif choice == '2':
+            # Set Plex token
+            print("\nEnter Plex authentication token:")
+            token = input("> ").strip()
+            if token:
+                _update_env_var('PLEX_TOKEN', token)
+                print("Plex token updated.")
+            input("Press Enter to continue...")
+            
+        elif choice == '3':
+            # Set Movies library section
+            print("\nEnter Movies library section ID:")
+            section_id = input("> ").strip()
+            if section_id:
+                _update_env_var('PLEX_MOVIES_SECTION', section_id)
+                print(f"Movies library section updated to: {section_id}")
+            input("Press Enter to continue...")
+            
+        elif choice == '4':
+            # Set TV Shows library section
+            print("\nEnter TV Shows library section ID:")
+            section_id = input("> ").strip()
+            if section_id:
+                _update_env_var('PLEX_TV_SECTION', section_id)
+                print(f"TV Shows library section updated to: {section_id}")
+            input("Press Enter to continue...")
+            
+        elif choice == '5':
+            # Set Anime Movies library section
+            print("\nEnter Anime Movies library section ID:")
+            section_id = input("> ").strip()
+            if section_id:
+                _update_env_var('PLEX_ANIME_MOVIES_SECTION', section_id)
+                print(f"Anime Movies library section updated to: {section_id}")
+            input("Press Enter to continue...")
+            
+        elif choice == '6':
+            # Set Anime TV library section
+            print("\nEnter Anime TV library section ID:")
+            section_id = input("> ").strip()
+            if section_id:
+                _update_env_var('PLEX_ANIME_TV_SECTION', section_id)
+                print(f"Anime TV library section updated to: {section_id}")
+            input("Press Enter to continue...")
+            
+        elif choice == '7':
+            # Test Plex connection
+            self._test_plex_connection()
+            
+        elif choice == 'q':
+            return
+            
+        else:
+            print("Invalid choice.")
+            input("Press Enter to continue...")
+        
+        # Return to this same menu
+        self._configure_plex_settings()
+
+    def _test_plex_connection(self):
+        """Test connection to Plex server."""
+        print("\nTesting Plex connection...")
+        
+        # Get Plex configuration
+        plex_url = os.environ.get('PLEX_URL', '')
+        plex_token = os.environ.get('PLEX_TOKEN', '')
+        
+        # Check if Plex is configured
+        if not plex_url or not plex_token:
+            print("Plex server URL or token not configured.")
+            input("Press Enter to continue...")
+            return
+        
+        try:
+            # Construct the API endpoint for fetching server info
+            endpoint = f"{plex_url}/"
+            params = {'X-Plex-Token': plex_token}
+            
+            # Make the API request
+            response = requests.get(endpoint, params=params, timeout=10)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Parse XML response to get server name
+                from xml.etree import ElementTree
+                root = ElementTree.fromstring(response.content)
+                server_name = root.get('friendlyName', 'Unknown')
+                print(f"Successfully connected to Plex server: {server_name}")
+                
+                # Try to get the list of libraries
+                library_endpoint = f"{plex_url}/library/sections"
+                library_response = requests.get(library_endpoint, params=params, timeout=10)
+                
+                if library_response.status_code == 200:
+                    # Parse XML to get libraries
+                    library_root = ElementTree.fromstring(library_response.content)
+                    print("\nAvailable libraries:")
+                    for directory in library_root.findall('.//Directory'):
+                        library_id = directory.get('key', 'Unknown')
+                        library_title = directory.get('title', 'Unknown')
+                        library_type = directory.get('type', 'Unknown')
+                        print(f" - {library_title} (ID: {library_id}, Type: {library_type})")
+                
+            else:
+                print(f"Failed to connect to Plex server: {response.status_code} {response.text}")
+        
+        except Exception as e:
+            print(f"Error testing Plex connection: {e}")
+        
+        input("\nPress Enter to continue...")
+
     def _monitoring_settings(self):
         """Directory monitoring settings."""
         while True:
