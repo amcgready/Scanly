@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanly - Media File Scanner</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: var(--dark-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: white !important;
+        }
+        
+        .sidebar {
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+        }
+        
+        .sidebar .nav-link {
+            color: var(--dark-color);
+            border-radius: 0.25rem;
+            margin-bottom: 0.15rem;
+            padding: 0.6rem 1rem;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .content-header {
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: transform 0.3s ease-in-out;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-success {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+        
+        .progress {
+            height: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        .status-active {
+            background-color: var(--secondary-color);
+        }
+        
+        .status-inactive {
+            background-color: var(--danger-color);
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: var(--dark-color);
+        }
+        
+        .logo {
+            max-width: 90%;
+            height: auto;
+        }
+        
+        .sidebar-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            text-decoration: none;
+        }
+        
+        .sidebar-brand i {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+                <div class="logo-container">
+                    <img src="/static/images/logo.png" alt="Scanly Logo" class="logo">
+                </div>
+                <div class="position-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/">
+                                <i class="fas fa-home"></i>
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan/individual">
+                                <i class="fas fa-search"></i>
+                                Individual Scan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan/multi">
+                                <i class="fas fa-tasks"></i>
+                                Multi Scan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan/resume">
+                                <i class="fas fa-redo"></i>
+                                Resume Scan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/monitor">
+                                <i class="fas fa-eye"></i>
+                                Monitor
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/skipped">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Skipped Items
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/settings">
+                                <i class="fas fa-cog"></i>
+                                Settings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/help">
+                                <i class="fas fa-question-circle"></i>
+                                Help
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>System Status</span>
+                    </h6>
+                    <ul class="nav flex-column mb-4">
+                        <li class="nav-item d-flex align-items-center px-3 py-2">
+                            <span class="status-indicator status-active"></span>
+                            <span>Monitoring: Active</span>
+                        </li>
+                        <li class="nav-item d-flex align-items-center px-3 py-2">
+                            <span class="status-indicator status-inactive"></span>
+                            <span>Plex: Not configured</span>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                <div class="content-header d-flex justify-content-between flex-wrap align-items-center">
+                    <h1 class="h2">Dashboard</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <span id="autoRefreshIndicator" class="d-none me-2">
+                            <i class="fas fa-sync-alt fa-spin text-secondary"></i>
+                        </span>
+                        <button type="button" id="toggleRefreshBtn" class="btn btn-sm btn-secondary me-2">
+                            <i class="fas fa-pause me-1"></i>
+                            Pause Updates
+                        </button>
+                        <button type="button" id="refreshBtn" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                        <div class="card text-center h-100 p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-film"></i>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">Movies</h5>
+                                <h2 class="display-6 fw-bold" data-stat="movies">{{ stats.movies|default(0) }}</h2>
+                                <p class="card-text text-muted">Movies processed</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                        <div class="card text-center h-100 p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-tv"></i>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">TV Shows</h5>
+                                <h2 class="display-6 fw-bold" data-stat="tv_shows">{{ stats.tv_shows|default(0) }}</h2>
+                                <p class="card-text text-muted">TV shows processed</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                        <div class="card text-center h-100 p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-eye"></i>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">Monitored</h5>
+                                <h2 class="display-6 fw-bold" data-stat="monitored">{{ stats.monitored|default(0) }}</h2>
+                                <p class="card-text text-muted">Directories being monitored</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3 mb-4">
+                        <div class="card text-center h-100 p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">Skipped</h5>
+                                <h2 class="display-6 fw-bold" data-stat="skipped">{{ stats.skipped|default(0) }}</h2>
+                                <p class="card-text text-muted">Items requiring review</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 col-lg-8 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Recent Activity</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <tbody>
+                                            {% if recent_activity and recent_activity|length > 0 %}
+                                                {% for activity in recent_activity %}
+                                                <tr>
+                                                    <td width="140">{{ activity.timestamp.split(' ')[1] }}</td>
+                                                    <td width="100">
+                                                        {% if activity.action == 'scan' %}
+                                                            <span class="badge bg-primary">Scan</span>
+                                                        {% elif activity.action == 'process' %}
+                                                            <span class="badge bg-success">Process</span>
+                                                        {% elif activity.action == 'move' %}
+                                                            <span class="badge bg-info">Move</span>
+                                                        {% elif activity.action == 'monitor' %}
+                                                            <span class="badge bg-secondary">Monitor</span>
+                                                        {% elif activity.action == 'skip' %}
+                                                            <span class="badge bg-warning">Skip</span>
+                                                        {% elif activity.action == 'error' %}
+                                                            <span class="badge bg-danger">Error</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ activity.action }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <div class="text-truncate" style="max-width: 400px;" title="{{ activity.item }}">
+                                                            {{ activity.item }}
+                                                        </div>
+                                                    </td>
+                                                    <td width="100" class="text-end">
+                                                        {% if activity.status == 'success' %}
+                                                            <span class="text-success"><i class="fas fa-check-circle"></i></span>
+                                                        {% elif activity.status == 'error' %}
+                                                            <span class="text-danger"><i class="fas fa-exclamation-circle"></i></span>
+                                                        {% elif activity.status == 'warning' %}
+                                                            <span class="text-warning"><i class="fas fa-exclamation-triangle"></i></span>
+                                                        {% else %}
+                                                            <span class="text-info"><i class="fas fa-info-circle"></i></span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-3">No recent activity</td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card-footer text-center">
+                                <a href="/activity" class="btn btn-sm btn-outline-primary">View All Activity</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="m-0">System Status</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>CPU Usage</span>
+                                        <span data-status="cpu">{{ (system_status.cpu_usage if system_status is defined else 25) }}%</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: {{ (system_status.cpu_usage if system_status is defined else 25) }}%" 
+                                             aria-valuenow="{{ (system_status.cpu_usage if system_status is defined else 25) }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100"
+                                             data-progress="cpu"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Memory Usage</span>
+                                        <span data-status="memory">{{ (system_status.memory_usage if system_status is defined else 45) }}%</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-primary" role="progressbar" 
+                                             style="width: {{ (system_status.memory_usage if system_status is defined else 45) }}%" 
+                                             aria-valuenow="{{ (system_status.memory_usage if system_status is defined else 45) }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100"
+                                             data-progress="memory"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2 mt-4">
+                                    <a href="/scan/individual" class="btn btn-primary" type="button">
+                                        <i class="fas fa-search me-1"></i>
+                                        Start New Scan
+                                    </a>
+                                    <a href="/settings" class="btn btn-outline-secondary" type="button">
+                                        <i class="fas fa-cog me-1"></i>
+                                        Configure Settings
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between">
+                                <h5 class="m-0">Monitored Directories</h5>
+                                <a href="/monitor" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-plus me-1"></i>
+                                    Add Directory
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table" id="monitored-dirs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Directory</th>
+                                                <th>Status</th>
+                                                <th>Last Scan</th>
+                                                <th>Next Scan</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if monitored_directories and monitored_directories|length > 0 %}
+                                                {% for dir in monitored_directories %}
+                                                <tr>
+                                                    <td>{{ dir.path }}</td>
+                                                    <td>
+                                                        {% if dir.active %}
+                                                            <span class="badge bg-success">Active</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">Paused</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ dir.last_scan|default('Never') }}</td>
+                                                    <td>{{ dir.next_scan|default('-') }}</td>
+                                                    <td>
+                                                        <a href="/monitor/toggle/{{ dir.id }}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-{{ 'pause' if dir.active else 'play' }}"></i>
+                                                        </a>
+                                                        <a href="/monitor/remove/{{ dir.id }}" class="btn btn-sm btn-outline-danger" 
+                                                           onclick="return confirm('Are you sure you want to remove this directory?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="5" class="text-center">No monitored directories found. <a href="/monitor">Add a directory to monitor</a>.</td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Track if a refresh is currently in progress
+        let isRefreshing = false;
+        
+        // Store the initial state values from server-side rendering
+        let initialValues = {
+            movies: 0,
+            tv_shows: 0, 
+            monitored: 0,
+            skipped: 0,
+            monitoring_active: false,
+            plex_configured: false
+        };
+
+        // Function to update system status indicators
+        function updateSystemStatus(status) {
+            console.log("Updating complete system status with:", status);
+            
+            // Update CPU usage
+            if (status.cpu_usage !== undefined) {
+                const cpuPercentage = parseInt(status.cpu_usage);
+                const cpuElement = document.querySelector('[data-status="cpu"]');
+                if (cpuElement) cpuElement.textContent = `${cpuPercentage}%`;
+                
+                const cpuProgress = document.querySelector('[data-progress="cpu"]');
+                if (cpuProgress) {
+                    cpuProgress.style.width = `${cpuPercentage}%`;
+                    cpuProgress.setAttribute('aria-valuenow', cpuPercentage);
+                    
+                    // Update color based on value
+                    cpuProgress.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+                    if (cpuPercentage > 90) {
+                        cpuProgress.classList.add('bg-danger');
+                    } else if (cpuPercentage > 70) {
+                        cpuProgress.classList.add('bg-warning');
+                    } else {
+                        cpuProgress.classList.add('bg-success');
+                    }
+                }
+            }
+            
+            // Update memory usage
+            if (status.memory_usage !== undefined) {
+                const memoryPercentage = parseInt(status.memory_usage);
+                const memoryElement = document.querySelector('[data-status="memory"]');
+                if (memoryElement) memoryElement.textContent = `${memoryPercentage}%`;
+                
+                const memoryProgress = document.querySelector('[data-progress="memory"]');
+                if (memoryProgress) {
+                    memoryProgress.style.width = `${memoryPercentage}%`;
+                    memoryProgress.setAttribute('aria-valuenow', memoryPercentage);
+                    
+                    // Update color based on value
+                    memoryProgress.classList.remove('bg-primary', 'bg-warning', 'bg-danger');
+                    if (memoryPercentage > 90) {
+                        memoryProgress.classList.add('bg-danger');
+                    } else if (memoryPercentage > 70) {
+                        memoryProgress.classList.add('bg-warning');
+                    } else {
+                        memoryProgress.classList.add('bg-primary');
+                    }
+                }
+            }
+            
+            // Update monitoring status in sidebar
+            if (status.monitoring_active !== undefined) {
+                const statusItems = document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator');
+                if (statusItems && statusItems.length > 0) {
+                    const monitoringIndicator = statusItems[0];
+                    const monitoringText = monitoringIndicator.nextElementSibling;
+                    
+                    if (status.monitoring_active) {
+                        monitoringIndicator.classList.remove('status-inactive');
+                        monitoringIndicator.classList.add('status-active');
+                        monitoringText.textContent = 'Monitoring: Active';
+                    } else {
+                        monitoringIndicator.classList.remove('status-active');
+                        monitoringIndicator.classList.add('status-inactive');
+                        monitoringText.textContent = 'Monitoring: Inactive';
+                    }
+                }
+            }
+            
+            // Update Plex status in sidebar
+            if (status.plex_configured !== undefined) {
+                const statusItems = document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator');
+                if (statusItems && statusItems.length > 1) {
+                    const plexIndicator = statusItems[1];
+                    const plexText = plexIndicator.nextElementSibling;
+                    
+                    if (status.plex_configured) {
+                        plexIndicator.classList.remove('status-inactive');
+                        plexIndicator.classList.add('status-active');
+                        plexText.textContent = 'Plex: Connected';
+                    } else {
+                        plexIndicator.classList.remove('status-active');
+                        plexIndicator.classList.add('status-inactive');
+                        plexText.textContent = 'Plex: Not configured';
+                    }
+                }
+            }
+        }
+        
+        // Function that only updates CPU and memory usage
+        function updateSystemResources(status) {
+            console.log("Updating system resources only:", status);
+            
+            // Update CPU usage
+            if (status.cpu_usage !== undefined) {
+                const cpuPercentage = parseInt(status.cpu_usage);
+                const cpuElement = document.querySelector('[data-status="cpu"]');
+                if (cpuElement) cpuElement.textContent = `${cpuPercentage}%`;
+                
+                const cpuProgress = document.querySelector('[data-progress="cpu"]');
+                if (cpuProgress) {
+                    cpuProgress.style.width = `${cpuPercentage}%`;
+                    cpuProgress.setAttribute('aria-valuenow', cpuPercentage);
+                    
+                    // Update color based on value
+                    cpuProgress.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+                    if (cpuPercentage > 90) {
+                        cpuProgress.classList.add('bg-danger');
+                    } else if (cpuPercentage > 70) {
+                        cpuProgress.classList.add('bg-warning');
+                    } else {
+                        cpuProgress.classList.add('bg-success');
+                    }
+                }
+            }
+            
+            // Update memory usage
+            if (status.memory_usage !== undefined) {
+                const memoryPercentage = parseInt(status.memory_usage);
+                const memoryElement = document.querySelector('[data-status="memory"]');
+                if (memoryElement) memoryElement.textContent = `${memoryPercentage}%`;
+                
+                const memoryProgress = document.querySelector('[data-progress="memory"]');
+                if (memoryProgress) {
+                    memoryProgress.style.width = `${memoryPercentage}%`;
+                    memoryProgress.setAttribute('aria-valuenow', memoryPercentage);
+                    
+                    // Update color based on value
+                    memoryProgress.classList.remove('bg-primary', 'bg-warning', 'bg-danger');
+                    if (memoryPercentage > 90) {
+                        memoryProgress.classList.add('bg-danger');
+                    } else if (memoryPercentage > 70) {
+                        memoryProgress.classList.add('bg-warning');
+                    } else {
+                        memoryProgress.classList.add('bg-primary');
+                    }
+                }
+            }
+        }
+        
+        // Function to fetch system resources only (CPU, memory)
+        function fetchSystemResourcesOnly() {
+            // Call the lightweight endpoint specifically for system resources
+            fetch('/api/dashboard/system_resources')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    // Only update CPU and memory usage - nothing else
+                    updateSystemResources(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching system resources:', error);
+                });
+        }
+        
+        // Complete function to fetch all dashboard data (for manual refresh)
+        function fetchDashboardData(isManualRefresh = false) {
+            // Don't start another refresh if one is in progress
+            if (isRefreshing) {
+                console.log("Refresh already in progress, skipping");
+                return;
+            }
+            
+            isRefreshing = true;
+            
+            // Update refresh button if it's a manual refresh
+            if (isManualRefresh && document.getElementById('refreshBtn')) {
+                document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i> Refreshing...';
+            }
+            
+            console.log("Fetching all dashboard data...");
+            
+            // Make an AJAX request to refresh the full dashboard data
+            fetch('/api/dashboard/stats')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Dashboard data received:", data);
+                    
+                    // Update stats cards with either API data or initial values
+                    const moviesElement = document.querySelector('[data-stat="movies"]');
+                    if (moviesElement) {
+                        if (data.movies !== undefined && data.movies > 0) {
+                            moviesElement.textContent = data.movies;
+                        } else if (initialValues.movies > 0) {
+                            moviesElement.textContent = initialValues.movies;
+                        }
+                    }
+                    
+                    const tvElement = document.querySelector('[data-stat="tv_shows"]');
+                    if (tvElement) {
+                        if (data.tv_shows !== undefined && data.tv_shows >= 0) {
+                            tvElement.textContent = data.tv_shows;
+                        } else if (initialValues.tv_shows >= 0) {
+                            tvElement.textContent = initialValues.tv_shows;
+                        }
+                    }
+                    
+                    const monitoredElement = document.querySelector('[data-stat="monitored"]');
+                    if (monitoredElement) {
+                        console.log("Monitored value from API:", data.monitored);
+                        monitoredElement.textContent = data.monitored;
+                        // If we have monitored directories, monitoring should be active
+                        if (data.system_status && data.monitored > 0) {
+                            data.system_status.monitoring_active = true;
+                        }
+                    }
+                    
+                    const skippedElement = document.querySelector('[data-stat="skipped"]');
+                    if (skippedElement) {
+                        console.log("Skipped value from API:", data.skipped);
+                        skippedElement.textContent = data.skipped;
+                    }
+                    
+                    // Update complete system status (CPU, memory, monitoring, Plex)
+                    if (data.system_status) {
+                        // If we have monitored directories, monitoring should be active
+                        if (data.monitored > 0) {
+                            data.system_status.monitoring_active = true;
+                        }
+                        updateSystemStatus(data.system_status);
+                    }
+                    
+                    // Update tables with fresh data
+                    if (data.monitored_directories && Array.isArray(data.monitored_directories)) {
+                        updateMonitoredDirectoriesTable(data.monitored_directories);
+                    }
+                    
+                    if (data.recent_activity && Array.isArray(data.recent_activity)) {
+                        updateActivityTable(data.recent_activity);
+                    }
+                    
+                    // Reset refresh button
+                    if (isManualRefresh && document.getElementById('refreshBtn')) {
+                        document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt me-1"></i> Refresh';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching dashboard data:', error);
+                    
+                    // Reset refresh button
+                    if (isManualRefresh && document.getElementById('refreshBtn')) {
+                        document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt me-1"></i> Refresh';
+                    }
+                })
+                .finally(() => {
+                    isRefreshing = false;
+                });
+        }
+
+        // Add this function to your JavaScript
+        function updateMonitoredDirectoriesTable(directories) {
+            const tableBody = document.querySelector('#monitored-dirs-table tbody');
+            if (!tableBody) {
+                console.warn("Could not find monitored directories table");
+                return;
+            }
+            
+            if (!Array.isArray(directories) || directories.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No monitored directories found. <a href="/monitor">Add a directory to monitor</a>.</td></tr>';
+                return;
+            }
+            
+            // Clear existing rows
+            tableBody.innerHTML = '';
+            
+            // Add new rows
+            directories.forEach(dir => {
+                const row = document.createElement('tr');
+                
+                // Determine status badge class
+                const statusBadge = dir.active ? 
+                    '<span class="badge bg-success">Active</span>' : 
+                    '<span class="badge bg-secondary">Paused</span>';
+                
+                // Create row HTML
+                row.innerHTML = `
+                    <td>${dir.path}</td>
+                    <td>${statusBadge}</td>
+                    <td>${dir.last_scan || 'Never'}</td>
+                    <td>${dir.next_scan || '-'}</td>
+                    <td>
+                        <a href="/monitor/toggle/${dir.id}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-${dir.active ? 'pause' : 'play'}"></i>
+                        </a>
+                        <a href="/monitor/remove/${dir.id}" class="btn btn-sm btn-outline-danger" 
+                           onclick="return confirm('Are you sure you want to remove this directory?');">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Add this function to your JavaScript
+        function updateActivityTable(activities) {
+            const tableBody = document.querySelector('#activity-table tbody');
+            if (!tableBody) {
+                console.warn("Could not find activity table");
+                return;
+            }
+            
+            if (!Array.isArray(activities) || activities.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No recent activity</td></tr>';
+                return;
+            }
+            
+            // Clear existing rows
+            tableBody.innerHTML = '';
+            
+            // Add new rows
+            activities.forEach(activity => {
+                const row = document.createElement('tr');
+                
+                // Determine status badge
+                let statusBadge = '';
+                
+                switch (activity.status) {
+                    case 'success': 
+                        statusBadge = '<span class="badge bg-success">Success</span>'; 
+                        break;
+                    case 'warning': 
+                        statusBadge = '<span class="badge bg-warning">Needs Review</span>'; 
+                        break;
+                    case 'error': 
+                        statusBadge = '<span class="badge bg-danger">Error</span>'; 
+                        break;
+                    default: 
+                        statusBadge = `<span class="badge bg-secondary">${activity.status || 'Unknown'}</span>`;
+                }
+                
+                // Create row HTML
+                row.innerHTML = `
+                    <td>${activity.time || activity.timestamp || ''}</td>
+                    <td>${activity.action || ''}</td>
+                    <td>${activity.item || activity.path || ''}</td>
+                    <td>${statusBadge}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update the DOMContentLoaded event handler to fix Plex status initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("Page loaded - setting up dashboard...");
+            
+            // Manually set the PLEX status to connected based on your requirement
+            const plexIndicator = document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator')[1];
+            const plexText = plexIndicator.nextElementSibling;
+            plexIndicator.classList.remove('status-inactive');
+            plexIndicator.classList.add('status-active');
+            plexText.textContent = 'Plex: Connected';
+            
+            // Capture initial values from the DOM on first page load
+            initialValues = {
+                movies: parseInt(document.querySelector('[data-stat="movies"]').textContent) || 0,
+                tv_shows: parseInt(document.querySelector('[data-stat="tv_shows"]').textContent) || 0,
+                monitored: parseInt(document.querySelector('[data-stat="monitored"]').textContent) || 0,
+                skipped: parseInt(document.querySelector('[data-stat="skipped"]').textContent) || 0,
+                monitoring_active: document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator')[0].classList.contains('status-active'),
+                plex_configured: true  // Force this to true
+            };
+            
+            console.log("Initial values captured:", initialValues);
+            
+            // Make a manual request once to get the /api/dashboard/stats values
+            // This helps debug any differences between server-rendered and API values
+            fetch('/api/dashboard/stats')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("API values:", {
+                        movies: data.movies,
+                        tv_shows: data.tv_shows,
+                        monitored: data.monitored,
+                        skipped: data.skipped,
+                        monitoring_active: data.system_status?.monitoring_active,
+                        plex_configured: data.system_status?.plex_configured
+                    });
+                })
+                .catch(error => console.error("Error checking API values:", error));
+            
+            // Set up refresh button - updates everything
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    fetchDashboardData(true);
+                });
+            }
+            
+            // Set up toggle refresh button - only for system resources (CPU/memory)
+            const toggleRefreshBtn = document.getElementById('toggleRefreshBtn');
+            let autoRefreshInterval = null;
+            
+            if (toggleRefreshBtn) {
+                // Start with auto-refresh enabled for resources ONLY
+                autoRefreshInterval = setInterval(fetchSystemResourcesOnly, 10000);
+                toggleRefreshBtn.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Updates';
+                const indicator = document.getElementById('autoRefreshIndicator');
+                if (indicator) indicator.classList.remove('d-none');
+                
+                toggleRefreshBtn.addEventListener('click', function() {
+                    if (autoRefreshInterval) {
+                        // Stop auto-refresh
+                        clearInterval(autoRefreshInterval);
+                        autoRefreshInterval = null;
+                        toggleRefreshBtn.innerHTML = '<i class="fas fa-play me-1"></i> Enable Updates';
+                        const indicator = document.getElementById('autoRefreshIndicator');
+                        if (indicator) indicator.classList.add('d-none');
+                    } else {
+                        // Start auto-refresh only for system resources (CPU/memory)
+                        autoRefreshInterval = setInterval(fetchSystemResourcesOnly, 10000);
+                        toggleRefreshBtn.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Updates';
+                        const indicator = document.getElementById('autoRefreshIndicator');
+                        if (indicator) indicator.classList.remove('d-none');
+                    }
+                });
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simple direct API call to update the dashboard stats
+            function updateStats() {
+                fetch('/api/dashboard/stats')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("API data:", data);
+                        
+                        // Directly update the stat values without any complex logic
+                        const moviesStat = document.querySelector('[data-stat="movies"]');
+                        if (moviesStat) moviesStat.textContent = data.movies;
+                        
+                        const tvStat = document.querySelector('[data-stat="tv_shows"]');
+                        if (tvStat) tvStat.textContent = data.tv_shows;
+                        
+                        const monitoredStat = document.querySelector('[data-stat="monitored"]');
+                        if (monitoredStat) monitoredStat.textContent = data.monitored;
+                        
+                        const skippedStat = document.querySelector('[data-stat="skipped"]');
+                        if (skippedStat) skippedStat.textContent = data.skipped;
+                        
+                        // Add a debug display
+                        const debugElement = document.getElementById('api-debug-data');
+                        if (debugElement) {
+                            debugElement.innerHTML = `
+                                <p><strong>API Debug Data:</strong></p>
+                                <p>Movies: ${data.movies}</p>
+                                <p>TV Shows: ${data.tv_shows}</p>
+                                <p>Monitored: ${data.monitored}</p>
+                                <p>Skipped: ${data.skipped}</p>
+                            `;
+                        }
+                    })
+                    .catch(error => console.error("Error updating stats:", error));
+            }
+            
+            // Run once on page load
+            updateStats();
+            
+            // Also add a debug element at the bottom of the page
+            const debugDiv = document.createElement('div');
+            debugDiv.id = 'api-debug-data';
+            debugDiv.style.position = 'fixed';
+            debugDiv.style.bottom = '10px';
+            debugDiv.style.right = '10px';
+            debugDiv.style.background = '#f8f9fa';
+            debugDiv.style.border = '1px solid #dee2e6';
+            debugDiv.style.padding = '10px';
+            debugDiv.style.zIndex = '9999';
+            document.body.appendChild(debugDiv);
+            
+            // Add a refresh button to the debug panel
+            const refreshButton = document.createElement('button');
+            refreshButton.textContent = 'Refresh Stats';
+            refreshButton.className = 'btn btn-sm btn-primary';
+            refreshButton.onclick = updateStats;
+            debugDiv.appendChild(refreshButton);
+        });
+    </script>
+    <script>
+        // Add this script to index.html right before the closing </body> tag
+        document.addEventListener('DOMContentLoaded', function() {
+            // Direct API call to update dashboard stats
+            function updateStats() {
+                console.log("Fetching dashboard stats...");
+                fetch('/api/dashboard/stats')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Dashboard API returned:", data);
+                        
+                        // Update stats using direct querySelector for each stat
+                        const movieStat = document.querySelector('[data-stat="movies"]');
+                        if (movieStat) {
+                            movieStat.textContent = data.movies || '0';
+                            console.log("Updated movies to:", data.movies);
+                        }
+                        
+                        const tvShowStat = document.querySelector('[data-stat="tv_shows"]');
+                        if (tvShowStat) {
+                            tvShowStat.textContent = data.tv_shows || '0';
+                            console.log("Updated TV shows to:", data.tv_shows);
+                        }
+                        
+                        const monitoredStat = document.querySelector('[data-stat="monitored"]');
+                        if (monitoredStat) {
+                            monitoredStat.textContent = data.monitored || '0';
+                            console.log("Updated monitored to:", data.monitored);
+                        }
+                        
+                        const skippedStat = document.querySelector('[data-stat="skipped"]');
+                        if (skippedStat) {
+                            skippedStat.textContent = data.skipped || '0';
+                            console.log("Updated skipped to:", data.skipped);
+                        }
+                        
+                        // Update system status gauges if they exist
+                        if (data.system_status) {
+                            const diskGauge = document.querySelector('.gauge-fill[data-gauge="disk"]');
+                            if (diskGauge) diskGauge.style.width = data.system_status.disk_usage + '%';
+                            
+                            const cpuGauge = document.querySelector('.gauge-fill[data-gauge="cpu"]');
+                            if (cpuGauge) cpuGauge.style.width = data.system_status.cpu_usage + '%';
+                            
+                            const memoryGauge = document.querySelector('.gauge-fill[data-gauge="memory"]');
+                            if (memoryGauge) memoryGauge.style.width = data.system_status.memory_usage + '%';
+                        }
+                        
+                        // Create debug data element for troubleshooting
+                        let debugDiv = document.getElementById('debug-stats');
+                        if (!debugDiv) {
+                            debugDiv = document.createElement('div');
+                            debugDiv.id = 'debug-stats';
+                            debugDiv.style.position = 'fixed';
+                            debugDiv.style.bottom = '10px';
+                            debugDiv.style.right = '10px';
+                            debugDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
+                            debugDiv.style.color = '#fff';
+                            debugDiv.style.padding = '10px';
+                            debugDiv.style.fontSize = '12px';
+                            debugDiv.style.zIndex = '9999';
+                            document.body.appendChild(debugDiv);
+                        }
+                        
+                        debugDiv.innerHTML = `
+                            <h5>API Response Data</h5>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <button onclick="document.getElementById('debug-stats').style.display='none'">Close</button>
+                        `;
+                    })
+                    .catch(error => {
+                        console.error("Error fetching stats:", error);
+                    });
+            }
+            
+            // Run on page load
+            updateStats();
+            
+            // Set up refresh interval (every 30 seconds)
+            setInterval(updateStats, 30000);
+        });
+    </script>
+</body>
+</html>

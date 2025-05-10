@@ -14,6 +14,20 @@ LOG_FILE = 'scanly.log'
 # Add missing progress file configuration
 PROGRESS_FILE = 'scanly_progress.json'
 
+# Load environment variables for configuration
+DESTINATION_DIRECTORY = os.environ.get('DESTINATION_DIRECTORY', '')
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '')
+INCLUDE_TMDB_ID = os.environ.get('INCLUDE_TMDB_ID', 'true').lower() == 'true'
+USE_SYMLINKS = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+REFRESH_PLEX = os.environ.get('REFRESH_PLEX', 'true').lower() == 'true'
+PLEX_URL = os.environ.get('PLEX_URL', '')
+PLEX_TOKEN = os.environ.get('PLEX_TOKEN', '')
+PLEX_MOVIES_SECTION = os.environ.get('PLEX_MOVIES_SECTION', '1')
+PLEX_TV_SECTION = os.environ.get('PLEX_TV_SECTION', '2')
+PLEX_ANIME_MOVIES_SECTION = os.environ.get('PLEX_ANIME_MOVIES_SECTION', '3')
+PLEX_ANIME_TV_SECTION = os.environ.get('PLEX_ANIME_TV_SECTION', '4')
+MONITOR_INTERVAL_MINUTES = int(os.environ.get('MONITOR_INTERVAL_MINUTES', '60'))
+
 def get_settings():
     """Get application settings."""
     load_dotenv()

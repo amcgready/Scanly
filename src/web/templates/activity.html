@@ -1,0 +1,538 @@
+/templates/activity.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanly - Activity Log</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/css/bootstrap-datepicker.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Use the same style as in index.html to maintain consistent UI */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: var(--dark-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: white !important;
+        }
+        
+        .sidebar {
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+        }
+        
+        .sidebar .nav-link {
+            color: var(--dark-color);
+            border-radius: 0.25rem;
+            margin-bottom: 0.15rem;
+            padding: 0.6rem 1rem;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .content-header {
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 1.5rem;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: var(--dark-color);
+        }
+        
+        .logo {
+            max-width: 90%;
+            height: auto;
+        }
+        
+        .sidebar-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            text-decoration: none;
+        }
+        
+        .sidebar-brand i {
+            margin-right: 0.5rem;
+        }
+
+        /* Activity page specific styles */
+        .filter-panel {
+            background-color: white;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        .activity-item {
+            transition: background-color 0.2s ease;
+        }
+
+        .activity-item:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .date-range-container .input-group {
+            max-width: 170px;
+        }
+
+        .activity-detail {
+            background-color: #f8f9fa;
+            border-left: 3px solid var(--primary-color);
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            border-radius: 0 0.25rem 0.25rem 0;
+        }
+
+        .activity-detail pre {
+            margin-bottom: 0;
+            white-space: pre-wrap;
+            font-size: 0.875rem;
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar - Same as in index.html -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+                <div class="logo-container">
+                    <img src="/static/images/logo.png" alt="Scanly Logo" class="logo">
+                </div>
+                <div class="position-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">
+                                <i class="fas fa-home"></i>
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan/individual">
+                                <i class="fas fa-search"></i>
+                                Individual Scan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan/multi">
+                                <i class="fas fa-tasks"></i>
+                                Multi Scan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/scan/resume">
+                                <i class="fas fa-redo"></i>
+                                Resume Scan
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/monitor">
+                                <i class="fas fa-eye"></i>
+                                Monitor
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/skipped">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Skipped Items
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/activity">
+                                <i class="fas fa-history"></i>
+                                Activity Log
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/settings">
+                                <i class="fas fa-cog"></i>
+                                Settings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/help">
+                                <i class="fas fa-question-circle"></i>
+                                Help
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>System Status</span>
+                    </h6>
+                    <ul class="nav flex-column mb-4">
+                        <li class="nav-item d-flex align-items-center px-3 py-2">
+                            <span class="status-indicator status-active"></span>
+                            <span>Monitoring: Active</span>
+                        </li>
+                        <li class="nav-item d-flex align-items-center px-3 py-2">
+                            <span class="status-indicator status-active"></span>
+                            <span>Plex: Connected</span>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                <div class="content-header d-flex justify-content-between flex-wrap align-items-center">
+                    <h1 class="h2">Activity Log</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" id="refreshBtn" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Refresh
+                            </button>
+                            <button type="button" id="exportCSVBtn" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-file-export me-1"></i>
+                                Export CSV
+                            </button>
+                        </div>
+                        <button type="button" id="toggleFiltersBtn" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-filter me-1"></i>
+                            Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters Panel (initially hidden) -->
+                <div id="filtersPanel" class="filter-panel mb-4" style="display:none;">
+                    <form id="filterForm">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-md-6 col-lg-3">
+                                <label for="activityType" class="form-label">Activity Type</label>
+                                <select id="activityType" class="form-select">
+                                    <option value="">All Types</option>
+                                    <option value="scan">Scan</option>
+                                    <option value="rename">Rename</option>
+                                    <option value="move">Move</option>
+                                    <option value="monitor">Monitor</option>
+                                    <option value="system">System</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6 col-lg-3">
+                                <label for="statusFilter" class="form-label">Status</label>
+                                <select id="statusFilter" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    <option value="success">Success</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="error">Error</option>
+                                    <option value="info">Information</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <label class="form-label">Date Range</label>
+                                <div class="d-flex date-range-container">
+                                    <div class="input-group me-2">
+                                        <input type="text" id="startDate" class="form-control datepicker" placeholder="From">
+                                        <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                    </div>
+                                    <div class="input-group">
+                                        <input type="text" id="endDate" class="form-control datepicker" placeholder="To">
+                                        <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 col-lg-2">
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Activity Log Table -->
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="activity-log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Type</th>
+                                        <th>Item</th>
+                                        <th>Status</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if activities and activities|length > 0 %}
+                                        {% for activity in activities %}
+                                        <tr class="activity-item" data-id="{{ activity.id }}">
+                                            <td>{{ activity.timestamp }}</td>
+                                            <td>{{ activity.action }}</td>
+                                            <td>
+                                                {% if activity.path %}
+                                                    <span class="text-truncate d-inline-block" style="max-width: 300px;" title="{{ activity.path }}">
+                                                        {{ activity.path }}
+                                                    </span>
+                                                {% else %}
+                                                    {{ activity.item }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if activity.status == "success" %}
+                                                    <span class="badge bg-success">Success</span>
+                                                {% elif activity.status == "warning" %}
+                                                    <span class="badge bg-warning">Warning</span>
+                                                {% elif activity.status == "error" %}
+                                                    <span class="badge bg-danger">Error</span>
+                                                {% elif activity.status == "info" %}
+                                                    <span class="badge bg-info">Info</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ activity.status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-secondary toggle-details">
+                                                    <i class="fas fa-chevron-down"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr class="activity-detail-row" style="display:none;">
+                                            <td colspan="5" class="activity-detail">
+                                                <div>
+                                                    <strong>Source Path:</strong> {{ activity.path|default('N/A') }}
+                                                </div>
+                                                {% if activity.destination_path %}
+                                                <div>
+                                                    <strong>Destination Path:</strong> {{ activity.destination_path }}
+                                                </div>
+                                                {% endif %}
+                                                {% if activity.message %}
+                                                <div class="mt-2">
+                                                    <strong>Message:</strong>
+                                                    <pre>{{ activity.message }}</pre>
+                                                </div>
+                                                {% endif %}
+                                                {% if activity.error %}
+                                                <div class="mt-2">
+                                                    <strong>Error:</strong>
+                                                    <pre class="text-danger">{{ activity.error }}</pre>
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-3">No activity records found</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="page-info">
+                        Showing <span id="itemsShowing">{{ activities|length if activities else 0 }}</span> of <span id="totalItems">{{ total_activities|default(0) }}</span> items
+                    </div>
+                    <nav aria-label="Activity log pagination">
+                        <ul class="pagination">
+                            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('activity_log', page=page-1) if page > 1 else '#' }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            
+                            {% if total_pages > 1 %}
+                                {% for p in range(1, total_pages + 1) %}
+                                    <li class="page-item {% if p == page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('activity_log', page=p) }}">{{ p }}</a>
+                                    </li>
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('activity_log', page=page+1) if page < total_pages else '#' }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize datepickers
+            $('.datepicker').datepicker({
+                format: 'yyyy-mm-dd',
+                autoclose: true,
+                todayHighlight: true,
+                clearBtn: true
+            });
+            
+            // Toggle filters panel
+            const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+            const filtersPanel = document.getElementById('filtersPanel');
+            
+            if (toggleFiltersBtn && filtersPanel) {
+                toggleFiltersBtn.addEventListener('click', function() {
+                    if (filtersPanel.style.display === 'none') {
+                        filtersPanel.style.display = 'block';
+                        toggleFiltersBtn.innerHTML = '<i class="fas fa-times me-1"></i>Hide Filters';
+                    } else {
+                        filtersPanel.style.display = 'none';
+                        toggleFiltersBtn.innerHTML = '<i class="fas fa-filter me-1"></i>Filters';
+                    }
+                });
+            }
+            
+            // Toggle activity details
+            document.querySelectorAll('.toggle-details').forEach(button => {
+                button.addEventListener('click', function() {
+                    const activityRow = this.closest('tr');
+                    const detailRow = activityRow.nextElementSibling;
+                    
+                    if (detailRow.style.display === 'none') {
+                        detailRow.style.display = 'table-row';
+                        this.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    } else {
+                        detailRow.style.display = 'none';
+                        this.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    }
+                });
+            });
+            
+            // Refresh button functionality
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    // Show loading indicator
+                    this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Refreshing...';
+                    
+                    // Reload the current page
+                    location.reload();
+                });
+            }
+            
+            // Export to CSV functionality
+            const exportCSVBtn = document.getElementById('exportCSVBtn');
+            if (exportCSVBtn) {
+                exportCSVBtn.addEventListener('click', function() {
+                    // Show loading indicator
+                    this.innerHTML = '<i class="fas fa-circle-notch fa-spin me-1"></i>Exporting...';
+                    
+                    // Get current filters
+                    const activityType = document.getElementById('activityType').value;
+                    const statusFilter = document.getElementById('statusFilter').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    
+                    // Build the export URL with query parameters
+                    let exportUrl = '/api/activity/export?format=csv';
+                    if (activityType) exportUrl += `&type=${activityType}`;
+                    if (statusFilter) exportUrl += `&status=${statusFilter}`;
+                    if (startDate) exportUrl += `&start=${startDate}`;
+                    if (endDate) exportUrl += `&end=${endDate}`;
+                    
+                    // Trigger the download
+                    window.location.href = exportUrl;
+                    
+                    // Reset the button after a short delay
+                    setTimeout(() => {
+                        this.innerHTML = '<i class="fas fa-file-export me-1"></i>Export CSV';
+                    }, 2000);
+                });
+            }
+            
+            // Filter form submission
+            const filterForm = document.getElementById('filterForm');
+            if (filterForm) {
+                filterForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Get filter values
+                    const activityType = document.getElementById('activityType').value;
+                    const statusFilter = document.getElementById('statusFilter').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    
+                    // Build the URL with query parameters
+                    let url = '/activity?page=1';
+                    if (activityType) url += `&type=${activityType}`;
+                    if (statusFilter) url += `&status=${statusFilter}`;
+                    if (startDate) url += `&start=${startDate}`;
+                    if (endDate) url += `&end=${endDate}`;
+                    
+                    // Navigate to filtered view
+                    window.location.href = url;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

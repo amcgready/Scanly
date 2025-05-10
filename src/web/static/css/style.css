@@ -1,0 +1,121 @@
+/* Main Styling for Scanly Web UI */:root {    --primary-color: #3498db;    --secondary-color: #2ecc71;    --dark-color: #2c3e50;    --light-color: #ecf0f1;    --danger-color: #e74c3c;    --warning-color: #f39c12;}/* Main styles for Scanly web interface */body {    padding-bottom: 60px; /* For the fixed footer */    background-color: #f8f9fa;}/* Custom card styles */.card {    border: none;    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);    margin-bottom: 1.5rem;}.card-header {    font-weight: 500;}.card-dashboard {    border-radius: 10px;    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);    transition: all 0.3s ease;}.card-dashboard:hover {    transform: translateY(-5px);    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);}/* Progress bar styling */.progress {    height: 20px;    margin-bottom: 10px;}.progress-bar-animated {    animation: progress-bar-stripes 1s linear infinite;}@keyframes progress-bar-stripes {    0% {        background-position-x: 1rem;    }}/* Directory list styling */.directory-item {    border-left: 4px solid #007bff;    padding-left: 10px;    margin-bottom: 10px;}.directory-item.inactive {    border-left-color: #6c757d;}/* Status indicators */.status-dot {    height: 12px;    width: 12px;    border-radius: 50%;    display: inline-block;    margin-right: 5px;}.status-active {    background-color: #28a745;}.status-inactive {    background-color: #dc3545;}.status-pending {    background-color: #ffc107;}/* Footer styling */.footer {    position: fixed;    bottom: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+footer {
+    background-color: var(--dark-color);
+    color: white;
+    padding: 1rem 0;
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    min-width: 200px;
+}
+
+/* Settings page */
+.settings-nav {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.settings-nav .nav-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* File browser */
+.file-browser {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    height: 400px;
+    overflow: auto;
+}
+
+.file-browser .folder {
+    cursor: pointer;
+}
+
+.file-browser .file-item, .file-browser .folder-item {
+    padding: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+}
+
+.file-browser .file-item:hover, .file-browser .folder-item:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Transitions */
+.transition-all {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Form controls */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+}
+
+/* Page transitions */
+.page-transition {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Media queries */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 56px;
+        left: -100%;
+        width: 80%;
+        height: 100%;
+        z-index: 1000;
+        transition: all 0.3s ease;
+    }
+    
+    .sidebar.show {
+        left: 0;
+    }
+    
+    .content-wrapper {
+        margin-left: 0 !important;
+    }
+}
