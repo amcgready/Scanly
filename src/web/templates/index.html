@@ -927,36 +927,36 @@
                         const moviesStat = document.querySelector('[data-stat="movies"]');
                         if (moviesStat) moviesStat.textContent = data.movies;
                         
-                        const tvStat = document.querySelector('[data-stat="tv_shows"]');
-                        if (tvStat) tvStat.textContent = data.tv_shows;
-                        
-                        const monitoredStat = document.querySelector('[data-stat="monitored"]');
-                        if (monitoredStat) monitoredStat.textContent = data.monitored;
-                        
-                        const skippedStat = document.querySelector('[data-stat="skipped"]');
-                        if (skippedStat) skippedStat.textContent = data.skipped;
-                        
-                        // Add a debug display
-                        const debugElement = document.getElementById('api-debug-data');
-                        if (debugElement) {
-                            debugElement.innerHTML = `
-                                <p><strong>API Debug Data:</strong></p>
-                                <p>Movies: ${data.movies}</p>
-                                <p>TV Shows: ${data.tv_shows}</p>
+// COMMENTED OUT:                         const tvStat = document.querySelector('[data-stat="tv_shows"]');
+// COMMENTED OUT:                         if (tvStat) tvStat.textContent = data.tv_shows;
+// COMMENTED OUT:                         
+// COMMENTED OUT:                         const monitoredStat = document.querySelector('[data-stat="monitored"]');
+// COMMENTED OUT:                         if (monitoredStat) monitoredStat.textContent = data.monitored;
+// COMMENTED OUT:                         
+// COMMENTED OUT:                         const skippedStat = document.querySelector('[data-stat="skipped"]');
+// COMMENTED OUT:                         if (skippedStat) skippedStat.textContent = data.skipped;
+// COMMENTED OUT:                         
+// COMMENTED OUT:                         // Add a debug display
+// COMMENTED OUT:                         const debugElement = document.getElementById('api-debug-data');
+// COMMENTED OUT:                         if (debugElement) {
+// COMMENTED OUT:                             debugElement.innerHTML = `
+// COMMENTED OUT:                                 <p><strong>API Debug Data:</strong></p>
+// COMMENTED OUT:                                 <p>Movies: ${data.movies}</p>
+// COMMENTED OUT:                                 <p>TV Shows: ${data.tv_shows}</p>
                                 <p>Monitored: ${data.monitored}</p>
-                                <p>Skipped: ${data.skipped}</p>
-                            `;
-                        }
-                    })
-                    .catch(error => console.error("Error updating stats:", error));
-            }
-            
-            // Run once on page load
-            updateStats();
-            
-            // Also add a debug element at the bottom of the page
-            const debugDiv = document.createElement('div');
-            debugDiv.id = 'api-debug-data';
+// COMMENTED OUT:                                 <p>Skipped: ${data.skipped}</p>
+// COMMENTED OUT:                             `;
+// COMMENTED OUT:                         }
+// COMMENTED OUT:                     })
+// COMMENTED OUT:                     .catch(error => console.error("Error updating stats:", error));
+// COMMENTED OUT:             }
+// COMMENTED OUT:             
+// COMMENTED OUT:             // Run once on page load
+// COMMENTED OUT:             updateStats();
+// COMMENTED OUT:             
+// COMMENTED OUT:             // Also add a debug element at the bottom of the page
+// COMMENTED OUT:             const debugDiv = document.createElement('div');
+// COMMENTED OUT:             debugDiv.id = 'api-debug-data';
             debugDiv.style.position = 'fixed';
             debugDiv.style.bottom = '10px';
             debugDiv.style.right = '10px';
@@ -1020,24 +1020,24 @@
                             const diskGauge = document.querySelector('.gauge-fill[data-gauge="disk"]');
                             if (diskGauge) diskGauge.style.width = data.system_status.disk_usage + '%';
                             
-                            const cpuGauge = document.querySelector('.gauge-fill[data-gauge="cpu"]');
-                            if (cpuGauge) cpuGauge.style.width = data.system_status.cpu_usage + '%';
-                            
-                            const memoryGauge = document.querySelector('.gauge-fill[data-gauge="memory"]');
-                            if (memoryGauge) memoryGauge.style.width = data.system_status.memory_usage + '%';
-                        }
-                        
-                        // Create debug data element for troubleshooting
-                        let debugDiv = document.getElementById('debug-stats');
-                        if (!debugDiv) {
-                            debugDiv = document.createElement('div');
-                            debugDiv.id = 'debug-stats';
-                            debugDiv.style.position = 'fixed';
-                            debugDiv.style.bottom = '10px';
-                            debugDiv.style.right = '10px';
-                            debugDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
-                            debugDiv.style.color = '#fff';
-                            debugDiv.style.padding = '10px';
+// COMMENTED OUT:                             const cpuGauge = document.querySelector('.gauge-fill[data-gauge="cpu"]');
+// COMMENTED OUT:                             if (cpuGauge) cpuGauge.style.width = data.system_status.cpu_usage + '%';
+// COMMENTED OUT:                             
+// COMMENTED OUT:                             const memoryGauge = document.querySelector('.gauge-fill[data-gauge="memory"]');
+// COMMENTED OUT:                             if (memoryGauge) memoryGauge.style.width = data.system_status.memory_usage + '%';
+// COMMENTED OUT:                         }
+// COMMENTED OUT:                         
+// COMMENTED OUT:                         // Create debug data element for troubleshooting
+// COMMENTED OUT:                         let debugDiv = document.getElementById('debug-stats');
+// COMMENTED OUT:                         if (!debugDiv) {
+// COMMENTED OUT:                             debugDiv = document.createElement('div');
+// COMMENTED OUT:                             debugDiv.id = 'debug-stats';
+// COMMENTED OUT:                             debugDiv.style.position = 'fixed';
+// COMMENTED OUT:                             debugDiv.style.bottom = '10px';
+// COMMENTED OUT:                             debugDiv.style.right = '10px';
+// COMMENTED OUT:                             debugDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
+// COMMENTED OUT:                             debugDiv.style.color = '#fff';
+// COMMENTED OUT:                             debugDiv.style.padding = '10px';
                             debugDiv.style.fontSize = '12px';
                             debugDiv.style.zIndex = '9999';
                             document.body.appendChild(debugDiv);

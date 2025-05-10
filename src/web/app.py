@@ -106,7 +106,6 @@ def dashboard_stats():
     try:
         # Get system statistics
         stats = get_system_stats() or {}
-        logger.debug(f"Initial stats from get_system_stats: {stats}")
         
         # Direct load of skipped items for absolute accuracy
         skipped_count = 0
@@ -117,7 +116,6 @@ def dashboard_stats():
                 with open(skipped_items_path, 'r', encoding='utf-8') as f:
                     items_list = json.load(f)
                     skipped_count = len(items_list)
-                    logger.debug(f"Found {skipped_count} items in skipped_items.json at {skipped_items_path}")
             else:
                 # Try the parent directory location
                 parent_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'skipped_items.json')
@@ -125,7 +123,6 @@ def dashboard_stats():
                     with open(parent_path, 'r', encoding='utf-8') as f:
                         items_list = json.load(f)
                         skipped_count = len(items_list)
-                        logger.debug(f"Found {skipped_count} items in skipped_items.json at {parent_path}")
         except Exception as e:
             logger.error(f"Error reading skipped_items.json: {e}", exc_info=True)
         
@@ -163,19 +160,16 @@ def dashboard_stats():
         # Update stats with monitored directories count
         monitored_count = len(monitored_directories)
         
-        # Create a fresh response object - do not use stats dictionary
+        # Create response object
         response_data = {
             'movies': stats.get('movies', 0),
             'tv_shows': stats.get('tv_shows', 0),
             'monitored': monitored_count,
-            'skipped': skipped_count,  # Use directly calculated count
+            'skipped': skipped_count,
             'system_status': system_status,
             'monitored_directories': monitored_directories,
             'recent_activity': []
         }
-        
-        # Log the final response for debugging
-        logger.debug(f"FINAL DASHBOARD RESPONSE: {response_data}")
         
         return jsonify(response_data)
         
@@ -189,13 +183,11 @@ def skipped_count_test():
     try:
         skipped_count = 0
         skipped_items_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'skipped_items.json')
-        items_list = []
         
         if os.path.exists(skipped_items_path):
             with open(skipped_items_path, 'r', encoding='utf-8') as f:
                 items_list = json.load(f)
                 skipped_count = len(items_list)
-                logger.debug(f"TEST ENDPOINT: Found {skipped_count} items in skipped_items.json")
         else:
             # Try the parent directory location
             parent_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'skipped_items.json')
@@ -203,14 +195,10 @@ def skipped_count_test():
                 with open(parent_path, 'r', encoding='utf-8') as f:
                     items_list = json.load(f)
                     skipped_count = len(items_list)
-                    logger.debug(f"TEST ENDPOINT: Found {skipped_count} items in parent directory skipped_items.json")
         
         # Return a very simple response with only the count
         return jsonify({
-            'count': skipped_count,
-            'file_exists': os.path.exists(skipped_items_path) or os.path.exists(parent_path),
-            'first_few_items': items_list[:3] if items_list else [],
-            'file_path': skipped_items_path if os.path.exists(skipped_items_path) else parent_path if os.path.exists(parent_path) else "Not found"
+            'count': skipped_count
         })
     
     except Exception as e:
