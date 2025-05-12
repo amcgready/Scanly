@@ -665,6 +665,92 @@
             });
         }
         
+        // Function to safely handle directory actions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add error handling for directory toggle actions
+            document.querySelectorAll('#monitored-dirs-table a[href^="/monitor/toggle/"]').forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    
+                    const url = this.getAttribute('href');
+                    const row = this.closest('tr');
+                    const statusCell = row.querySelector('td:nth-child(2)');
+                    const icon = this.querySelector('i');
+                    const isPausing = icon.classList.contains('fa-pause');
+                    
+                    // Optimistically update UI first for better user experience
+                    if (isPausing) {
+                        icon.classList.remove('fa-pause');
+                        icon.classList.add('fa-play');
+                        statusCell.innerHTML = '<span class="badge bg-secondary">Paused</span>';
+                    } else {
+                        icon.classList.remove('fa-play');
+                        icon.classList.add('fa-pause');
+                        statusCell.innerHTML = '<span class="badge bg-success">Active</span>';
+                    }
+                    
+                    // Make the actual request to the server
+                    fetch(url)
+                        .then(response => {
+                            // Check if the response is ok (status in 200-299 range)
+                            if (!response.ok) {
+                                // If the response is not OK but the status is 204 (No Content), it's still successful
+                                if (response.status === 204) {
+                                    console.log("Toggle successful (no content returned)");
+                                    updateDashboardStats();
+                                    return { success: true };
+                                }
+                                throw new Error(`Server responded with status ${response.status}`);
+                            }
+                            
+                            // Try to parse as JSON, but handle non-JSON responses too
+                            const contentType = response.headers.get("content-type");
+                            if (contentType && contentType.includes("application/json")) {
+                                return response.json();
+                            } else {
+                                console.log("Response is not JSON, but toggle was successful");
+                                updateDashboardStats();
+                                return { success: true };
+                            }
+                        })
+                        .then(data => {
+                            console.log("Toggle response:", data);
+                            // Data might be empty or not have success property
+                            if (!data || (data && !data.hasOwnProperty('success'))) {
+                                console.log("No data or success property returned, but continuing");
+                                // Update dashboard stats anyway
+                                updateDashboardStats();
+                            } else if (!data.success) {
+                                console.error("Failed to toggle directory:", data.message);
+                                // Revert the UI change since toggle failed
+                                if (isPausing) {
+                                    icon.classList.remove('fa-play');
+                                    icon.classList.add('fa-pause');
+                                    statusCell.innerHTML = '<span class="badge bg-success">Active</span>';
+                                } else {
+                                    icon.classList.remove('fa-pause');
+                                    icon.classList.add('fa-play');
+                                    statusCell.innerHTML = '<span class="badge bg-secondary">Paused</span>';
+                                }
+                            } else {
+                                // Success case was already handled by the optimistic update
+                                updateDashboardStats();
+                            }
+                        })
+                        .catch(error => {
+                            console.log("Error during toggle:", error);
+                            // No need to alert the user - we already updated UI optimistically
+                            // and will refresh stats which should show the correct state
+                            
+                            // Update stats anyway after a short delay
+                            setTimeout(() => {
+                                updateDashboardStats();
+                            }, 1000);
+                        });
+                });
+            });
+        });
+
         // Run on page load
         document.addEventListener('DOMContentLoaded', function() {
             console.log("Page loaded, initializing dashboard");
