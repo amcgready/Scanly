@@ -206,6 +206,9 @@
                     <!-- System Status Section -->
                     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                         <span>System Status</span>
+                        <a class="link-secondary" href="/activity" aria-label="View activity monitor">
+                            <i class="fas fa-chart-line"></i>
+                        </a>
                     </h6>
                     <ul class="nav flex-column mb-4">
                         <li class="nav-item d-flex align-items-center px-3 py-2">
@@ -215,59 +218,6 @@
                         <li class="nav-item d-flex align-items-center px-3 py-2">
                             <span class="status-indicator status-active" id="plexStatusIndicator"></span>
                             <span id="plexStatusText">Plex: Connected</span>
-                        </li>
-                    </ul>
-                    
-                    <!-- System Resources Section -->
-                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                        <span>System Resources</span>
-                    </h6>
-                    <ul class="nav flex-column mb-2">
-                        <li class="nav-item px-3">
-                            <div class="mb-2">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>CPU Usage</span>
-                                    <span data-status="cpu">0%</span>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar bg-primary" role="progressbar" 
-                                         style="width: 0%" 
-                                         aria-valuenow="0" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100"
-                                         data-progress="cpu"></div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-2">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Memory Usage</span>
-                                    <span data-status="memory">0%</span>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar bg-primary" role="progressbar" 
-                                         style="width: 0%" 
-                                         aria-valuenow="0" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100"
-                                         data-progress="memory"></div>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Disk Usage</span>
-                                    <span data-status="disk">0%</span>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar bg-primary" role="progressbar" 
-                                         style="width: 0%" 
-                                         aria-valuenow="0" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100"
-                                         data-progress="disk"></div>
-                                </div>
-                            </div>
                         </li>
                     </ul>
                 </div>
@@ -736,26 +686,7 @@
                     .then(data => {
                         // Update system resources
                         if (data.system_status) {
-                            // CPU usage
-                            const cpuUsage = data.system_status.cpu_usage;
-                            document.querySelector('[data-status="cpu"]').textContent = `${cpuUsage}%`;
-                            const cpuProgress = document.querySelector('[data-progress="cpu"]');
-                            cpuProgress.style.width = `${cpuUsage}%`;
-                            cpuProgress.setAttribute('aria-valuenow', cpuUsage);
-                            
-                            // Memory usage
-                            const memUsage = data.system_status.memory_usage;
-                            document.querySelector('[data-status="memory"]').textContent = `${memUsage}%`;
-                            const memProgress = document.querySelector('[data-progress="memory"]');
-                            memProgress.style.width = `${memUsage}%`;
-                            memProgress.setAttribute('aria-valuenow', memUsage);
-                            
-                            // Disk usage
-                            const diskUsage = data.system_status.disk_usage;
-                            document.querySelector('[data-status="disk"]').textContent = `${diskUsage}%`;
-                            const diskProgress = document.querySelector('[data-progress="disk"]');
-                            diskProgress.style.width = `${diskUsage}%`;
-                            diskProgress.setAttribute('aria-valuenow', diskUsage);
+                            // Remove CPU, Memory, and Disk usage updates
                             
                             // Monitoring status
                             const monitoringActive = data.system_status.monitoring_active;
