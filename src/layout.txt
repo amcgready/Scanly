@@ -1,0 +1,13 @@
+Going to the individual scan page automatically starts option 1 "Individual Scan" in main.py
+User enters path of the directory to scan in WebUI. This is then directly passed to main.py.
+CLI will load a new menu showing the processing subfolder, progress, folder path, number of contained media files, detected title, detected year, and detected content type
+CLI also provides the following options 'Accept detection and process','Search with new title', 'Change content type' and 'Skip this item for later review'
+All of the CLI menu text and menu options should be shown in the WebUI
+The WebUI should also include a poster of the relevant media file (we can get this from TMDB. The TMDB api key is stored in our .env)
+If a user presses the button to Accept, then option 1 is selected in main.py
+If a user presses the button to Skip, then option 4 is selected in main.py
+If a user selects the dropdown box on the content type, (we should press option 3 in main.py in the background). If the user selects 'Movie' in webui we choose option 1. If the user selects TV Series we select option 2, if the user selects Anime Movie we select option 3, if the user selects Anime Series then we choose option 4.
+If a user clicks on the search bar, we select option 2 in main.py. The search term typed in is then fed to main.py
+If the user accepted, then main.py moves forward to the next subfolder. The webUI should reflect this. 
+
+@workspace /fix The individual scan page should have the same theme and structure as index.html including the monitoring status and plex status that are on the left hand side. Also, we should not ask the user the content type before the scan starts. The process should be like how it is laid out in this text file. 

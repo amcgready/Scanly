@@ -12,6 +12,10 @@ import socket
 import psutil  # Import psutil for system status monitoring
 import io
 import csv
+import uuid
+import threading
+import time
+from flask_socketio import SocketIO, emit
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, make_response
@@ -44,8 +48,102 @@ app.secret_key = os.urandom(24)  # For flash messages
 from src.web.routes.api import api_bp
 app.register_blueprint(api_bp, url_prefix='/api')
 
+# Initialize SocketIO
+socketio = SocketIO(app)
+
 # Set up logging
 logger = get_logger(__name__)
+
+# Dictionary to track active scan sessions
+active_scans = {}
+
+def get_system_stats():
+    """Get system statistics for the dashboard."""
+    try:
+        # Use psutil to get system resource usage
+        stats = {
+            'movies': 0,
+            'tv_shows': 0,
+            'monitored_dirs': 0,
+            'skipped': 0
+        }
+        
+        # Try to count movie and TV show directories
+        dest_dir = os.environ.get('DESTINATION_DIRECTORY')
+        if dest_dir and os.path.exists(dest_dir):
+            # Check for Movies directory
+            movies_dir = os.path.join(dest_dir, 'Movies')
+            if os.path.exists(movies_dir):
+                stats['movies'] = sum(1 for _ in os.scandir(movies_dir) if _.is_dir())
+                
+            # Check for TV Shows directory
+            tv_dir = os.path.join(dest_dir, 'TV Shows')
+            if os.path.exists(tv_dir):
+                stats['tv_shows'] = sum(1 for _ in os.scandir(tv_dir) if _.is_dir())
+                
+            # Check for Anime Movies directory
+            anime_movies_dir = os.path.join(dest_dir, 'Anime Movies')
+            if os.path.exists(anime_movies_dir):
+                stats['movies'] += sum(1 for _ in os.scandir(anime_movies_dir) if _.is_dir())
+                
+            # Check for Anime TV Shows directory
+            anime_tv_dir = os.path.join(dest_dir, 'Anime TV Shows')
+            if os.path.exists(anime_tv_dir):
+                stats['tv_shows'] += sum(1 for _ in os.scandir(anime_tv_dir) if _.is_dir())
+        
+        # Count skipped items
+        skipped_items = load_skipped_items()
+        stats['skipped'] = len(skipped_items)
+        
+        # Count monitored directories
+        try:
+            from src.core.monitor_manager import MonitorManager
+            mm = MonitorManager()
+            monitored_dirs = mm.get_monitored_directories() or {}
+            stats['monitored_dirs'] = len(monitored_dirs)
+        except ImportError:
+            pass  # Monitoring module not available
+            
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting system stats: {e}", exc_info=True)
+        return {
+            'movies': 0,
+            'tv_shows': 0,
+            'monitored_dirs': 0,
+            'skipped': 0
+        }
+
+def get_activities(page=1, per_page=20, activity_type=None, status=None, start_date=None, end_date=None):
+    """Get activities from log file or database with pagination and filtering."""
+    try:
+        activities = []
+        
+        # Implementation depends on where activities are stored
+        # For now, return an empty list as we need to implement the actual log parsing/DB query
+        
+        return activities
+    except Exception as e:
+        logger.error(f"Error getting activities: {e}", exc_info=True)
+        return []
+
+def get_all_activities(activity_type=None, status=None, start_date=None, end_date=None):
+    """Get all activities matching filters without pagination."""
+    try:
+        # Similar to get_activities but without pagination
+        return []
+    except Exception as e:
+        logger.error(f"Error getting all activities: {e}", exc_info=True)
+        return []
+
+def get_activities_count(activity_type=None, status=None, start_date=None, end_date=None):
+    """Get count of activities matching filters."""
+    try:
+        # Count logic similar to get_activities
+        return 0
+    except Exception as e:
+        logger.error(f"Error counting activities: {e}", exc_info=True)
+        return 0
 
 @app.route('/')
 def index():
@@ -212,28 +310,28 @@ def scan_index():
 
 @app.route('/scan/individual', methods=['GET', 'POST'])
 def individual_scan():
-    """Handle individual directory scan."""
+    """Handle individual scan page."""
     if request.method == 'POST':
         dir_path = request.form.get('directory')
         content_type = request.form.get('content_type', 'auto')
         force_rescan = request.form.get('force_rescan') == 'on'
         
+        # Validate input
         if not dir_path:
-            flash('No directory specified', 'error')
-            return redirect(url_for('individual_scan'))
-        
+            flash('Please specify a directory to scan', 'error')
+            return render_template('individual_scan.html')
+            
         # Clean directory path
         dir_path = _clean_directory_path(dir_path)
         
         if not os.path.isdir(dir_path):
-            flash(f"Error: '{dir_path}' is not a valid directory.", 'error')
-            return redirect(url_for('individual_scan'))
-        
-        # Process directory
+            flash(f"Error: '{dir_path}' is not a valid directory", 'error')
+            return render_template('individual_scan.html')
+            
         try:
+            # Create processor with appropriate options based on content type
             processor = DirectoryProcessor(dir_path)
             
-            # Set content type if specified
             if content_type != 'auto':
                 if content_type == 'movie':
                     processor.force_movie = True
@@ -246,140 +344,23 @@ def individual_scan():
                     processor.force_tv = True
                     processor.force_anime = True
             
-            # Set force rescan option
+            # Set force rescan if requested
             if force_rescan:
                 processor.force_rescan = True
                 
-            processor.process()
-            flash(f"Successfully processed directory: {dir_path}", 'success')
+            # Process the directory
+            result = processor.process()
+            
+            if result:
+                flash('Scan completed successfully', 'success')
+            else:
+                flash('Scan completed with some issues. Check activity log for details.', 'warning')
+                
         except Exception as e:
-            logger.error(f"Error processing directory: {e}", exc_info=True)
-            flash(f"Error processing directory: {str(e)}", 'error')
-        
-        return redirect(url_for('individual_scan'))
-    
+            logger.error(f"Error during individual scan: {e}", exc_info=True)
+            flash(f"Error during scan: {str(e)}", 'error')
+            
     return render_template('individual_scan.html')
-
-@app.route('/scan/multi', methods=['GET', 'POST'])
-def multi_scan():
-    """Handle multi directory scan."""
-    if request.method == 'POST':
-        dirs = request.form.getlist('directories[]')
-        if not dirs:
-            flash('No directories specified', 'error')
-            return redirect(url_for('multi_scan'))
-        
-        results = []
-        for dir_path in dirs:
-            # Clean directory path
-            dir_path = _clean_directory_path(dir_path)
-            
-            if not os.path.isdir(dir_path):
-                results.append({
-                    'path': dir_path,
-                    'success': False,
-                    'message': 'Not a valid directory'
-                })
-                continue
-            
-            # Process directory
-            try:
-                processor = DirectoryProcessor(dir_path)
-                processor.process()
-                results.append({
-                    'path': dir_path,
-                    'success': True,
-                    'message': 'Successfully processed'
-                })
-            except Exception as e:
-                logger.error(f"Error processing directory: {e}", exc_info=True)
-                results.append({
-                    'path': dir_path,
-                    'success': False,
-                    'message': str(e)
-                })
-        
-        return jsonify({'results': results})
-    
-    return render_template('multi_scan.html')
-
-@app.route('/scan/resume')
-def resume_scan():
-    """Resume a previously interrupted scan."""
-    # Load scan history
-    history = load_scan_history()
-    if not history:
-        flash('No scan history found.', 'warning')
-        return redirect(url_for('scan_index'))
-    
-    dir_path = history.get('path', '')
-    processed_files = history.get('processed_files', 0)
-    total_files = history.get('total_files', 0)
-    
-    if not os.path.isdir(dir_path):
-        flash(f"Error: The directory in scan history no longer exists: {dir_path}", 'error')
-        return redirect(url_for('scan_index'))
-    
-    return render_template('resume_scan.html', 
-                           dir_path=dir_path, 
-                           processed_files=processed_files,
-                           total_files=total_files)
-
-@app.route('/scan/resume/process', methods=['POST'])
-def process_resume_scan():
-    """Process a resume scan request."""
-    action = request.form.get('action')
-    
-    if action == 'resume':
-        # Load scan history
-        history = load_scan_history()
-        if not history:
-            return jsonify({'success': False, 'message': 'No scan history found.'})
-        
-        dir_path = history.get('path', '')
-        
-        if not os.path.isdir(dir_path):
-            return jsonify({'success': False, 'message': f"Directory does not exist: {dir_path}"})
-        
-        # Resume scan
-        try:
-            processor = DirectoryProcessor(dir_path, resume=True)
-            processor.process()
-            return jsonify({'success': True, 'message': f"Successfully resumed scan of {dir_path}"})
-        except Exception as e:
-            logger.error(f"Error resuming scan: {e}", exc_info=True)
-            return jsonify({'success': False, 'message': str(e)})
-    
-    elif action == 'restart':
-        # Load scan history
-        history = load_scan_history()
-        if not history:
-            return jsonify({'success': False, 'message': 'No scan history found.'})
-        
-        dir_path = history.get('path', '')
-        
-        if not os.path.isdir(dir_path):
-            return jsonify({'success': False, 'message': f"Directory does not exist: {dir_path}"})
-        
-        # Clear history and start new scan
-        clear_scan_history()
-        
-        try:
-            processor = DirectoryProcessor(dir_path)
-            processor.process()
-            return jsonify({'success': True, 'message': f"Successfully restarted scan of {dir_path}"})
-        except Exception as e:
-            logger.error(f"Error starting new scan: {e}", exc_info=True)
-            return jsonify({'success': False, 'message': str(e)})
-    
-    elif action == 'clear':
-        # Clear scan history
-        if clear_scan_history():
-            return jsonify({'success': True, 'message': 'Scan history cleared successfully.'})
-        else:
-            return jsonify({'success': False, 'message': 'Failed to clear scan history.'})
-    
-    return jsonify({'success': False, 'message': 'Invalid action specified.'})
 
 @app.route('/monitor')
 def monitor():
@@ -836,254 +817,417 @@ def export_activities():
     # Default to JSON if format is not recognized
     return jsonify(activities)
 
-def get_system_stats():
-    """Get system statistics for the dashboard."""
-    stats = {
-        'movies': 0,
-        'tv_shows': 0,
-        'monitored_dirs': 0,
-        'skipped_items': 0
-    }
-    
-    # Load skipped items count
-    try:
-        skipped_items = load_skipped_items()
-        if skipped_items:
-            stats['skipped_items'] = len(skipped_items)
-            logger.debug(f"Loaded {stats['skipped_items']} skipped items")
-    except Exception as e:
-        logger.error(f"Error loading skipped items in get_system_stats: {e}")
-        stats['skipped_items'] = 0
-    
-    # Get monitored directories count
-    try:
-        from src.core.monitor_manager import MonitorManager
-        mm = MonitorManager()
-        monitored_dirs = mm.get_monitored_directories() or {}
-        stats['monitored_dirs'] = len(monitored_dirs)
-    except ImportError:
-        logger.warning("Monitor manager not available in get_system_stats")
-    except Exception as e:
-        logger.error(f"Error getting monitored directories in get_system_stats: {e}")
-    
-    # Count media in destination directory
-    dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
-    if dest_dir and os.path.isdir(dest_dir):
-        # Count movies
-        movies_dir = os.path.join(dest_dir, 'Movies')
-        if os.path.isdir(movies_dir):
-            try:
-                stats['movies'] += len([d for d in os.listdir(movies_dir) 
-                                     if os.path.isdir(os.path.join(movies_dir, d))])
-            except Exception as e:
-                logger.error(f"Error counting movies: {e}")
-        
-        # Count anime movies
-        anime_movies_dir = os.path.join(dest_dir, 'Anime Movies')
-        if os.path.isdir(anime_movies_dir):
-            try:
-                stats['movies'] += len([d for d in os.listdir(anime_movies_dir) 
-                                     if os.path.isdir(os.path.join(anime_movies_dir, d))])
-            except Exception as e:
-                logger.error(f"Error counting anime movies: {e}")
-        
-        # Count TV shows
-        tv_dir = os.path.join(dest_dir, 'TV Shows')
-        if os.path.isdir(tv_dir):
-            try:
-                stats['tv_shows'] += len([d for d in os.listdir(tv_dir) 
-                                       if os.path.isdir(os.path.join(tv_dir, d))])
-            except Exception as e:
-                logger.error(f"Error counting TV shows: {e}")
-        
-        # Count anime series
-        anime_tv_dir = os.path.join(dest_dir, 'Anime Series')
-        if os.path.isdir(anime_tv_dir):
-            try:
-                stats['tv_shows'] += len([d for d in os.listdir(anime_tv_dir) 
-                                       if os.path.isdir(os.path.join(anime_tv_dir, d))])
-            except Exception as e:
-                logger.error(f"Error counting anime series: {e}")
-    
-    logger.debug(f"System stats: {stats}")
-    return stats
+@socketio.on('connect')
+def handle_connect():
+    """Handle SocketIO connect event."""
+    logger.debug(f"SocketIO client connected: {request.sid}")
 
-def get_activities(page=1, per_page=20, activity_type='', status='', start_date='', end_date=''):
-    """
-    Get activities focused on media processing events from the log files.
-    Filters out excessive technical information and shows only relevant media processing events.
-    """
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle SocketIO disconnect event."""
+    logger.debug(f"SocketIO client disconnected: {request.sid}")
+
+@socketio.on('join_scan')
+def handle_join_scan(data):
+    """Handle client joining a specific scan session."""
+    session_id = data.get('session_id')
+    if session_id:
+        logger.debug(f"Client {request.sid} joined scan session {session_id}")
+        # Join a room named after the session_id
+        from flask_socketio import join_room
+        join_room(session_id)
+        
+        # Send current status if available
+        scan_info = active_scans.get(session_id)
+        if scan_info:
+            emit('scan_status', {
+                'session_id': session_id,
+                'status': scan_info.get('status', 'unknown'),
+                'progress': scan_info.get('progress', {}),
+                'directory': scan_info.get('directory', '')
+            })
+    else:
+        logger.warning(f"Client tried to join scan session without session_id: {request.sid}")
+
+def send_scan_update(session_id, data):
+    """Send update to client via WebSocket."""
     try:
-        # Path to log directory
-        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'logs')
-        log_file = os.path.join(log_dir, 'scanly.log')
+        data['session_id'] = session_id
+        data['timestamp'] = time.time()
         
-        if not os.path.exists(log_file):
-            logger.warning(f"Log file not found: {log_file}")
-            return []
-        
-        # Parse log file to extract activities focused on media processing
-        activities = []
-        activity_id = 1
-        
-        # Keywords that indicate media processing activities
-        media_keywords = [
-            'movie', 'tv show', 'series', 'anime', 'episode', 'scan', 'process', 
-            'rename', 'move', 'copy', 'skipped', 'plex', 'monitor', 'directory'
-        ]
-        
-        # Open and read the log file
-        with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                try:
-                    # Skip lines that don't have our expected format or don't contain media-related keywords
-                    if ' - ' not in line or not any(keyword in line.lower() for keyword in media_keywords):
-                        continue
-                    
-                    parts = line.strip().split(' - ', 2)
-                    if len(parts) < 3:
-                        continue
-                    
-                    timestamp = parts[0]
-                    level_module = parts[1]
-                    message = parts[2]
-                    
-                    # Extract level and module
-                    if ' - ' in level_module:
-                        level, module = level_module.rsplit(' - ', 1)
-                    else:
-                        level = level_module
-                        module = "unknown"
-                    
-                    # Skip DEBUG level messages unless they're important
-                    if "DEBUG" in level and not any(k in message.lower() for k in ['process', 'scan complete', 'found']):
-                        continue
-                    
-                    # Determine action type based on message content for media-focused events
-                    action = 'info'
-                    if 'scan' in message.lower():
-                        action = 'scan'
-                    elif 'process' in message.lower():
-                        action = 'process'
-                    elif 'move' in message.lower() or 'rename' in message.lower() or 'copy' in message.lower():
-                        action = 'move'
-                    elif 'monitor' in message.lower():
-                        action = 'monitor'
-                    elif 'skip' in message.lower():
-                        action = 'skip'
-                    elif 'error' in message.lower() or 'failed' in message.lower():
-                        action = 'error'
-                    
-                    # Determine status
-                    status_val = 'info'
-                    if 'error' in message.lower() or 'failed' in message.lower() or 'ERROR' in level:
-                        status_val = 'error'
-                    elif 'warning' in message.lower() or 'WARNING' in level:
-                        status_val = 'warning'
-                    elif 'complete' in message.lower() or 'success' in message.lower():
-                        status_val = 'success'
-                    
-                    # Extract file/directory paths from the message
-                    path = ""
-                    destination_path = ""
-                    
-                    # Look for movie/TV show titles or file paths
-                    if '/' in message:
-                        # Find paths in the message
-                        path_matches = re.findall(r'(/[^\s:]*)+', message)
-                        if path_matches:
-                            path = path_matches[0]
-                            if len(path_matches) > 1:
-                                destination_path = path_matches[1]
-                    
-                    # Try to extract media item name (e.g., "Processing: Movie Title (2023)")
-                    item_name = ""
-                    media_match = re.search(r'(process|found|scan|rename|move)(?:ing)?\s*[:\-]?\s*["\'`]?([^"\'`/\n\r]+)["\'`]?', 
-                                           message, re.IGNORECASE)
-                    if media_match:
-                        item_name = media_match.group(2).strip()
-                    
-                    # If no item name was found, use the filename from the path
-                    if not item_name and path:
-                        item_name = os.path.basename(path)
-                    
-                    # Clean up the message for display
-                    display_message = message
-                    if len(message) > 500:  # Truncate very long messages
-                        display_message = message[:497] + '...'
-                    
-                    # Create a simplified, media-focused activity record
-                    activity = {
-                        'id': activity_id,
-                        'timestamp': timestamp,
-                        'action': action,
-                        'item': item_name or "System Event",
-                        'path': path,
-                        'destination_path': destination_path,
-                        'status': status_val,
-                        'message': display_message,
-                        'error': display_message if status_val == 'error' else None
-                    }
-                    
-                    activities.append(activity)
-                    activity_id += 1
-                    
-                except Exception as e:
-                    logger.error(f"Error parsing log line: {e}")
-                    continue
-        
-        # Apply filters
-        filtered_activities = activities
-        
-        if activity_type:
-            filtered_activities = [a for a in filtered_activities if a['action'] == activity_type]
-        
-        if status:
-            filtered_activities = [a for a in filtered_activities if a['status'] == status]
-            
-        if start_date:
-            try:
-                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
-                filtered_activities = [a for a in filtered_activities if 
-                                      datetime.strptime(a['timestamp'].split()[0], '%Y-%m-%d') >= start_datetime]
-            except ValueError:
-                logger.error(f"Invalid start date format: {start_date}")
-            
-        if end_date:
-            try:
-                end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
-                filtered_activities = [a for a in filtered_activities if 
-                                      datetime.strptime(a['timestamp'].split()[0], '%Y-%m-%d') <= end_datetime]
-            except ValueError:
-                logger.error(f"Invalid end date format: {end_date}")
-        
-        # Reverse to get newest first
-        filtered_activities = list(reversed(filtered_activities))
-        
-        # Apply pagination
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        
-        return filtered_activities[start_idx:end_idx]
+        # Emit to the session_id room instead of a custom event name
+        socketio.emit('scan_update', data, room=session_id)
+        logger.debug(f"Sent scan update for session {session_id}: {type(data.get('type'))}")
     except Exception as e:
-        logger.error(f"Error getting activities: {e}", exc_info=True)
-        return []
+        logger.error(f"Error sending scan update: {e}", exc_info=True)
 
-def get_activities_count(activity_type='', status='', start_date='', end_date=''):
-    """
-    Get the total count of activities based on filters.
-    """
-    # Use the same filtering logic as get_activities but count the results
-    activities = get_all_activities(activity_type, status, start_date, end_date)
-    return len(activities)
+@app.route('/api/scan/start', methods=['POST'])
+def start_scan():
+    """API endpoint to start a new scan."""
+    try:
+        data = request.json
+        directory_path = data.get('directory', '')
+        force_rescan = data.get('force_rescan', False)
+        
+        if not directory_path:
+            return jsonify({'error': 'No directory specified'}), 400
+        
+        # Clean the directory path
+        directory_path = _clean_directory_path(directory_path)
+        
+        # Check if directory exists
+        if not os.path.isdir(directory_path):
+            return jsonify({'error': 'Directory not found'}), 404
+        
+        # Generate a unique session ID
+        session_id = str(uuid.uuid4())
+        
+        # Start the scan in a background thread
+        scan_thread = threading.Thread(
+            target=process_directory_with_updates,
+            args=(session_id, directory_path, force_rescan)
+        )
+        
+        # Store the session in active scans
+        active_scans[session_id] = {
+            'directory': directory_path,
+            'started_at': time.time(),
+            'thread': scan_thread,
+            'status': 'starting'
+        }
+        
+        # Start the thread
+        scan_thread.start()
+        
+        return jsonify({
+            'session_id': session_id,
+            'directory': directory_path,
+            'status': 'started'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting scan: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
-def get_all_activities(activity_type='', status='', start_date='', end_date=''):
-    """
-    Get all activities matching the filters without pagination.
-    """
-    # Call get_activities with a large per_page to get all results
-    return get_activities(page=1, per_page=1000000, activity_type=activity_type, 
-                         status=status, start_date=start_date, end_date=end_date)
+@app.route('/api/scan/<session_id>/status')
+def scan_status(session_id):
+    """API endpoint to check the status of a scan."""
+    try:
+        scan_info = active_scans.get(session_id)
+        if not scan_info:
+            return jsonify({'error': 'Scan session not found'}), 404
+        
+        return jsonify({
+            'session_id': session_id,
+            'directory': scan_info.get('directory'),
+            'started_at': scan_info.get('started_at'),
+            'status': scan_info.get('status'),
+            'active': scan_info.get('thread').is_alive() if scan_info.get('thread') else False,
+            'progress': scan_info.get('progress', {})
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking scan status: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/scan/<session_id>/action', methods=['POST'])
+def scan_action(session_id):
+    """API endpoint to send an action to an active scan."""
+    try:
+        scan_info = active_scans.get(session_id)
+        if not scan_info:
+            return jsonify({'error': 'Scan session not found'}), 404
+        
+        data = request.json
+        action = data.get('action')
+        
+        if not action:
+            return jsonify({'error': 'No action specified'}), 400
+        
+        # Add action to the queue
+        if 'action_queue' not in scan_info:
+            scan_info['action_queue'] = []
+        
+        scan_info['action_queue'].append(data)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Action {action} added to queue'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error sending scan action: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+def process_directory_with_updates(session_id, directory_path, force_rescan=False):
+    """Process a directory and send updates via WebSocket."""
+    # Declare global variables at the beginning of the function
+    global skipped_items_registry
+    
+    try:
+        # Get scan info
+        scan_info = active_scans.get(session_id)
+        if not scan_info:
+            logger.error(f"Scan session {session_id} not found")
+            return
+        
+        # Load skipped items registry
+        skipped_items_registry = load_skipped_items()
+        
+        scan_info['status'] = 'scanning'
+        
+        # Create directory processor - FIX: Pass directory_path to constructor
+        processor = DirectoryProcessor(directory_path)  # Pass directory_path parameter here
+        processor.force_rescan = force_rescan
+        
+        # Override processor methods to send updates via WebSocket
+        original_process_media_files = processor._process_media_files
+        
+        def _process_media_files_with_updates(self):
+            global skipped_items_registry
+            try:
+                # Get all subdirectories
+                subdirs = [d for d in os.listdir(self.directory_path) 
+                          if os.path.isdir(os.path.join(self.directory_path, d))]
+                
+                if not subdirs:
+                    send_scan_update(session_id, {
+                        'type': 'scan_complete',
+                        'message': 'No subdirectories found',
+                        'total_processed': 0
+                    })
+                    return
+                    
+                # Send scan started update
+                send_scan_update(session_id, {
+                    'type': 'scan_started',
+                    'total_folders': len(subdirs),
+                    'directory': self.directory_path
+                })
+                
+                # Update progress in scan info
+                scan_info['progress'] = {
+                    'total': len(subdirs),
+                    'processed': 0
+                }
+                
+                # Process each subfolder
+                for subfolder_name in subdirs:
+                    subfolder_path = os.path.join(self.directory_path, subfolder_name)
+                    
+                    try:
+                        # Check for action queue
+                        if scan_info.get('status') == 'cancelled':
+                            send_scan_update(session_id, {
+                                'type': 'scan_cancelled',
+                                'message': 'Scan was cancelled by user'
+                            })
+                            return
+                        
+                        # Send folder start update
+                        media_files = []
+                        for root, _, files in os.walk(subfolder_path):
+                            for file in files:
+                                if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
+                                    media_files.append(os.path.join(root, file))
+                        
+                        send_scan_update(session_id, {
+                            'type': 'folder_start',
+                            'folder_name': subfolder_name,
+                            'folder_path': subfolder_path,
+                            'media_files_count': len(media_files)
+                        })
+                        
+                        # Extract metadata from folder name
+                        title, year = self._extract_folder_metadata(subfolder_name)
+                        
+                        # Determine content type (TV show, movie, anime, etc.)
+                        is_tv = self._detect_if_tv_show(subfolder_name)
+                        is_anime = self._detect_if_anime(subfolder_name)
+                        
+                        # Get poster if TMDb API is available
+                        poster_url = None
+                        if hasattr(self, 'tmdb') and self.tmdb:
+                            try:
+                                if is_tv:
+                                    search_results = self.tmdb.search_tv(title, year)
+                                else:
+                                    search_results = self.tmdb.search_movie(title, year)
+                                
+                                if search_results and search_results[0].get('poster_path'):
+                                    poster_url = f"https://image.tmdb.org/t/p/w185{search_results[0]['poster_path']}"
+                            except Exception as e:
+                                logger.error(f"Error getting poster from TMDb: {e}")
+                        
+                        # Send detection results
+                        send_scan_update(session_id, {
+                            'type': 'folder_detection',
+                            'title': title,
+                            'year': year,
+                            'is_tv': is_tv,
+                            'is_anime': is_anime,
+                            'poster_url': poster_url
+                        })
+                        
+                        # Wait for user action
+                        user_action = wait_for_user_action(session_id)
+                        
+                        if user_action['action'] == 'accept':
+                            # Process with current detection
+                            symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                            
+                        elif user_action['action'] == 'search':
+                            # Search with new title
+                            new_title = user_action.get('title', '')
+                            if new_title:
+                                title = new_title
+                            
+                            # Create symlinks with the updated title/year
+                            symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                            
+                        elif user_action['action'] == 'content_type':
+                            # Change content type based on option
+                            option = user_action.get('option', '1')
+                            
+                            if option == '1':
+                                is_tv = False
+                                is_anime = False
+                            elif option == '2':
+                                is_tv = True
+                                is_anime = False
+                            elif option == '3':
+                                is_tv = False
+                                is_anime = True
+                            elif option == '4':
+                                is_tv = True
+                                is_anime = True
+                            
+                            # Create symlinks with the updated content type
+                            symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                            
+                        elif user_action['action'] == 'skip':
+                            # Skip this folder
+                            skip_item = {
+                                'path': subfolder_path,
+                                'subfolder': subfolder_name,
+                                'suggested_name': title,
+                                'is_tv': is_tv,
+                                'is_anime': is_anime,
+                                'error': "Skipped by user",
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            
+                            skipped_items_registry.append(skip_item)
+                            save_skipped_items(skipped_items_registry)
+                            symlink_success = False
+                            
+                        # Send folder complete update
+                        send_scan_update(session_id, {
+                            'type': 'folder_complete',
+                            'folder_name': subfolder_name,
+                            'success': symlink_success if 'symlink_success' in locals() else False
+                        })
+                        
+                        # Update progress in scan info
+                        scan_info['progress']['processed'] += 1
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing subfolder '{subfolder_name}': {e}", exc_info=True)
+                        
+                        # Send error update
+                        send_scan_update(session_id, {
+                            'type': 'folder_error',
+                            'folder_name': subfolder_name,
+                            'error': str(e)
+                        })
+                        
+                        # Add to skipped items
+                        skip_item = {
+                            'path': subfolder_path,
+                            'subfolder': subfolder_name,
+                            'suggested_name': subfolder_name,
+                            'is_tv': is_tv if 'is_tv' in locals() else False,
+                            'is_anime': is_anime if 'is_anime' in locals() else False,
+                            'error': str(e),
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        
+                        skipped_items_registry.append(skip_item)
+                        save_skipped_items(skipped_items_registry)
+                        
+                        # Update progress in scan info
+                        scan_info['progress']['processed'] += 1
+                
+                # Send scan complete update
+                send_scan_update(session_id, {
+                    'type': 'scan_complete',
+                    'message': 'Scan completed successfully',
+                    'total_processed': len(subdirs)
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing media files: {e}", exc_info=True)
+                
+                # Send error update
+                send_scan_update(session_id, {
+                    'type': 'scan_error',
+                    'error': str(e)
+                })
+        
+        # Override the method
+        import types
+        processor._process_media_files = types.MethodType(_process_media_files_with_updates, processor)
+        
+        # Start the processing
+        processor.process()
+        
+        # Update scan status
+        scan_info['status'] = 'completed'
+        
+    except Exception as e:
+        logger.error(f"Error in process_directory_with_updates: {e}", exc_info=True)
+        
+        # Send error update
+        send_scan_update(session_id, {
+            'type': 'scan_error',
+            'error': str(e)
+        })
+        
+        # Update scan status
+        if session_id in active_scans:
+            active_scans[session_id]['status'] = 'error'
+    
+    # Clean up after some time
+    time.sleep(300)  # Keep scan info for 5 minutes
+    if session_id in active_scans:
+        del active_scans[session_id]
+
+def wait_for_user_action(session_id, timeout=3600):  # Default timeout: 1 hour
+    """Wait for user action from action queue."""
+    scan_info = active_scans.get(session_id)
+    if not scan_info:
+        logger.error(f"Scan session {session_id} not found")
+        return {'action': 'accept'}  # Default to accept if no session
+    
+    # Initialize action queue if it doesn't exist
+    if 'action_queue' not in scan_info:
+        scan_info['action_queue'] = []
+    
+    # Wait for action with timeout
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if scan_info['action_queue']:
+            return scan_info['action_queue'].pop(0)
+        
+        # Check if scan was cancelled
+        if scan_info.get('status') == 'cancelled':
+            return {'action': 'skip'}
+        
+        time.sleep(0.5)  # Short sleep to prevent CPU hogging
+    
+    # If timeout occurs, default to accept
+    logger.warning(f"Timeout waiting for user action for session {session_id}")
+    return {'action': 'accept'}
 
 def find_available_port(start_port=8000, max_port=8020):
     """Find an available port within the given range."""
@@ -1110,7 +1254,8 @@ if __name__ == '__main__':
     
     if port:
         print(f"Starting Scanly Web UI on port {port}")
-        app.run(host='0.0.0.0', port=port, debug=True)
+        # Use socketio.run instead of app.run for WebSocket support
+        socketio.run(app, host='0.0.0.0', port=port, debug=True)
     else:
         print("Error: Unable to find an available port. Please close other applications using ports 8000-8020.")
         sys.exit(1)

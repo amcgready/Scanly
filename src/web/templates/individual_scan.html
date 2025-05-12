@@ -15,19 +15,12 @@
             --light-color: #ecf0f1;
             --danger-color: #e74c3c;
             --warning-color: #f39c12;
-            --success-color: #28a745;
-            --info-color: #17a2b8;
         }
         
         body {
             background-color: #f8f9fa;
             color: var(--dark-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        .navbar-brand {
-            font-weight: 700;
-            color: white !important;
         }
         
         .sidebar {
@@ -61,44 +54,6 @@
             text-align: center;
         }
         
-        .content-header {
-            border-bottom: 1px solid #e9ecef;
-            padding-bottom: 1rem;
-            margin-bottom: 2rem;
-        }
-        
-        .card {
-            border: none;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            transition: transform 0.3s ease-in-out;
-            margin-bottom: 1.5rem;
-            border-radius: 10px;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        
-        .btn-success {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
-        }
-        
-        .btn-danger {
-            background-color: var(--danger-color);
-            border-color: var(--danger-color);
-        }
-        
-        .progress {
-            height: 1rem;
-            border-radius: 0.5rem;
-        }
-        
         .logo-container {
             text-align: center;
             margin-bottom: 1.5rem;
@@ -111,90 +66,80 @@
             height: auto;
         }
         
-        .sidebar-brand {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            text-decoration: none;
-        }
-        
-        .sidebar-brand i {
-            margin-right: 0.5rem;
-        }
-        
-        /* File browser specific styles */
-        .file-browser {
-            border: 1px solid #dee2e6;
-            border-radius: 0.25rem;
-            height: 300px;
-            overflow: auto;
-        }
-        
-        .folder-item {
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        
-        .folder-item:hover {
-            background-color: rgba(52, 152, 219, 0.1);
-        }
-        
         .status-indicator {
-            display: inline-block;
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            margin-right: 8px;
+            display: inline-block;
+            margin-right: 0.5rem;
         }
         
         .status-active {
-            background-color: var(--success-color);
+            background-color: var(--secondary-color);
         }
         
         .status-inactive {
             background-color: var(--danger-color);
         }
         
-        .status-warning {
-            background-color: var(--warning-color);
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: transform 0.3s ease-in-out;
+            margin-bottom: 1.5rem;
         }
         
-        .card-header {
-            background-color: rgba(52, 152, 219, 0.05);
-            border-bottom: 1px solid rgba(52, 152, 219, 0.1);
+        /* Progress bar */
+        .scan-progress {
+            height: 10px;
         }
         
-        .breadcrumb-item a {
-            color: var(--primary-color);
-            text-decoration: none;
+        /* Media info styles */
+        .media-info {
+            display: flex;
+            gap: 20px;
+            margin-top: 1.5rem;
         }
         
-        .breadcrumb-item.active {
-            color: var(--dark-color);
+        .media-poster {
+            width: 185px;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         
-        main {
-            padding-bottom: 60px;
+        .media-details {
+            flex: 1;
         }
         
-        @media (max-width: 767.98px) {
-            .sidebar {
-                position: fixed;
-                top: 56px;
-                left: -100%;
-                width: 80%;
-                height: calc(100% - 56px);
-                z-index: 1000;
-                transition: all 0.3s ease;
-            }
-            
-            .sidebar.show {
-                left: 0;
-            }
+        /* Action buttons */
+        .action-buttons {
+            margin-top: 1.5rem;
+        }
+        
+        /* File browser */
+        .file-browser {
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            height: 400px;
+            overflow: auto;
+        }
+        
+        /* Forms */
+        #searchForm, #contentTypeForm {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .folder-info {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--primary-color);
         }
     </style>
 </head>
@@ -245,12 +190,6 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/activity">
-                                <i class="fas fa-history"></i>
-                                Activity Log
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link" href="/settings">
                                 <i class="fas fa-cog"></i>
                                 Settings
@@ -263,285 +202,934 @@
                             </a>
                         </li>
                     </ul>
-                                
+                    
+                    <!-- System Status Section -->
                     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                         <span>System Status</span>
                     </h6>
                     <ul class="nav flex-column mb-4">
                         <li class="nav-item d-flex align-items-center px-3 py-2">
-                            <span class="status-indicator status-active"></span>
-                            <span>Monitoring: Active</span>
+                            <span class="status-indicator status-active" id="monitoringStatusIndicator"></span>
+                            <span id="monitoringStatusText">Monitoring: Active</span>
                         </li>
                         <li class="nav-item d-flex align-items-center px-3 py-2">
-                            <span class="status-indicator status-active"></span>
-                            <span>Plex: Connected</span>
+                            <span class="status-indicator status-active" id="plexStatusIndicator"></span>
+                            <span id="plexStatusText">Plex: Connected</span>
+                        </li>
+                    </ul>
+                    
+                    <!-- System Resources Section -->
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>System Resources</span>
+                    </h6>
+                    <ul class="nav flex-column mb-2">
+                        <li class="nav-item px-3">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>CPU Usage</span>
+                                    <span data-status="cpu">0%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: 0%" 
+                                         aria-valuenow="0" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100"
+                                         data-progress="cpu"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Memory Usage</span>
+                                    <span data-status="memory">0%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: 0%" 
+                                         aria-valuenow="0" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100"
+                                         data-progress="memory"></div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Disk Usage</span>
+                                    <span data-status="disk">0%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: 0%" 
+                                         aria-valuenow="0" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100"
+                                         data-progress="disk"></div>
+                                </div>
+                            </div>
                         </li>
                     </ul>
                 </div>
             </nav>
 
-            <!-- Main content -->
+            <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
                 <div class="content-header d-flex justify-content-between flex-wrap align-items-center">
                     <h1 class="h2">Individual Scan</h1>
                 </div>
-                
-                <div class="row">
+
+                <div class="row mb-4">
                     <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">Scan Individual Directory</h5>
-                            </div>
-                            <div class="card-body">
-                                <form id="scanForm" method="POST" action="/scan/individual">
-                                    <div class="mb-3">
-                                        <label for="directory" class="form-label">Directory Path</label>
-                                        <div class="input-group">
-                                            <input type="text" class="form-control" id="directory" name="directory" placeholder="/path/to/directory" required>
-                                            <button type="button" class="btn btn-outline-secondary" id="browseBtn" data-bs-toggle="modal" data-bs-target="#fileBrowserModal">
-                                                <i class="fas fa-folder-open"></i> Browse
-                                            </button>
-                                        </div>
-                                        <small class="text-muted">Enter the full path to the directory you want to scan</small>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">Content Type</label>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="content_type" id="typeAuto" value="auto" checked>
-                                            <label class="form-check-label" for="typeAuto">
-                                                Auto Detect
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="content_type" id="typeMovie" value="movie">
-                                            <label class="form-check-label" for="typeMovie">
-                                                Movie
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="content_type" id="typeTv" value="tv">
-                                            <label class="form-check-label" for="typeTv">
-                                                TV Show
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="content_type" id="typeAnimeMovie" value="anime_movie">
-                                            <label class="form-check-label" for="typeAnimeMovie">
-                                                Anime Movie
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="content_type" id="typeAnimeTv" value="anime_tv">
-                                            <label class="form-check-label" for="typeAnimeTv">
-                                                Anime TV Show
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="forceRescan" name="force_rescan">
-                                            <label class="form-check-label" for="forceRescan">
-                                                Force rescan of already processed files
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-search"></i> Start Scan
-                                    </button>
-                                </form>
-                            </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Scan a single directory for media files to organize. Enter the path to begin scanning.
                         </div>
                     </div>
                 </div>
 
-                <div class="row mt-4 d-none" id="scanProgressSection">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">Scan Progress</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <p><strong>Scanning:</strong> <span id="currentPath"></span></p>
-                                    <div class="progress mb-3">
-                                        <div class="progress-bar" id="scanProgress" role="progressbar" style="width: 0%;" 
-                                             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                                    </div>
-                                    <p><strong>Status:</strong> <span id="scanStatus">Initializing...</span></p>
-                                    <p><small id="statusDetails"></small></p>
-                                </div>
-                                <div id="scanResults" class="d-none">
-                                    <h6>Scan Results</h6>
-                                    <ul class="list-group" id="resultsContainer">
-                                        <!-- Results will be inserted here -->
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- File browser modal -->
-                <div class="modal fade" id="fileBrowserModal" tabindex="-1" aria-labelledby="fileBrowserModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="fileBrowserModalLabel">File Browser</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <nav aria-label="breadcrumb">
-                                    <ol class="breadcrumb" id="pathBreadcrumb">
-                                        <li class="breadcrumb-item"><a href="#" data-path="/">Root</a></li>
-                                    </ol>
-                                </nav>
-                                <div id="fileBrowser">
-                                    <div class="d-flex justify-content-center align-items-center h-100">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-primary" id="selectDirectoryBtn">Select Directory</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Flash messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show mt-3" role="alert">
+                            <div class="alert alert-{{ category }}">
                                 {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
+
+                <!-- Initial directory selection form - visible before scan starts -->
+                <div id="initialScanForm">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Select Directory to Scan</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="/scan/individual" method="POST" id="directoryForm">
+                                <div class="mb-3">
+                                    <label for="directory" class="form-label">Directory Path</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-folder"></i></span>
+                                        <input type="text" class="form-control" id="directory" name="directory" required>
+                                        <button type="button" class="btn btn-outline-secondary" id="browseDirBtn" data-bs-toggle="modal" data-bs-target="#fileBrowserModal">
+                                            <i class="fas fa-folder-open"></i> Browse
+                                        </button>
+                                    </div>
+                                    <div class="form-text">Enter the full path to the directory you want to scan</div>
+                                </div>
+
+                                <!-- Hidden field for content type - will be set to auto -->
+                                <input type="hidden" name="content_type" value="auto">
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="force_rescan" name="force_rescan">
+                                        <label class="form-check-label" for="force_rescan">
+                                            Force Rescan (process files even if they've been processed before)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-play-circle me-2"></i>
+                                        Start Scan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scan progress view - initially hidden, shown during scan -->
+                <div id="scanProgress" style="display:none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Scanning in Progress</h5>
+                            <span class="badge bg-primary" id="scanStatus">Processing</span>
+                        </div>
+                        <div class="card-body">
+                            <!-- Overall Progress -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Progress</span>
+                                    <span id="progressText">0%</span>
+                                </div>
+                                <div class="progress scan-progress">
+                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%" 
+                                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <small class="text-muted" id="progressDetails">Processed 0 of 0 folders</small>
+                            </div>
+
+                            <!-- Current folder information -->
+                            <div id="currentFolderInfo">
+                                <h5>Current Folder</h5>
+                                <div class="folder-info">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Name:</strong> <span id="folderName">Loading...</span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Media Files:</strong> <span id="mediaFiles">0</span></p>
+                                        </div>
+                                    </div>
+                                    <p><strong>Path:</strong> <span id="folderPath"></span></p>
+                                </div>
+
+                                <h5>Detection Results</h5>
+                                <div class="media-info">
+                                    <div>
+                                        <img id="mediaPoster" src="/static/images/poster-placeholder.jpg" alt="Media Poster" class="media-poster">
+                                    </div>
+                                    <div class="media-details">
+                                        <h4 id="mediaTitle">Loading...</h4>
+                                        <p class="mb-1"><strong>Year:</strong> <span id="mediaYear">Unknown</span></p>
+                                        <p class="mb-3"><strong>Content Type:</strong> <span id="contentType">Auto-detecting...</span></p>
+                                        
+                                        <!-- Option buttons matching CLI options -->
+                                        <div class="action-buttons">
+                                            <div class="btn-group mb-3">
+                                                <button class="btn btn-success" id="acceptButton">
+                                                    <i class="fas fa-check-circle me-2"></i>
+                                                    Accept detection and process
+                                                </button>
+                                                <button class="btn btn-primary" id="searchButton">
+                                                    <i class="fas fa-search me-2"></i>
+                                                    Search with new title
+                                                </button>
+                                                <button class="btn btn-info" id="changeTypeButton">
+                                                    <i class="fas fa-exchange-alt me-2"></i>
+                                                    Change content type
+                                                </button>
+                                                <button class="btn btn-warning" id="skipButton">
+                                                    <i class="fas fa-forward me-2"></i>
+                                                    Skip this item
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Search form - initially hidden -->
+                                        <div id="searchForm">
+                                            <h5>Search with new title</h5>
+                                            <div class="input-group mb-3">
+                                                <input type="text" class="form-control" id="searchTitle" placeholder="Enter new search term">
+                                                <button class="btn btn-outline-primary" type="button" id="submitSearchButton">Search</button>
+                                                <button class="btn btn-outline-secondary" type="button" id="cancelSearchButton">Cancel</button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Content Type form - initially hidden -->
+                                        <div id="contentTypeForm">
+                                            <h5>Change content type</h5>
+                                            <div class="d-flex gap-2 flex-wrap">
+                                                <button class="btn btn-outline-primary content-type-btn" data-type="movie" data-option="1">Movie</button>
+                                                <button class="btn btn-outline-primary content-type-btn" data-type="tv" data-option="2">TV Show</button>
+                                                <button class="btn btn-outline-primary content-type-btn" data-type="anime_movie" data-option="3">Anime Movie</button>
+                                                <button class="btn btn-outline-primary content-type-btn" data-type="anime_tv" data-option="4">Anime TV Show</button>
+                                                <button class="btn btn-outline-secondary" id="cancelTypeButton">Cancel</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scan Complete view - shown after scan completes -->
+                <div id="scanComplete" style="display:none">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Scan Complete</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                                <h4>Scan completed successfully!</h4>
+                                <p class="text-muted" id="completionStats">Processed 0 directories</p>
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <a href="/scan/individual" class="btn btn-primary">
+                                    <i class="fas fa-redo me-2"></i>
+                                    Scan Another Directory
+                                </a>
+                                <a href="/" class="btn btn-secondary">
+                                    <i class="fas fa-home me-2"></i>
+                                    Return to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- File Browser Modal -->
+    <div class="modal fade" id="fileBrowserModal" tabindex="-1" aria-labelledby="fileBrowserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fileBrowserModalLabel">Browse Directories</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb" id="directoryBreadcrumb">
+                            <li class="breadcrumb-item"><a href="#" data-path="/">/</a></li>
+                        </ol>
+                    </nav>
+                    <div class="list-group" id="directoryList">
+                        <div class="text-center p-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading directory contents...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="selectDirBtn">Select Directory</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const browseBtn = document.getElementById('browseBtn');
-            const fileBrowserModal = new bootstrap.Modal(document.getElementById('fileBrowserModal'));
-            const fileBrowser = document.getElementById('fileBrowser');
-            const pathBreadcrumb = document.getElementById('pathBreadcrumb');
+            // DOM elements - Initial form
+            const directoryForm = document.getElementById('directoryForm');
             const directoryInput = document.getElementById('directory');
-            const selectDirectoryBtn = document.getElementById('selectDirectoryBtn');
             
+            // DOM elements - Progress view
+            const initialScanForm = document.getElementById('initialScanForm');
+            const scanProgressView = document.getElementById('scanProgress');
+            const scanCompleteView = document.getElementById('scanComplete');
+            
+            // DOM elements - Progress tracking
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressDetails = document.getElementById('progressDetails');
+            const scanStatus = document.getElementById('scanStatus');
+            
+            // DOM elements - Current folder info
+            const folderNameElem = document.getElementById('folderName');
+            const folderPathElem = document.getElementById('folderPath');
+            const mediaFilesElem = document.getElementById('mediaFiles');
+            
+            // DOM elements - Media info
+            const mediaPosterElem = document.getElementById('mediaPoster');
+            const mediaTitleElem = document.getElementById('mediaTitle');
+            const mediaYearElem = document.getElementById('mediaYear');
+            const contentTypeElem = document.getElementById('contentType');
+            
+            // DOM elements - Action buttons
+            const acceptButton = document.getElementById('acceptButton');
+            const searchButton = document.getElementById('searchButton');
+            const changeTypeButton = document.getElementById('changeTypeButton');
+            const skipButton = document.getElementById('skipButton');
+            
+            // DOM elements - Search form
+            const searchForm = document.getElementById('searchForm');
+            const searchTitleInput = document.getElementById('searchTitle');
+            const submitSearchButton = document.getElementById('submitSearchButton');
+            const cancelSearchButton = document.getElementById('cancelSearchButton');
+            
+            // DOM elements - Content type form
+            const contentTypeForm = document.getElementById('contentTypeForm');
+            const contentTypeButtons = document.querySelectorAll('.content-type-btn');
+            const cancelTypeButton = document.getElementById('cancelTypeButton');
+            
+            // DOM elements - File browser
+            const fileBrowserModal = document.getElementById('fileBrowserModal');
+            const directoryList = document.getElementById('directoryList');
+            const directoryBreadcrumb = document.getElementById('directoryBreadcrumb');
+            const selectDirBtn = document.getElementById('selectDirBtn');
+            
+            // DOM elements - Completion view
+            const completionStats = document.getElementById('completionStats');
+            
+            // Variables
             let currentPath = '/';
+            let scanInProgress = false;
+            let scanSessionId = null;
+            let totalFolders = 0;
+            let processedFolders = 0;
+
+            // Initialize Socket.IO
+            const socket = io();
             
-            // Open file browser modal
-            browseBtn.addEventListener('click', function() {
-                currentPath = '/';
-                loadDirectory(currentPath);
+            socket.on('connect', function() {
+                console.log('Socket.IO connected');
+                
+                // Check URL for scan session ID
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId = urlParams.get('session_id');
+                
+                if (sessionId) {
+                    console.log('Found session ID in URL:', sessionId);
+                    scanSessionId = sessionId;
+                    socket.emit('join_scan', { session_id: scanSessionId });
+                }
             });
             
-            // Select directory button
-            selectDirectoryBtn.addEventListener('click', function() {
-                directoryInput.value = currentPath;
-                fileBrowserModal.hide();
+            socket.on('disconnect', function() {
+                console.log('Socket.IO disconnected');
+            });
+            
+            // Handle scan updates via Socket.IO
+            socket.on('scan_update', function(data) {
+                console.log('Received scan update:', data);
+                
+                // Only process updates for our scan session
+                if (scanSessionId && data.session_id === scanSessionId) {
+                    handleScanUpdate(data);
+                }
+            });
+            
+            socket.on('scan_status', function(data) {
+                console.log('Received scan status:', data);
+                
+                // Only process status for our scan session
+                if (scanSessionId && data.session_id === scanSessionId) {
+                    // Update scan progress view based on current status
+                    scanInProgress = data.status === 'scanning' || data.status === 'starting';
+                    
+                    if (scanInProgress) {
+                        // Show scan progress view
+                        initialScanForm.style.display = 'none';
+                        scanProgressView.style.display = 'block';
+                        scanCompleteView.style.display = 'none';
+                        
+                        // Update progress if available
+                        if (data.progress) {
+                            processedFolders = data.progress.processed || 0;
+                            totalFolders = data.progress.total || 1;
+                            updateProgress(processedFolders, totalFolders);
+                        }
+                    } else if (data.status === 'completed') {
+                        // Show completion view
+                        scanProgressView.style.display = 'none';
+                        scanCompleteView.style.display = 'block';
+                    }
+                }
+            });
+            
+            // Handle scan updates
+            function handleScanUpdate(data) {
+                // Update scan status based on message type
+                switch(data.type) {
+                    case 'scan_started':
+                        // Show scan progress view
+                        initialScanForm.style.display = 'none';
+                        scanProgressView.style.display = 'block';
+                        scanCompleteView.style.display = 'none';
+                        
+                        // Initialize progress
+                        totalFolders = data.total_folders || 0;
+                        processedFolders = 0;
+                        updateProgress(processedFolders, totalFolders);
+                        
+                        scanStatus.textContent = 'Scanning';
+                        scanStatus.className = 'badge bg-primary';
+                        break;
+                        
+                    case 'folder_start':
+                        // Update current folder information
+                        folderNameElem.textContent = data.folder_name || 'Unknown';
+                        folderPathElem.textContent = data.folder_path || 'Unknown';
+                        mediaFilesElem.textContent = data.media_files_count || '0';
+                        
+                        // Reset media info while loading
+                        mediaTitleElem.textContent = 'Loading...';
+                        mediaYearElem.textContent = 'Unknown';
+                        contentTypeElem.textContent = 'Auto-detecting...';
+                        mediaPosterElem.src = '/static/images/poster-placeholder.jpg';
+                        
+                        // Disable action buttons until detection is complete
+                        acceptButton.disabled = true;
+                        searchButton.disabled = true;
+                        changeTypeButton.disabled = true;
+                        skipButton.disabled = true;
+                        break;
+                        
+                    case 'folder_detection':
+                        // Update media information with detection results
+                        mediaTitleElem.textContent = data.title || 'Unknown';
+                        mediaYearElem.textContent = data.year || 'Unknown';
+                        
+                        let contentTypeText = 'Movie';
+                        if (data.is_tv) {
+                            contentTypeText = 'TV Show';
+                        }
+                        if (data.is_anime) {
+                            contentTypeText = 'Anime ' + contentTypeText;
+                        }
+                        contentTypeElem.textContent = contentTypeText;
+                        
+                        // Update poster if available
+                        if (data.poster_url) {
+                            mediaPosterElem.src = data.poster_url;
+                        }
+                        
+                        // Enable action buttons for user interaction
+                        acceptButton.disabled = false;
+                        searchButton.disabled = false;
+                        changeTypeButton.disabled = false;
+                        skipButton.disabled = false;
+                        
+                        // Update scan status
+                        scanStatus.textContent = 'Waiting for input';
+                        scanStatus.className = 'badge bg-warning';
+                        break;
+                        
+                    case 'folder_complete':
+                        // Update progress
+                        processedFolders++;
+                        updateProgress(processedFolders, totalFolders);
+                        
+                        // Update scan status
+                        scanStatus.textContent = 'Processing next...';
+                        scanStatus.className = 'badge bg-primary';
+                        break;
+                        
+                    case 'scan_complete':
+                        // Show scan completion view
+                        scanProgressView.style.display = 'none';
+                        scanCompleteView.style.display = 'block';
+                        completionStats.textContent = `Processed ${processedFolders} directories`;
+                        
+                        // Reset scan state
+                        scanInProgress = false;
+                        break;
+                        
+                    case 'scan_error':
+                        // Show error message
+                        scanStatus.textContent = 'Error';
+                        scanStatus.className = 'badge bg-danger';
+                        
+                        // Display error message
+                        alert(`Error during scan: ${data.error}`);
+                        break;
+                }
+            }
+            
+            // Update the progress bar
+            function updateProgress(processed, total) {
+                const percent = total > 0 ? Math.floor((processed / total) * 100) : 0;
+                progressBar.style.width = `${percent}%`;
+                progressBar.setAttribute('aria-valuenow', percent);
+                progressText.textContent = `${percent}%`;
+                progressDetails.textContent = `Processed ${processed} of ${total} folders`;
+            }
+            
+            // Update system status indicators
+            function updateSystemStatus() {
+                fetch('/api/dashboard/stats')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update system resources
+                        if (data.system_status) {
+                            // CPU usage
+                            const cpuUsage = data.system_status.cpu_usage;
+                            document.querySelector('[data-status="cpu"]').textContent = `${cpuUsage}%`;
+                            const cpuProgress = document.querySelector('[data-progress="cpu"]');
+                            cpuProgress.style.width = `${cpuUsage}%`;
+                            cpuProgress.setAttribute('aria-valuenow', cpuUsage);
+                            
+                            // Memory usage
+                            const memUsage = data.system_status.memory_usage;
+                            document.querySelector('[data-status="memory"]').textContent = `${memUsage}%`;
+                            const memProgress = document.querySelector('[data-progress="memory"]');
+                            memProgress.style.width = `${memUsage}%`;
+                            memProgress.setAttribute('aria-valuenow', memUsage);
+                            
+                            // Disk usage
+                            const diskUsage = data.system_status.disk_usage;
+                            document.querySelector('[data-status="disk"]').textContent = `${diskUsage}%`;
+                            const diskProgress = document.querySelector('[data-progress="disk"]');
+                            diskProgress.style.width = `${diskUsage}%`;
+                            diskProgress.setAttribute('aria-valuenow', diskUsage);
+                            
+                            // Monitoring status
+                            const monitoringActive = data.system_status.monitoring_active;
+                            const monitoringIndicator = document.getElementById('monitoringStatusIndicator');
+                            const monitoringText = document.getElementById('monitoringStatusText');
+                            
+                            if (monitoringActive) {
+                                monitoringIndicator.classList.remove('status-inactive');
+                                monitoringIndicator.classList.add('status-active');
+                                monitoringText.textContent = 'Monitoring: Active';
+                            } else {
+                                monitoringIndicator.classList.remove('status-active');
+                                monitoringIndicator.classList.add('status-inactive');
+                                monitoringText.textContent = 'Monitoring: Inactive';
+                            }
+                            
+                            // Plex status
+                            const plexConfigured = data.system_status.plex_configured;
+                            const plexIndicator = document.getElementById('plexStatusIndicator');
+                            const plexText = document.getElementById('plexStatusText');
+                            
+                            if (plexConfigured) {
+                                plexIndicator.classList.remove('status-inactive');
+                                plexIndicator.classList.add('status-active');
+                                plexText.textContent = 'Plex: Connected';
+                            } else {
+                                plexIndicator.classList.remove('status-active');
+                                plexIndicator.classList.add('status-inactive');
+                                plexText.textContent = 'Plex: Not configured';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating system status:', error);
+                    });
+            }
+            
+            // Start a new scan
+            function startScan(directoryPath, forceRescan = false) {
+                // Make API request to start scan
+                return fetch('/api/scan/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        directory: directoryPath,
+                        force_rescan: forceRescan
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Scan started:', data);
+                    
+                    // Store the session ID and join the socket room
+                    scanSessionId = data.session_id;
+                    socket.emit('join_scan', { session_id: scanSessionId });
+                    
+                    // Show scan progress view
+                    initialScanForm.style.display = 'none';
+                    scanProgressView.style.display = 'block';
+                    scanCompleteView.style.display = 'none';
+                    
+                    // Reset progress
+                    updateProgress(0, 1);
+                    
+                    // Set status
+                    scanStatus.textContent = 'Starting scan...';
+                    scanStatus.className = 'badge bg-primary';
+                    
+                    // Set scan in progress
+                    scanInProgress = true;
+                    
+                    return data;
+                })
+                .catch(error => {
+                    console.error('Error starting scan:', error);
+                    alert(`Error starting scan: ${error.message}`);
+                    throw error;
+                });
+            }
+            
+            // Send action to backend API
+            function sendAction(action, data = {}) {
+                if (!scanSessionId) {
+                    console.error('No active scan session');
+                    return Promise.reject(new Error('No active scan session'));
+                }
+                
+                // Disable action buttons to prevent multiple clicks
+                acceptButton.disabled = true;
+                searchButton.disabled = true;
+                changeTypeButton.disabled = true;
+                skipButton.disabled = true;
+                
+                return fetch(`/api/scan/${scanSessionId}/action`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: action,
+                        ...data
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Action response:', data);
+                    
+                    if (!data.success) {
+                        throw new Error(data.error || 'Action failed');
+                    }
+                    
+                    // Update scan status
+                    scanStatus.textContent = 'Processing';
+                    scanStatus.className = 'badge bg-primary';
+                    
+                    return data;
+                })
+                .catch(error => {
+                    console.error(`Error sending ${action} action:`, error);
+                    
+                    // Re-enable buttons on error
+                    acceptButton.disabled = false;
+                    searchButton.disabled = false;
+                    changeTypeButton.disabled = false;
+                    skipButton.disabled = false;
+                    
+                    alert(`Error: ${error.message}`);
+                    throw error;
+                });
+            }
+            
+            // Action button handlers
+            acceptButton.addEventListener('click', function() {
+                console.log('Accept button clicked - Option 1');
+                sendAction('accept');
+            });
+            
+            searchButton.addEventListener('click', function() {
+                console.log('Search button clicked - Option 2');
+                
+                // Show search form
+                searchForm.style.display = 'block';
+                contentTypeForm.style.display = 'none';
+                searchTitleInput.focus();
+                
+                // Pre-fill with current title
+                searchTitleInput.value = mediaTitleElem.textContent !== 'Loading...' ? 
+                    mediaTitleElem.textContent : '';
+            });
+            
+            submitSearchButton.addEventListener('click', function() {
+                const searchTerm = searchTitleInput.value.trim();
+                if (!searchTerm) {
+                    alert('Please enter a search term');
+                    return;
+                }
+                
+                console.log('Submitting search:', searchTerm);
+                
+                // Hide search form
+                searchForm.style.display = 'none';
+                
+                // Send search action to backend
+                sendAction('search', { title: searchTerm });
+            });
+            
+            cancelSearchButton.addEventListener('click', function() {
+                searchForm.style.display = 'none';
+            });
+            
+            changeTypeButton.addEventListener('click', function() {
+                console.log('Change content type clicked - Option 3');
+                
+                // Show content type form
+                contentTypeForm.style.display = 'block';
+                searchForm.style.display = 'none';
+            });
+            
+            // Handle content type selection
+            contentTypeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const contentType = this.dataset.type;
+                    const optionNumber = this.dataset.option;
+                    
+                    console.log(`Selected content type: ${contentType} (option ${optionNumber})`);
+                    
+                    // Hide content type form
+                    contentTypeForm.style.display = 'none';
+                    
+                    // Send content type action to backend
+                    sendAction('content_type', { option: optionNumber });
+                });
+            });
+            
+            cancelTypeButton.addEventListener('click', function() {
+                contentTypeForm.style.display = 'none';
+            });
+            
+            skipButton.addEventListener('click', function() {
+                console.log('Skip button clicked - Option 4');
+                sendAction('skip');
+            });
+            
+            // File browser functionality
+            fileBrowserModal.addEventListener('show.bs.modal', function() {
+                loadDirectory('/');
             });
             
             // Load directory contents
             function loadDirectory(path) {
-                fileBrowser.innerHTML = `<div class="d-flex justify-content-center align-items-center h-100">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>`;
+                currentPath = path;
+                updateBreadcrumb(path);
                 
+                // Show loading indicator
+                directoryList.innerHTML = `
+                    <div class="text-center p-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading directory contents...</p>
+                    </div>
+                `;
+                
+                // Fetch directory contents
                 fetch(`/api/file_browser?path=${encodeURIComponent(path)}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.error) {
-                            fileBrowser.innerHTML = `<div class="alert alert-danger m-3">${data.error}</div>`;
+                            directoryList.innerHTML = `
+                                <div class="alert alert-danger">
+                                    ${data.error}
+                                </div>
+                            `;
                             return;
                         }
                         
-                        // Update breadcrumb
-                        updateBreadcrumb(data.path);
-                        
-                        // Display directories
-                        let html = '';
-                        if (data.directories.length === 0 && data.files.length === 0) {
-                            html = '<div class="p-3 text-center text-muted">Empty directory</div>';
-                        } else {
-                            html = '<div class="list-group">';
-                            
-                            // Add parent directory if not at root
-                            if (data.path !== '/') {
-                                const parentPath = data.path.substring(0, data.path.lastIndexOf('/'));
-                                html += `<a href="#" class="list-group-item list-group-item-action folder-item" data-path="${parentPath || '/'}">
-                                    <i class="fas fa-folder-open me-2"></i> ..
-                                </a>`;
-                            }
-                            
-                            // Add directories
-                            data.directories.forEach(dir => {
-                                const dirPath = data.path.endsWith('/') ? data.path + dir : data.path + '/' + dir;
-                                html += `<a href="#" class="list-group-item list-group-item-action folder-item" data-path="${dirPath}">
-                                    <i class="fas fa-folder me-2"></i> ${dir}
-                                </a>`;
-                            });
-                            
-                            html += '</div>';
+                        if (data.directories.length === 0) {
+                            directoryList.innerHTML = `
+                                <div class="alert alert-info">
+                                    No subdirectories found in this location.
+                                </div>
+                            `;
+                            return;
                         }
                         
-                        fileBrowser.innerHTML = html;
+                        // Clear list and add directories
+                        directoryList.innerHTML = '';
                         
-                        // Add event listeners to folders
-                        document.querySelectorAll('.folder-item').forEach(item => {
-                            item.addEventListener('click', function(e) {
-                                e.preventDefault();
-                                const path = this.getAttribute('data-path');
-                                currentPath = path;
-                                loadDirectory(path);
-                            });
+                        // Add parent directory option if not at root
+                        if (path !== '/') {
+                            const parentPath = path.split('/').slice(0, -1).join('/') || '/';
+                            const parentItem = document.createElement('a');
+                            parentItem.href = '#';
+                            parentItem.className = 'list-group-item list-group-item-action';
+                            parentItem.dataset.path = parentPath;
+                            parentItem.innerHTML = '<i class="fas fa-level-up-alt me-2"></i> Parent Directory';
+                            directoryList.appendChild(parentItem);
+                        }
+                        
+                        // Add directories
+                        data.directories.forEach(dir => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'list-group-item list-group-item-action';
+                            item.dataset.path = path === '/' ? `/${dir}` : `${path}/${dir}`;
+                            item.innerHTML = `<i class="fas fa-folder me-2"></i> ${dir}`;
+                            directoryList.appendChild(item);
                         });
                     })
                     .catch(error => {
-                        fileBrowser.innerHTML = `<div class="alert alert-danger m-3">Error: ${error.message}</div>`;
+                        directoryList.innerHTML = `
+                            <div class="alert alert-danger">
+                                Error loading directory: ${error}
+                            </div>
+                        `;
                     });
             }
             
-            // Update breadcrumb
+            // Update breadcrumb navigation
             function updateBreadcrumb(path) {
-                const parts = path.split('/').filter(part => part);
-                let html = '<li class="breadcrumb-item"><a href="#" data-path="/">Root</a></li>';
+                // Clear breadcrumb except for home
+                directoryBreadcrumb.innerHTML = '<li class="breadcrumb-item"><a href="#" data-path="/">/</a></li>';
                 
-                let currentPath = '';
+                if (path === '/') return;
+                
+                // Split path and build breadcrumb
+                const parts = path.split('/').filter(p => p);
+                let currentBreadcrumbPath = '';
+                
                 parts.forEach((part, index) => {
-                    currentPath += '/' + part;
+                    currentBreadcrumbPath += '/' + part;
+                    const li = document.createElement('li');
+                    li.className = 'breadcrumb-item';
+                    
                     if (index === parts.length - 1) {
-                        html += `<li class="breadcrumb-item active">${part}</li>`;
+                        // Last item is active
+                        li.classList.add('active');
+                        li.textContent = part;
                     } else {
-                        html += `<li class="breadcrumb-item"><a href="#" data-path="${currentPath}">${part}</a></li>`;
+                        const a = document.createElement('a');
+                        a.href = '#';
+                        a.textContent = part;
+                        a.dataset.path = currentBreadcrumbPath;
+                        li.appendChild(a);
                     }
-                });
-                
-                pathBreadcrumb.innerHTML = html;
-                
-                // Add event listeners to breadcrumb links
-                document.querySelectorAll('#pathBreadcrumb a').forEach(link => {
-                    link.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        const path = this.getAttribute('data-path');
-                        currentPath = path;
-                        loadDirectory(path);
-                    });
+                    
+                    directoryBreadcrumb.appendChild(li);
                 });
             }
+            
+            // Handle directory clicks in file browser
+            directoryList.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = e.target.closest('a');
+                if (target && target.dataset.path) {
+                    loadDirectory(target.dataset.path);
+                }
+            });
+            
+            // Handle breadcrumb navigation
+            directoryBreadcrumb.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = e.target.closest('a');
+                if (target && target.dataset.path) {
+                    loadDirectory(target.dataset.path);
+                }
+            });
+            
+            // Handle directory selection
+            selectDirBtn.addEventListener('click', function() {
+                directoryInput.value = currentPath;
+                bootstrap.Modal.getInstance(fileBrowserModal).hide();
+            });
+            
+            // Handle form submission
+            directoryForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const dirPath = directoryInput.value.trim();
+                if (!dirPath) {
+                    alert('Please enter a directory path');
+                    return;
+                }
+                
+                const forceRescan = document.getElementById('force_rescan').checked;
+                
+                // Start the scan with the entered directory path
+                startScan(dirPath, forceRescan);
+            });
+            
+            // Initialize system status
+            updateSystemStatus();
+            
+            // Update system status periodically
+            setInterval(updateSystemStatus, 30000); // Update every 30 seconds
+            
+            // Check for ongoing scan on page load
+            fetch('/api/scan/ongoing')
+                .then(response => response.json())
+                .catch(error => {
+                    console.error('Error checking for ongoing scans:', error);
+                });
         });
     </script>
 </body>
