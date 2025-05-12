@@ -6,7 +6,7 @@
   <a href="https://discord.gg/hdDj4aZTVf">
     <img src="https://img.shields.io/badge/Chat-Join%20us%20on%20Discord-7289da?logo=discord&logoColor=white" alt="Join us on Discord">
   </a>
-  <img src="https://img.shields.io/github/downloads/amcgready/Scanly/total" alt="GitHub all releases">
+  <a href="https://wakatime.com/badge/user/6664df3f-26cf-4fe1-872b-44d568fe4750/project/ae93498a-e802-4588-bb19-e57cafd288af"><img src="https://wakatime.com/badge/user/6664df3f-26cf-4fe1-872b-44d568fe4750/project/ae93498a-e802-4588-bb19-e57cafd288af.svg" alt="wakatime"></a>
 </p>
 
 # Scanly

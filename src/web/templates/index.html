@@ -304,7 +304,7 @@
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table table-hover">
+                                    <table class="table table-hover recent-activity-table">
                                         <tbody>
                                             {% if recent_activity and recent_activity|length > 0 %}
                                                 {% for activity in recent_activity %}
@@ -317,12 +317,18 @@
                                                             <span class="badge bg-success">Process</span>
                                                         {% elif activity.action == 'move' %}
                                                             <span class="badge bg-info">Move</span>
-                                                        {% elif activity.action == 'monitor' %}
-                                                            <span class="badge bg-secondary">Monitor</span>
-                                                        {% elif activity.action == 'skip' %}
+                                                        {% elif activity.action == 'monitor_add' or activity.action == 'monitor_resume' %}
+                                                            <span class="badge bg-success">Monitor</span>
+                                                        {% elif activity.action == 'monitor_pause' or activity.action == 'monitor_remove' %}
+                                                            <span class="badge bg-warning">Monitor</span>
+                                                        {% elif activity.action == 'skipped' %}
                                                             <span class="badge bg-warning">Skip</span>
                                                         {% elif activity.action == 'error' %}
                                                             <span class="badge bg-danger">Error</span>
+                                                        {% elif activity.action == 'symlink_create' %}
+                                                            <span class="badge bg-success">Link</span>
+                                                        {% elif activity.action == 'symlink_remove' %}
+                                                            <span class="badge bg-warning">Unlink</span>
                                                         {% else %}
                                                             <span class="badge bg-secondary">{{ activity.action }}</span>
                                                         {% endif %}
@@ -337,7 +343,7 @@
                                                             <span class="text-success"><i class="fas fa-check-circle"></i></span>
                                                         {% elif activity.status == 'error' %}
                                                             <span class="text-danger"><i class="fas fa-exclamation-circle"></i></span>
-                                                        {% elif activity.status == 'warning' %}
+                                                        {% elif activity.status == 'warning' or activity.status == 'skipped' %}
                                                             <span class="text-warning"><i class="fas fa-exclamation-triangle"></i></span>
                                                         {% else %}
                                                             <span class="text-info"><i class="fas fa-info-circle"></i></span>
@@ -584,11 +590,20 @@
                         storedStats.tv_shows = data.tv_shows;
                     }
                     
-                    // Update monitored count
-                    if (data.monitored !== undefined && data.monitored !== null) {
-                        const monitoredEl = document.querySelector('[data-stat="monitored"]');
-                        if (monitoredEl) monitoredEl.textContent = data.monitored;
-                        storedStats.monitored = data.monitored;
+                    // Count monitored directories properly
+                    const monitoredCount = countMonitoredDirectories();
+                    const monitoredEl = document.querySelector('[data-stat="monitored"]');
+                    if (monitoredEl && monitoredCount > 0) {
+                        monitoredEl.textContent = monitoredCount;
+                        storedStats.monitored = monitoredCount;
+                        console.log("Updated monitored count to:", monitoredCount);
+                    } else if (data.monitored !== undefined && data.monitored !== null) {
+                        // Fall back to API data if table counting failed
+                        if (monitoredEl) {
+                            monitoredEl.textContent = data.monitored;
+                            storedStats.monitored = data.monitored;
+                            console.log("Updated monitored count from API data to:", data.monitored);
+                        }
                     }
                     
                     // Update skipped count
@@ -601,6 +616,16 @@
                     // Update system status
                     if (data.system_status) {
                         updateSystemStatus(data.system_status);
+                    }
+                    
+                    // Update recent activity
+                    if (data.recent_activity && data.recent_activity.length > 0) {
+                        console.log("Updating recent activity with:", data.recent_activity);
+                        updateRecentActivity(data.recent_activity);
+                    } else {
+                        console.log("No recent activity data available");
+                        // Clear the recent activity table
+                        updateRecentActivity([]);
                     }
 
                     // Hide the indicator after successful update
@@ -623,6 +648,101 @@
                         indicator.classList.add('d-none');
                     }
                 });
+        }
+        
+        // Function to update recent activity
+        function updateRecentActivity(activities) {
+            const activityTable = document.querySelector('.recent-activity-table tbody');
+            if (!activityTable) return;
+            
+            // Clear existing entries
+            activityTable.innerHTML = '';
+            
+            if (activities.length > 0) {
+                activities.forEach(activity => {
+                    const row = document.createElement('tr');
+                    
+                    // Time column
+                    const timeCell = document.createElement('td');
+                    timeCell.width = "140";
+                    timeCell.textContent = activity.timestamp.split(' ')[1]; // Just show time part
+                    row.appendChild(timeCell);
+                    
+                    // Action badge column
+                    const actionCell = document.createElement('td');
+                    actionCell.width = "100";
+                    
+                    let badgeClass = 'bg-secondary';
+                    if (activity.action === 'scan') badgeClass = 'bg-primary';
+                    else if (activity.action === 'process') badgeClass = 'bg-success';
+                    else if (activity.action === 'move') badgeClass = 'bg-info';
+                    else if (activity.action === 'monitor_add' || activity.action === 'monitor_resume') badgeClass = 'bg-success';
+                    else if (activity.action === 'monitor_pause' || activity.action === 'monitor_remove') badgeClass = 'bg-warning';
+                    else if (activity.action === 'skipped') badgeClass = 'bg-warning';
+                    else if (activity.action === 'error') badgeClass = 'bg-danger';
+                    else if (activity.action === 'symlink_create') badgeClass = 'bg-success';
+                    else if (activity.action === 'symlink_remove') badgeClass = 'bg-warning';
+                    
+                    // Format action name for display
+                    let actionName = activity.action;
+                    if (activity.action === 'process') actionName = 'Process';
+                    else if (activity.action === 'scan') actionName = 'Scan';
+                    else if (activity.action === 'move') actionName = 'Move';
+                    else if (activity.action === 'monitor_add') actionName = 'Monitor';
+                    else if (activity.action === 'monitor_resume') actionName = 'Resume';
+                    else if (activity.action === 'monitor_pause') actionName = 'Pause';
+                    else if (activity.action === 'monitor_remove') actionName = 'Remove';
+                    else if (activity.action === 'skipped') actionName = 'Skip';
+                    else if (activity.action === 'error') actionName = 'Error';
+                    else if (activity.action === 'symlink_create') actionName = 'Link';
+                    else if (activity.action === 'symlink_remove') actionName = 'Unlink';
+                    
+                    actionCell.innerHTML = `<span class="badge ${badgeClass}">${actionName}</span>`;
+                    row.appendChild(actionCell);
+                    
+                    // Item column
+                    const itemCell = document.createElement('td');
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'text-truncate';
+                    itemDiv.style.maxWidth = '400px';
+                    itemDiv.title = activity.item;
+                    itemDiv.textContent = activity.item;
+                    itemCell.appendChild(itemDiv);
+                    row.appendChild(itemCell);
+                    
+                    // Status column
+                    const statusCell = document.createElement('td');
+                    statusCell.width = "100";
+                    statusCell.className = 'text-end';
+                    
+                    let iconClass = 'fas fa-info-circle';
+                    let colorClass = 'text-info';
+                    
+                    if (activity.status === 'success') {
+                        iconClass = 'fas fa-check-circle';
+                        colorClass = 'text-success';
+                    } else if (activity.status === 'error') {
+                        iconClass = 'fas fa-exclamation-circle';
+                        colorClass = 'text-danger';
+                    } else if (activity.status === 'warning' || activity.status === 'skipped') {
+                        iconClass = 'fas fa-exclamation-triangle';
+                        colorClass = 'text-warning';
+                    }
+                    
+                    statusCell.innerHTML = `<span class="${colorClass}"><i class="${iconClass}"></i></span>`;
+                    row.appendChild(statusCell);
+                    
+                    activityTable.appendChild(row);
+                });
+            } else {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.className = 'text-center py-3';
+                cell.textContent = 'No recent activity';
+                row.appendChild(cell);
+                activityTable.appendChild(row);
+            }
         }
 
         // Toggle auto-refresh functionality
@@ -751,27 +871,58 @@
             });
         });
 
+        // Add this function at the end of your script section
+        function countMonitoredDirectories() {
+            const monitoredDirsTable = document.getElementById('monitored-dirs-table');
+            if (!monitoredDirsTable) return 0;
+            
+            let count = 0;
+            const rows = monitoredDirsTable.querySelectorAll('tbody tr');
+            
+            // Check if there's only one row with a colspan (empty message)
+            if (rows.length === 1 && rows[0].querySelector('td[colspan]')) {
+                return 0;
+            }
+            
+            // Otherwise, count the actual directory rows
+            rows.forEach(row => {
+                if (!row.querySelector('td[colspan]') && 
+                    row.querySelector('td:first-child') && 
+                    row.querySelector('td:first-child').textContent.trim()) {
+                    count++;
+                }
+            });
+            
+            return count;
+        }
+
         // Run on page load
         document.addEventListener('DOMContentLoaded', function() {
             console.log("Page loaded, initializing dashboard");
             
-            // Immediately capture initial values - make sure to store them before any updates
+            // Count monitored directories on page load
+            const monitoredCount = countMonitoredDirectories();
+            const monitoredEl = document.querySelector('[data-stat="monitored"]');
+            if (monitoredEl) {
+                monitoredEl.textContent = monitoredCount;
+                storedStats.monitored = monitoredCount;
+                console.log(`Updated monitored count on page load to: ${monitoredCount}`);
+            }
+            
+            // Rest of your initialization code
             document.querySelectorAll('[data-stat]').forEach(el => {
                 const statType = el.getAttribute('data-stat');
-                const value = el.textContent.trim();
-                storedStats[statType] = value;
-                console.log(`Initial ${statType} value: ${value}`);
-                
-                // Set a data attribute to remember the initial value
-                el.setAttribute('data-initial-value', value);
+                if (statType !== 'monitored') { // Skip monitored as we just set it
+                    const value = el.textContent.trim();
+                    storedStats[statType] = value;
+                    console.log(`Initial ${statType} value: ${value}`);
+                    el.setAttribute('data-initial-value', value);
+                }
             });
             
-            // Wait a bit before initial update to make sure values are rendered
+            // Wait a bit before initial update
             setTimeout(() => {
-                // Initial update
                 updateDashboardStats();
-                
-                // Setup auto-refresh functionality
                 setupAutoRefresh();
             }, 500);
         });
