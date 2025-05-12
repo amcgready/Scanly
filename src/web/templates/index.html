@@ -250,7 +250,7 @@
                             </div>
                             <div class="card-body">
                                 <h5 class="card-title">Movies</h5>
-                                <h2 class="display-6 fw-bold" data-stat="movies">{{ stats.movies|default(0) }}</h2>
+                                <h2 class="display-6 fw-bold" data-stat="movies" data-initial-value="{{ stats.movies|default(0) }}">{{ stats.movies|default(0) }}</h2>
                                 <p class="card-text text-muted">Movies processed</p>
                             </div>
                         </div>
@@ -396,16 +396,6 @@
                                     </div>
                                 </div>
                                 
-                                <div class="d-grid gap-2 mt-4">
-                                    <a href="/scan/individual" class="btn btn-primary" type="button">
-                                        <i class="fas fa-search me-1"></i>
-                                        Start New Scan
-                                    </a>
-                                    <a href="/settings" class="btn btn-outline-secondary" type="button">
-                                        <i class="fas fa-cog me-1"></i>
-                                        Configure Settings
-                                    </a>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -476,592 +466,228 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Track if a refresh is currently in progress
-        let isRefreshing = false;
-        
-        // Store the initial state values from server-side rendering
-        let initialValues = {
-            movies: 0,
-            tv_shows: 0, 
-            monitored: 0,
-            skipped: 0,
-            monitoring_active: false,
-            plex_configured: false
+        // Store original values to fall back to
+        let storedStats = {
+            movies: null,
+            tv_shows: null,
+            monitored: null,
+            skipped: null
         };
 
         // Function to update system status indicators
-        function updateSystemStatus(status) {
-            console.log("Updating complete system status with:", status);
+        function updateSystemStatus(systemStatus) {
+            // CPU usage
+            const cpuUsage = systemStatus.cpu_usage;
+            document.querySelector('[data-status="cpu"]').textContent = `${cpuUsage}%`;
+            const cpuProgress = document.querySelector('[data-progress="cpu"]');
+            cpuProgress.style.width = `${cpuUsage}%`;
+            cpuProgress.setAttribute('aria-valuenow', cpuUsage);
             
-            // Update CPU usage
-            if (status.cpu_usage !== undefined) {
-                const cpuPercentage = parseInt(status.cpu_usage);
-                const cpuElement = document.querySelector('[data-status="cpu"]');
-                if (cpuElement) cpuElement.textContent = `${cpuPercentage}%`;
-                
-                const cpuProgress = document.querySelector('[data-progress="cpu"]');
-                if (cpuProgress) {
-                    cpuProgress.style.width = `${cpuPercentage}%`;
-                    cpuProgress.setAttribute('aria-valuenow', cpuPercentage);
-                    
-                    // Update color based on value
-                    cpuProgress.classList.remove('bg-success', 'bg-warning', 'bg-danger');
-                    if (cpuPercentage > 90) {
-                        cpuProgress.classList.add('bg-danger');
-                    } else if (cpuPercentage > 70) {
-                        cpuProgress.classList.add('bg-warning');
-                    } else {
-                        cpuProgress.classList.add('bg-success');
-                    }
-                }
+            // Memory usage
+            const memUsage = systemStatus.memory_usage;
+            document.querySelector('[data-status="memory"]').textContent = `${memUsage}%`;
+            const memProgress = document.querySelector('[data-progress="memory"]');
+            memProgress.style.width = `${memUsage}%`;
+            memProgress.setAttribute('aria-valuenow', memUsage);
+            
+            // Monitoring status
+            const monitoringActive = systemStatus.monitoring_active;
+            const monitoringIndicator = document.querySelector('.sidebar .status-indicator:first-of-type');
+            const monitoringText = monitoringIndicator.nextElementSibling;
+            
+            if (monitoringActive) {
+                monitoringIndicator.classList.remove('status-inactive');
+                monitoringIndicator.classList.add('status-active');
+                monitoringText.textContent = 'Monitoring: Active';
+            } else {
+                monitoringIndicator.classList.remove('status-active');
+                monitoringIndicator.classList.add('status-inactive');
+                monitoringText.textContent = 'Monitoring: Inactive';
             }
             
-            // Update memory usage
-            if (status.memory_usage !== undefined) {
-                const memoryPercentage = parseInt(status.memory_usage);
-                const memoryElement = document.querySelector('[data-status="memory"]');
-                if (memoryElement) memoryElement.textContent = `${memoryPercentage}%`;
-                
-                const memoryProgress = document.querySelector('[data-progress="memory"]');
-                if (memoryProgress) {
-                    memoryProgress.style.width = `${memoryPercentage}%`;
-                    memoryProgress.setAttribute('aria-valuenow', memoryPercentage);
-                    
-                    // Update color based on value
-                    memoryProgress.classList.remove('bg-primary', 'bg-warning', 'bg-danger');
-                    if (memoryPercentage > 90) {
-                        memoryProgress.classList.add('bg-danger');
-                    } else if (memoryPercentage > 70) {
-                        memoryProgress.classList.add('bg-warning');
-                    } else {
-                        memoryProgress.classList.add('bg-primary');
-                    }
-                }
-            }
-            
-            // Update monitoring status in sidebar
-            if (status.monitoring_active !== undefined) {
-                const statusItems = document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator');
-                if (statusItems && statusItems.length > 0) {
-                    const monitoringIndicator = statusItems[0];
-                    const monitoringText = monitoringIndicator.nextElementSibling;
-                    
-                    if (status.monitoring_active) {
-                        monitoringIndicator.classList.remove('status-inactive');
-                        monitoringIndicator.classList.add('status-active');
-                        monitoringText.textContent = 'Monitoring: Active';
-                    } else {
-                        monitoringIndicator.classList.remove('status-active');
-                        monitoringIndicator.classList.add('status-inactive');
-                        monitoringText.textContent = 'Monitoring: Inactive';
-                    }
-                }
-            }
-            
-            // Update Plex status in sidebar
-            if (status.plex_configured !== undefined) {
-                const statusItems = document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator');
-                if (statusItems && statusItems.length > 1) {
-                    const plexIndicator = statusItems[1];
-                    const plexText = plexIndicator.nextElementSibling;
-                    
-                    if (status.plex_configured) {
-                        plexIndicator.classList.remove('status-inactive');
-                        plexIndicator.classList.add('status-active');
-                        plexText.textContent = 'Plex: Connected';
-                    } else {
-                        plexIndicator.classList.remove('status-active');
-                        plexIndicator.classList.add('status-inactive');
-                        plexText.textContent = 'Plex: Not configured';
-                    }
-                }
-            }
-        }
-        
-        // Function that only updates CPU and memory usage
-        function updateSystemResources(status) {
-            console.log("Updating system resources only:", status);
-            
-            // Update CPU usage
-            if (status.cpu_usage !== undefined) {
-                const cpuPercentage = parseInt(status.cpu_usage);
-                const cpuElement = document.querySelector('[data-status="cpu"]');
-                if (cpuElement) cpuElement.textContent = `${cpuPercentage}%`;
-                
-                const cpuProgress = document.querySelector('[data-progress="cpu"]');
-                if (cpuProgress) {
-                    cpuProgress.style.width = `${cpuPercentage}%`;
-                    cpuProgress.setAttribute('aria-valuenow', cpuPercentage);
-                    
-                    // Update color based on value
-                    cpuProgress.classList.remove('bg-success', 'bg-warning', 'bg-danger');
-                    if (cpuPercentage > 90) {
-                        cpuProgress.classList.add('bg-danger');
-                    } else if (cpuPercentage > 70) {
-                        cpuProgress.classList.add('bg-warning');
-                    } else {
-                        cpuProgress.classList.add('bg-success');
-                    }
-                }
-            }
-            
-            // Update memory usage
-            if (status.memory_usage !== undefined) {
-                const memoryPercentage = parseInt(status.memory_usage);
-                const memoryElement = document.querySelector('[data-status="memory"]');
-                if (memoryElement) memoryElement.textContent = `${memoryPercentage}%`;
-                
-                const memoryProgress = document.querySelector('[data-progress="memory"]');
-                if (memoryProgress) {
-                    memoryProgress.style.width = `${memoryPercentage}%`;
-                    memoryProgress.setAttribute('aria-valuenow', memoryPercentage);
-                    
-                    // Update color based on value
-                    memoryProgress.classList.remove('bg-primary', 'bg-warning', 'bg-danger');
-                    if (memoryPercentage > 90) {
-                        memoryProgress.classList.add('bg-danger');
-                    } else if (memoryPercentage > 70) {
-                        memoryProgress.classList.add('bg-warning');
-                    } else {
-                        memoryProgress.classList.add('bg-primary');
-                    }
-                }
-            }
-        }
-        
-        // Function to fetch system resources only (CPU, memory)
-        function fetchSystemResourcesOnly() {
-            // Call the lightweight endpoint specifically for system resources
-            fetch('/api/dashboard/system_resources')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    // Only update CPU and memory usage - nothing else
-                    updateSystemResources(data);
-                })
-                .catch(error => {
-                    console.error('Error fetching system resources:', error);
-                });
-        }
-        
-        // Complete function to fetch all dashboard data (for manual refresh)
-        function fetchDashboardData(isManualRefresh = false) {
-            // Don't start another refresh if one is in progress
-            if (isRefreshing) {
-                console.log("Refresh already in progress, skipping");
-                return;
-            }
-            
-            isRefreshing = true;
-            
-            // Update refresh button if it's a manual refresh
-            if (isManualRefresh && document.getElementById('refreshBtn')) {
-                document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i> Refreshing...';
-            }
-            
-            console.log("Fetching all dashboard data...");
-            
-            // Make an AJAX request to refresh the full dashboard data
-            fetch('/api/dashboard/stats')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Dashboard data received:", data);
-                    
-                    // Update stats cards with either API data or initial values
-                    const moviesElement = document.querySelector('[data-stat="movies"]');
-                    if (moviesElement) {
-                        if (data.movies !== undefined && data.movies > 0) {
-                            moviesElement.textContent = data.movies;
-                        } else if (initialValues.movies > 0) {
-                            moviesElement.textContent = initialValues.movies;
-                        }
-                    }
-                    
-                    const tvElement = document.querySelector('[data-stat="tv_shows"]');
-                    if (tvElement) {
-                        if (data.tv_shows !== undefined && data.tv_shows >= 0) {
-                            tvElement.textContent = data.tv_shows;
-                        } else if (initialValues.tv_shows >= 0) {
-                            tvElement.textContent = initialValues.tv_shows;
-                        }
-                    }
-                    
-                    const monitoredElement = document.querySelector('[data-stat="monitored"]');
-                    if (monitoredElement) {
-                        console.log("Monitored value from API:", data.monitored);
-                        monitoredElement.textContent = data.monitored;
-                        // If we have monitored directories, monitoring should be active
-                        if (data.system_status && data.monitored > 0) {
-                            data.system_status.monitoring_active = true;
-                        }
-                    }
-                    
-                    const skippedElement = document.querySelector('[data-stat="skipped"]');
-                    if (skippedElement) {
-                        console.log("Skipped value from API:", data.skipped);
-                        skippedElement.textContent = data.skipped;
-                    }
-                    
-                    // Update complete system status (CPU, memory, monitoring, Plex)
-                    if (data.system_status) {
-                        // If we have monitored directories, monitoring should be active
-                        if (data.monitored > 0) {
-                            data.system_status.monitoring_active = true;
-                        }
-                        updateSystemStatus(data.system_status);
-                    }
-                    
-                    // Update tables with fresh data
-                    if (data.monitored_directories && Array.isArray(data.monitored_directories)) {
-                        updateMonitoredDirectoriesTable(data.monitored_directories);
-                    }
-                    
-                    if (data.recent_activity && Array.isArray(data.recent_activity)) {
-                        updateActivityTable(data.recent_activity);
-                    }
-                    
-                    // Reset refresh button
-                    if (isManualRefresh && document.getElementById('refreshBtn')) {
-                        document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt me-1"></i> Refresh';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching dashboard data:', error);
-                    
-                    // Reset refresh button
-                    if (isManualRefresh && document.getElementById('refreshBtn')) {
-                        document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt me-1"></i> Refresh';
-                    }
-                })
-                .finally(() => {
-                    isRefreshing = false;
-                });
-        }
-
-        // Add this function to your JavaScript
-        function updateMonitoredDirectoriesTable(directories) {
-            const tableBody = document.querySelector('#monitored-dirs-table tbody');
-            if (!tableBody) {
-                console.warn("Could not find monitored directories table");
-                return;
-            }
-            
-            if (!Array.isArray(directories) || directories.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No monitored directories found. <a href="/monitor">Add a directory to monitor</a>.</td></tr>';
-                return;
-            }
-            
-            // Clear existing rows
-            tableBody.innerHTML = '';
-            
-            // Add new rows
-            directories.forEach(dir => {
-                const row = document.createElement('tr');
-                
-                // Determine status badge class
-                const statusBadge = dir.active ? 
-                    '<span class="badge bg-success">Active</span>' : 
-                    '<span class="badge bg-secondary">Paused</span>';
-                
-                // Create row HTML
-                row.innerHTML = `
-                    <td>${dir.path}</td>
-                    <td>${statusBadge}</td>
-                    <td>${dir.last_scan || 'Never'}</td>
-                    <td>${dir.next_scan || '-'}</td>
-                    <td>
-                        <a href="/monitor/toggle/${dir.id}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-${dir.active ? 'pause' : 'play'}"></i>
-                        </a>
-                        <a href="/monitor/remove/${dir.id}" class="btn btn-sm btn-outline-danger" 
-                           onclick="return confirm('Are you sure you want to remove this directory?');">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-        }
-
-        // Add this function to your JavaScript
-        function updateActivityTable(activities) {
-            const tableBody = document.querySelector('#activity-table tbody');
-            if (!tableBody) {
-                console.warn("Could not find activity table");
-                return;
-            }
-            
-            if (!Array.isArray(activities) || activities.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No recent activity</td></tr>';
-                return;
-            }
-            
-            // Clear existing rows
-            tableBody.innerHTML = '';
-            
-            // Add new rows
-            activities.forEach(activity => {
-                const row = document.createElement('tr');
-                
-                // Determine status badge
-                let statusBadge = '';
-                
-                switch (activity.status) {
-                    case 'success': 
-                        statusBadge = '<span class="badge bg-success">Success</span>'; 
-                        break;
-                    case 'warning': 
-                        statusBadge = '<span class="badge bg-warning">Needs Review</span>'; 
-                        break;
-                    case 'error': 
-                        statusBadge = '<span class="badge bg-danger">Error</span>'; 
-                        break;
-                    default: 
-                        statusBadge = `<span class="badge bg-secondary">${activity.status || 'Unknown'}</span>`;
-                }
-                
-                // Create row HTML
-                row.innerHTML = `
-                    <td>${activity.time || activity.timestamp || ''}</td>
-                    <td>${activity.action || ''}</td>
-                    <td>${activity.item || activity.path || ''}</td>
-                    <td>${statusBadge}</td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-        }
-
-        // Update the DOMContentLoaded event handler to fix Plex status initialization
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("Page loaded - setting up dashboard...");
-            
-            // Manually set the PLEX status to connected based on your requirement
-            const plexIndicator = document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator')[1];
+            // Plex status
+            const plexConfigured = systemStatus.plex_configured;
+            const plexIndicator = document.querySelector('.sidebar .status-indicator:last-of-type');
             const plexText = plexIndicator.nextElementSibling;
-            plexIndicator.classList.remove('status-inactive');
-            plexIndicator.classList.add('status-active');
-            plexText.textContent = 'Plex: Connected';
             
-            // Capture initial values from the DOM on first page load
-            initialValues = {
-                movies: parseInt(document.querySelector('[data-stat="movies"]').textContent) || 0,
-                tv_shows: parseInt(document.querySelector('[data-stat="tv_shows"]').textContent) || 0,
-                monitored: parseInt(document.querySelector('[data-stat="monitored"]').textContent) || 0,
-                skipped: parseInt(document.querySelector('[data-stat="skipped"]').textContent) || 0,
-                monitoring_active: document.querySelectorAll('.sidebar ul.nav.flex-column.mb-4 .nav-item .status-indicator')[0].classList.contains('status-active'),
-                plex_configured: true  // Force this to true
-            };
+            if (plexConfigured) {
+                plexIndicator.classList.remove('status-inactive');
+                plexIndicator.classList.add('status-active');
+                plexText.textContent = 'Plex: Connected';
+            } else {
+                plexIndicator.classList.remove('status-active');
+                plexIndicator.classList.add('status-inactive');
+                plexText.textContent = 'Plex: Not configured';
+            }
+        }
+
+        // Function to safely update stat values
+        function updateStatValue(type, value) {
+            const element = document.querySelector(`[data-stat="${type}"]`);
+            if (element && value !== undefined) {
+                // Store the current value
+                storedStats[type] = value;
+                element.textContent = value;
+                return true;
+            }
+            return false;
+        }
+
+        // Function to get stored value
+        function getStoredValue(type) {
+            // First try stored value, then try the element's value
+            if (storedStats[type] !== null) {
+                return storedStats[type];
+            }
             
-            console.log("Initial values captured:", initialValues);
+            // If stored value is not available, get it from the DOM
+            const element = document.querySelector(`[data-stat="${type}"]`);
+            if (element) {
+                return element.textContent;
+            }
             
-            // Make a manual request once to get the /api/dashboard/stats values
-            // This helps debug any differences between server-rendered and API values
+            // Default to 0 if nothing else works
+            return 0;
+        }
+
+        // Function to update dashboard statistics
+        function updateDashboardStats() {
+            // Show indicator that update is happening
+            const indicator = document.getElementById('autoRefreshIndicator');
+            if (indicator) {
+                indicator.classList.remove('d-none');
+            }
+            
+            // First store the current values from the DOM to prevent flickering
+            let currentStats = {};
+            document.querySelectorAll('[data-stat]').forEach(el => {
+                const statType = el.getAttribute('data-stat');
+                currentStats[statType] = el.textContent.trim();
+            });
+            
             fetch('/api/dashboard/stats')
                 .then(response => response.json())
                 .then(data => {
-                    console.log("API values:", {
-                        movies: data.movies,
-                        tv_shows: data.tv_shows,
-                        monitored: data.monitored,
-                        skipped: data.skipped,
-                        monitoring_active: data.system_status?.monitoring_active,
-                        plex_configured: data.system_status?.plex_configured
-                    });
+                    console.log("Dashboard stats response:", data);
+                    
+                    // Update movies count - only if we have a valid value
+                    if (data.movies !== undefined && data.movies !== null) {
+                        const moviesEl = document.querySelector('[data-stat="movies"]');
+                        if (moviesEl) moviesEl.textContent = data.movies;
+                        storedStats.movies = data.movies;
+                    }
+                    
+                    // Update TV shows count
+                    if (data.tv_shows !== undefined && data.tv_shows !== null) {
+                        const tvShowsEl = document.querySelector('[data-stat="tv_shows"]');
+                        if (tvShowsEl) tvShowsEl.textContent = data.tv_shows;
+                        storedStats.tv_shows = data.tv_shows;
+                    }
+                    
+                    // Update monitored count
+                    if (data.monitored !== undefined && data.monitored !== null) {
+                        const monitoredEl = document.querySelector('[data-stat="monitored"]');
+                        if (monitoredEl) monitoredEl.textContent = data.monitored;
+                        storedStats.monitored = data.monitored;
+                    }
+                    
+                    // Update skipped count
+                    if (data.skipped !== undefined && data.skipped !== null) {
+                        const skippedEl = document.querySelector('[data-stat="skipped"]');
+                        if (skippedEl) skippedEl.textContent = data.skipped;
+                        storedStats.skipped = data.skipped;
+                    }
+                    
+                    // Update system status
+                    if (data.system_status) {
+                        updateSystemStatus(data.system_status);
+                    }
+
+                    // Hide the indicator after successful update
+                    if (indicator && !autoRefreshEnabled) {
+                        setTimeout(() => {
+                            indicator.classList.add('d-none');
+                        }, 1000);
+                    }
                 })
-                .catch(error => console.error("Error checking API values:", error));
-            
-            // Set up refresh button - updates everything
-            const refreshBtn = document.getElementById('refreshBtn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', function() {
-                    fetchDashboardData(true);
-                });
-            }
-            
-            // Set up toggle refresh button - only for system resources (CPU/memory)
-            const toggleRefreshBtn = document.getElementById('toggleRefreshBtn');
-            let autoRefreshInterval = null;
-            
-            if (toggleRefreshBtn) {
-                // Start with auto-refresh enabled for resources ONLY
-                autoRefreshInterval = setInterval(fetchSystemResourcesOnly, 10000);
-                toggleRefreshBtn.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Updates';
-                const indicator = document.getElementById('autoRefreshIndicator');
-                if (indicator) indicator.classList.remove('d-none');
-                
-                toggleRefreshBtn.addEventListener('click', function() {
-                    if (autoRefreshInterval) {
-                        // Stop auto-refresh
-                        clearInterval(autoRefreshInterval);
-                        autoRefreshInterval = null;
-                        toggleRefreshBtn.innerHTML = '<i class="fas fa-play me-1"></i> Enable Updates';
-                        const indicator = document.getElementById('autoRefreshIndicator');
-                        if (indicator) indicator.classList.add('d-none');
-                    } else {
-                        // Start auto-refresh only for system resources (CPU/memory)
-                        autoRefreshInterval = setInterval(fetchSystemResourcesOnly, 10000);
-                        toggleRefreshBtn.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Updates';
-                        const indicator = document.getElementById('autoRefreshIndicator');
-                        if (indicator) indicator.classList.remove('d-none');
+                .catch(error => {
+                    console.error("Error updating dashboard stats:", error);
+                    // Restore previous values to prevent data loss on error
+                    Object.keys(currentStats).forEach(statType => {
+                        const element = document.querySelector(`[data-stat="${statType}"]`);
+                        if (element) element.textContent = currentStats[statType];
+                    });
+                    
+                    // Hide the indicator in case of error
+                    if (indicator && !autoRefreshEnabled) {
+                        indicator.classList.add('d-none');
                     }
                 });
-            }
-        });
-    </script>
-    <script>
+        }
+
+        // Toggle auto-refresh functionality
+        let autoRefreshEnabled = true;
+        let refreshInterval;
+
+        function setupAutoRefresh() {
+            const toggleBtn = document.getElementById('toggleRefreshBtn');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const indicator = document.getElementById('autoRefreshIndicator');
+            
+            // Setup refresh interval - reducing from 30 seconds to 10 seconds
+            refreshInterval = setInterval(() => {
+                if (autoRefreshEnabled) {
+                    console.log("Auto-refreshing dashboard stats");
+                    updateDashboardStats();
+                }
+            }, 10000); // Changed from 30000 to 10000 (10 seconds)
+            
+            // Setup toggle button
+            toggleBtn.addEventListener('click', function() {
+                autoRefreshEnabled = !autoRefreshEnabled;
+                console.log("Auto-refresh toggled:", autoRefreshEnabled);
+                
+                if (autoRefreshEnabled) {
+                    this.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Updates';
+                    indicator.classList.remove('d-none');
+                    // Trigger an immediate update when resuming
+                    updateDashboardStats();
+                } else {
+                    this.innerHTML = '<i class="fas fa-play me-1"></i> Resume Updates';
+                    indicator.classList.add('d-none');
+                }
+            });
+            
+            // Setup manual refresh button
+            refreshBtn.addEventListener('click', function() {
+                console.log("Manual refresh triggered");
+                updateDashboardStats();
+            });
+        }
+        
+        // Run on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Simple direct API call to update the dashboard stats
-            function updateStats() {
-                fetch('/api/dashboard/stats')
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log("API data:", data);
-                        
-                        // Directly update the stat values without any complex logic
-                        const moviesStat = document.querySelector('[data-stat="movies"]');
-                        if (moviesStat) moviesStat.textContent = data.movies;
-                        
-// COMMENTED OUT:                         const tvStat = document.querySelector('[data-stat="tv_shows"]');
-// COMMENTED OUT:                         if (tvStat) tvStat.textContent = data.tv_shows;
-// COMMENTED OUT:                         
-// COMMENTED OUT:                         const monitoredStat = document.querySelector('[data-stat="monitored"]');
-// COMMENTED OUT:                         if (monitoredStat) monitoredStat.textContent = data.monitored;
-// COMMENTED OUT:                         
-// COMMENTED OUT:                         const skippedStat = document.querySelector('[data-stat="skipped"]');
-// COMMENTED OUT:                         if (skippedStat) skippedStat.textContent = data.skipped;
-// COMMENTED OUT:                         
-// COMMENTED OUT:                         // Add a debug display
-// COMMENTED OUT:                         const debugElement = document.getElementById('api-debug-data');
-// COMMENTED OUT:                         if (debugElement) {
-// COMMENTED OUT:                             debugElement.innerHTML = `
-// COMMENTED OUT:                                 <p><strong>API Debug Data:</strong></p>
-// COMMENTED OUT:                                 <p>Movies: ${data.movies}</p>
-// COMMENTED OUT:                                 <p>TV Shows: ${data.tv_shows}</p>
-                                <p>Monitored: ${data.monitored}</p>
-// COMMENTED OUT:                                 <p>Skipped: ${data.skipped}</p>
-// COMMENTED OUT:                             `;
-// COMMENTED OUT:                         }
-// COMMENTED OUT:                     })
-// COMMENTED OUT:                     .catch(error => console.error("Error updating stats:", error));
-// COMMENTED OUT:             }
-// COMMENTED OUT:             
-// COMMENTED OUT:             // Run once on page load
-// COMMENTED OUT:             updateStats();
-// COMMENTED OUT:             
-// COMMENTED OUT:             // Also add a debug element at the bottom of the page
-// COMMENTED OUT:             const debugDiv = document.createElement('div');
-// COMMENTED OUT:             debugDiv.id = 'api-debug-data';
-            debugDiv.style.position = 'fixed';
-            debugDiv.style.bottom = '10px';
-            debugDiv.style.right = '10px';
-            debugDiv.style.background = '#f8f9fa';
-            debugDiv.style.border = '1px solid #dee2e6';
-            debugDiv.style.padding = '10px';
-            debugDiv.style.zIndex = '9999';
-            document.body.appendChild(debugDiv);
+            console.log("Page loaded, initializing dashboard");
             
-            // Add a refresh button to the debug panel
-            const refreshButton = document.createElement('button');
-            refreshButton.textContent = 'Refresh Stats';
-            refreshButton.className = 'btn btn-sm btn-primary';
-            refreshButton.onclick = updateStats;
-            debugDiv.appendChild(refreshButton);
-        });
-    </script>
-    <script>
-        // Add this script to index.html right before the closing </body> tag
-        document.addEventListener('DOMContentLoaded', function() {
-            // Direct API call to update dashboard stats
-            function updateStats() {
-                console.log("Fetching dashboard stats...");
-                fetch('/api/dashboard/stats')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log("Dashboard API returned:", data);
-                        
-                        // Update stats using direct querySelector for each stat
-                        const movieStat = document.querySelector('[data-stat="movies"]');
-                        if (movieStat) {
-                            movieStat.textContent = data.movies || '0';
-                            console.log("Updated movies to:", data.movies);
-                        }
-                        
-                        const tvShowStat = document.querySelector('[data-stat="tv_shows"]');
-                        if (tvShowStat) {
-                            tvShowStat.textContent = data.tv_shows || '0';
-                            console.log("Updated TV shows to:", data.tv_shows);
-                        }
-                        
-                        const monitoredStat = document.querySelector('[data-stat="monitored"]');
-                        if (monitoredStat) {
-                            monitoredStat.textContent = data.monitored || '0';
-                            console.log("Updated monitored to:", data.monitored);
-                        }
-                        
-                        const skippedStat = document.querySelector('[data-stat="skipped"]');
-                        if (skippedStat) {
-                            skippedStat.textContent = data.skipped || '0';
-                            console.log("Updated skipped to:", data.skipped);
-                        }
-                        
-                        // Update system status gauges if they exist
-                        if (data.system_status) {
-                            const diskGauge = document.querySelector('.gauge-fill[data-gauge="disk"]');
-                            if (diskGauge) diskGauge.style.width = data.system_status.disk_usage + '%';
-                            
-// COMMENTED OUT:                             const cpuGauge = document.querySelector('.gauge-fill[data-gauge="cpu"]');
-// COMMENTED OUT:                             if (cpuGauge) cpuGauge.style.width = data.system_status.cpu_usage + '%';
-// COMMENTED OUT:                             
-// COMMENTED OUT:                             const memoryGauge = document.querySelector('.gauge-fill[data-gauge="memory"]');
-// COMMENTED OUT:                             if (memoryGauge) memoryGauge.style.width = data.system_status.memory_usage + '%';
-// COMMENTED OUT:                         }
-// COMMENTED OUT:                         
-// COMMENTED OUT:                         // Create debug data element for troubleshooting
-// COMMENTED OUT:                         let debugDiv = document.getElementById('debug-stats');
-// COMMENTED OUT:                         if (!debugDiv) {
-// COMMENTED OUT:                             debugDiv = document.createElement('div');
-// COMMENTED OUT:                             debugDiv.id = 'debug-stats';
-// COMMENTED OUT:                             debugDiv.style.position = 'fixed';
-// COMMENTED OUT:                             debugDiv.style.bottom = '10px';
-// COMMENTED OUT:                             debugDiv.style.right = '10px';
-// COMMENTED OUT:                             debugDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
-// COMMENTED OUT:                             debugDiv.style.color = '#fff';
-// COMMENTED OUT:                             debugDiv.style.padding = '10px';
-                            debugDiv.style.fontSize = '12px';
-                            debugDiv.style.zIndex = '9999';
-                            document.body.appendChild(debugDiv);
-                        }
-                        
-                        debugDiv.innerHTML = `
-                            <h5>API Response Data</h5>
-                            <pre>${JSON.stringify(data, null, 2)}</pre>
-                            <button onclick="document.getElementById('debug-stats').style.display='none'">Close</button>
-                        `;
-                    })
-                    .catch(error => {
-                        console.error("Error fetching stats:", error);
-                    });
-            }
+            // Immediately capture initial values - make sure to store them before any updates
+            document.querySelectorAll('[data-stat]').forEach(el => {
+                const statType = el.getAttribute('data-stat');
+                const value = el.textContent.trim();
+                storedStats[statType] = value;
+                console.log(`Initial ${statType} value: ${value}`);
+                
+                // Set a data attribute to remember the initial value
+                el.setAttribute('data-initial-value', value);
+            });
             
-            // Run on page load
-            updateStats();
-            
-            // Set up refresh interval (every 30 seconds)
-            setInterval(updateStats, 30000);
+            // Wait a bit before initial update to make sure values are rendered
+            setTimeout(() => {
+                // Initial update
+                updateDashboardStats();
+                
+                // Setup auto-refresh functionality
+                setupAutoRefresh();
+            }, 500);
         });
     </script>
 </body>
