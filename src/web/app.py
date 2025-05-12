@@ -38,6 +38,9 @@ from src.main import (
     get_logger
 )
 
+# Correct import path for ActivityLogger
+from src.utils.logger import ActivityLogger
+
 # Create Flask app
 app = Flask(__name__, 
             static_folder='static',
@@ -53,6 +56,9 @@ socketio = SocketIO(app)
 
 # Set up logging
 logger = get_logger(__name__)
+
+# Initialize the logger
+activity_logger = ActivityLogger()
 
 # Dictionary to track active scan sessions
 active_scans = {}
@@ -428,32 +434,30 @@ def add_monitor():
         flash('Monitoring module not available', 'error')
         return redirect(url_for('monitor'))
 
-@app.route('/monitor/toggle/<dir_id>')
-def toggle_monitor(dir_id):
-    """Toggle a monitored directory's status."""
+@app.route('/monitor/toggle/<int:monitor_id>', methods=['GET'])
+def toggle_monitor(monitor_id):
+    """Toggle monitoring status for a directory."""
     try:
         from src.core.monitor_manager import MonitorManager
-        
         mm = MonitorManager()
-        monitored_dirs = mm.get_monitored_directories()
         
-        if dir_id not in monitored_dirs:
-            flash('Directory not found in monitored directories', 'error')
-            return redirect(url_for('monitor'))
-        
-        current_state = monitored_dirs[dir_id].get('active', False)
-        new_state = not current_state
-        
-        if mm.set_directory_status(dir_id, new_state):
-            status_text = 'enabled' if new_state else 'paused'
-            flash(f"Directory monitoring {status_text}", 'success')
+        # Get the monitor
+        monitor = mm.get_monitor_by_id(monitor_id)
+        if not monitor:
+            return jsonify({"success": False, "message": "Monitor not found"}), 404
+            
+        # Toggle the monitor
+        if monitor.is_active:
+            mm.pause_monitor(monitor_id)
+            activity_logger.log_monitor_directory_paused(monitor.directory)
         else:
-            flash(f"Failed to update directory status", 'error')
-        
-        return redirect(url_for('monitor'))
-    except ImportError:
-        flash('Monitoring module not available', 'error')
-        return redirect(url_for('monitor'))
+            mm.resume_monitor(monitor_id)
+            activity_logger.log_monitor_directory_resumed(monitor.directory)
+            
+        return ('', 204)  # No content, successful operation
+    except Exception as e:
+        app.logger.error(f"Error toggling monitor: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/monitor/remove/<dir_id>')
 def remove_monitor(dir_id):
@@ -817,6 +821,79 @@ def export_activities():
     # Default to JSON if format is not recognized
     return jsonify(activities)
 
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    """API endpoint to retrieve activity logs."""
+    # Get query parameters for filtering
+    activity_type = request.args.get('type')
+    status = request.args.get('status')
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 50))  # Default 50 items per page
+    
+    # Calculate pagination
+    offset = (page - 1) * limit
+    
+    # Path to log file
+    log_file = Path(__file__).parent.parent / "data" / "activity_log.txt"
+    
+    try:
+        # Log path info for debugging
+        print(f"Looking for log file at: {log_file}")
+        
+        activities = []
+        if log_file.exists():
+            with open(log_file, 'r', encoding='utf-8') as file:
+                for line in file:
+                    try:
+                        entry = json.loads(line.strip())
+                        
+                        # Apply filters if specified
+                        if activity_type and entry.get('type') != activity_type:
+                            continue
+                        if status and entry.get('status') != status:
+                            continue
+                        # More filters can be added here as needed
+                        
+                        activities.append(entry)
+                    except json.JSONDecodeError:
+                        continue  # Skip invalid JSON lines
+        else:
+            print(f"Log file does not exist: {log_file}")
+            # Create a placeholder activity to show the path was checked
+            activities.append({
+                "timestamp": datetime.now().isoformat(),
+                "type": "system",
+                "action": "log_check",
+                "status": "info",
+                "message": f"No log file found at: {log_file}",
+                "content_name": "System Message"
+            })
+        
+        # Sort activities by timestamp (newest first)
+        activities.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        # Pagination
+        total_activities = len(activities)
+        paginated_activities = activities[offset:offset+limit]
+        total_pages = (total_activities + limit - 1) // limit if limit > 0 else 1
+        
+        return jsonify({
+            'activities': paginated_activities,
+            'total': total_activities,
+            'page': page,
+            'limit': limit,
+            'total_pages': total_pages
+        })
+    except Exception as e:
+        app.logger.error(f"Error reading activity log: {e}")
+        return jsonify({
+            'error': 'Failed to read activity log',
+            'message': str(e),
+            'path_checked': str(log_file)
+        }), 500
+
 @socketio.on('connect')
 def handle_connect():
     """Handle SocketIO connect event."""
@@ -1121,6 +1198,37 @@ def process_directory_with_updates(session_id, directory_path, force_rescan=Fals
                             save_skipped_items(skipped_items_registry)
                             symlink_success = False
                             
+                            # Log skipped activity
+                            activity_logger.log_activity(
+                                activity_type="media_process",
+                                action="skipped",
+                                content_type="unknown",
+                                name=subfolder_name,
+                                path=subfolder_path,
+                                status="skipped",
+                                message=user_action.get('reason', "Skipped by user")
+                            )
+                        
+                        # Log successful processing
+                        if 'symlink_success' in locals() and symlink_success:
+                            content_type = 'movie'
+                            if is_tv and is_anime:
+                                content_type = 'anime_tv'
+                            elif is_tv:
+                                content_type = 'tv'
+                            elif is_anime:
+                                content_type = 'anime_movie'
+                            
+                            activity_logger.log_activity(
+                                activity_type="media_process",
+                                action="process",
+                                content_type=content_type,
+                                name=f"{title} {f'({year})' if year else ''}",
+                                path=subfolder_path,
+                                status="success",
+                                message=f"Successfully processed {content_type}"
+                            )
+                        
                         # Send folder complete update
                         send_scan_update(session_id, {
                             'type': 'folder_complete',

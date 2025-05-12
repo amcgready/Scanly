@@ -311,9 +311,10 @@
                                     <tr>
                                         <th>Time</th>
                                         <th>Type</th>
-                                        <th>Item</th>
+                                        <th>Content</th>
+                                        <th>Name</th>
                                         <th>Status</th>
-                                        <th>Details</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -321,14 +322,31 @@
                                         {% for activity in activities %}
                                         <tr class="activity-item" data-id="{{ activity.id }}">
                                             <td>{{ activity.timestamp }}</td>
-                                            <td>{{ activity.action }}</td>
+                                            <td>
+                                                {% if activity.type %}
+                                                    <span class="badge bg-primary">{{ activity.type }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Unknown</span>
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% if activity.path %}
-                                                    <span class="text-truncate d-inline-block" style="max-width: 300px;" title="{{ activity.path }}">
+                                                    <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ activity.path }}">
                                                         {{ activity.path }}
                                                     </span>
                                                 {% else %}
-                                                    {{ activity.item }}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if activity.name %}
+                                                    <strong>{{ activity.name }}</strong>
+                                                {% elif activity.content_name %}
+                                                    <strong>{{ activity.content_name }}</strong>
+                                                {% elif activity.title %}
+                                                    <strong>{{ activity.title }}</strong>
+                                                {% else %}
+                                                    -
                                                 {% endif %}
                                             </td>
                                             <td>
@@ -341,7 +359,7 @@
                                                 {% elif activity.status == "info" %}
                                                     <span class="badge bg-info">Info</span>
                                                 {% else %}
-                                                    <span class="badge bg-secondary">{{ activity.status }}</span>
+                                                    <span class="badge bg-secondary">{{ activity.status|default('Unknown') }}</span>
                                                 {% endif %}
                                             </td>
                                             <td>
@@ -351,33 +369,17 @@
                                             </td>
                                         </tr>
                                         <tr class="activity-detail-row" style="display:none;">
-                                            <td colspan="5" class="activity-detail">
+                                            <td colspan="6" class="activity-detail">
                                                 <div>
-                                                    <strong>Source Path:</strong> {{ activity.path|default('N/A') }}
+                                                    <strong>Details:</strong>
+                                                    <pre>{{ activity|tojson }}</pre>
                                                 </div>
-                                                {% if activity.destination_path %}
-                                                <div>
-                                                    <strong>Destination Path:</strong> {{ activity.destination_path }}
-                                                </div>
-                                                {% endif %}
-                                                {% if activity.message %}
-                                                <div class="mt-2">
-                                                    <strong>Message:</strong>
-                                                    <pre>{{ activity.message }}</pre>
-                                                </div>
-                                                {% endif %}
-                                                {% if activity.error %}
-                                                <div class="mt-2">
-                                                    <strong>Error:</strong>
-                                                    <pre class="text-danger">{{ activity.error }}</pre>
-                                                </div>
-                                                {% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
                                     {% else %}
                                         <tr>
-                                            <td colspan="5" class="text-center py-3">No activity records found</td>
+                                            <td colspan="6" class="text-center py-3">No activity records found</td>
                                         </tr>
                                     {% endif %}
                                 </tbody>
@@ -424,13 +426,472 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize datepickers
-            $('.datepicker').datepicker({
-                format: 'yyyy-mm-dd',
-                autoclose: true,
-                todayHighlight: true,
-                clearBtn: true
-            });
+            // Function to fetch and display activity logs
+            function fetchActivityData() {
+                const activityTable = document.getElementById('activity-log-table').querySelector('tbody');
+                const refreshBtn = document.getElementById('refreshBtn');
+                
+                // Show loading state
+                if (refreshBtn) {
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Loading...';
+                }
+                activityTable.innerHTML = '<tr><td colspan="6" class="text-center py-3"><i class="fas fa-circle-notch fa-spin me-2"></i>Loading activity data...</td></tr>';
+                
+                // Get filter values if any
+                const activityType = document.getElementById('activityType')?.value || '';
+                const statusFilter = document.getElementById('statusFilter')?.value || '';
+                const startDate = document.getElementById('startDate')?.value || '';
+                const endDate = document.getElementById('endDate')?.value || '';
+                
+                // Build query parameters
+                let queryParams = new URLSearchParams();
+                if (activityType) queryParams.append('type', activityType);
+                if (statusFilter) queryParams.append('status', statusFilter);
+                if (startDate) queryParams.append('start', startDate);
+                if (endDate) queryParams.append('end', endDate);
+                queryParams.append('page', '1');
+                queryParams.append('limit', '100');
+                
+                // Fetch from our new logs API endpoint with filters
+                fetch(`/api/logs?${queryParams.toString()}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Server responded with status ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        processActivityData(data);
+                    })
+                    .catch(error => {
+                        console.log('Error fetching logs:', error);
+                        
+                        // Show error message
+                        activityTable.innerHTML = `
+                            <tr>
+                                <td colspan="6" class="text-center py-3 text-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Could not retrieve activity logs: ${error.message}
+                                </td>
+                            </tr>
+                        `;
+                        
+                        // Reset refresh button
+                        if (refreshBtn) {
+                            refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh';
+                        }
+                    });
+            }
+            
+            // Function to process activity data
+            function processActivityData(data) {
+                const activityTable = document.getElementById('activity-log-table').querySelector('tbody');
+                const activities = data.activities || [];
+                
+                // Clear the table
+                activityTable.innerHTML = '';
+                
+                if (activities.length > 0) {
+                    // Display each activity
+                    activities.forEach(activity => {
+                        displayActivityRow(activityTable, activity);
+                    });
+                    
+                    // Add click handlers for detail toggles
+                    document.querySelectorAll('.toggle-details').forEach(button => {
+                        button.addEventListener('click', toggleDetailRow);
+                    });
+                    
+                    // Update pagination info if elements exist
+                    const totalItemsEl = document.getElementById('totalItems');
+                    const itemsShowingEl = document.getElementById('itemsShowing');
+                    
+                    if (totalItemsEl) totalItemsEl.textContent = data.total || activities.length;
+                    if (itemsShowingEl) itemsShowingEl.textContent = activities.length;
+                    
+                    // Update pagination controls if needed
+                    if (data.page && data.total_pages) {
+                        updatePaginationControls(data.page, data.total_pages);
+                    }
+                } else {
+                    // No activities found
+                    activityTable.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-3">
+                                <p>No activity records found.</p>
+                                <p class="text-muted">The activity log will populate as you use Scanly to process media.</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                // Reset refresh button
+                const refreshBtn = document.getElementById('refreshBtn');
+                if (refreshBtn) {
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh';
+                }
+            }
+            
+            // Function to create a row for an activity
+            function displayActivityRow(table, activity) {
+                // Create the main row for the activity
+                let row = document.createElement('tr');
+                row.className = 'activity-item';
+                if (activity.id) {
+                    row.setAttribute('data-id', activity.id);
+                }
+                
+                // Format timestamp
+                const timestamp = activity.timestamp ? 
+                    new Date(activity.timestamp).toLocaleString() : 
+                    new Date().toLocaleString();
+                
+                // Determine content type badge
+                let typeBadge = determineTypeBadge(activity);
+                
+                // Determine status badge
+                let statusBadge = determineStatusBadge(activity);
+                
+                // Get content name or path
+                const contentName = getContentName(activity);
+                
+                // Create the row content
+                row.innerHTML = `
+                    <td>${timestamp}</td>
+                    <td>${typeBadge}</td>
+                    <td>
+                        ${activity.path ? 
+                            `<span class="text-truncate d-inline-block" style="max-width: 200px;" title="${activity.path}">
+                                ${activity.path}
+                            </span>` : activity.directory ? 
+                            `<span class="text-truncate d-inline-block" style="max-width: 200px;" title="${activity.directory}">
+                                ${activity.directory}
+                            </span>` : '-'}
+                    </td>
+                    <td><strong>${contentName}</strong></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary toggle-details">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </td>
+                `;
+                
+                // Add the row to the table
+                table.appendChild(row);
+                
+                // Create detail row
+                let detailRow = document.createElement('tr');
+                detailRow.className = 'activity-detail-row';
+                detailRow.style.display = 'none';
+                
+                // Create detail content
+                let detailContent = '<td colspan="6" class="activity-detail"><div>';
+                detailContent += createDetailContent(activity);
+                detailContent += '</div></td>';
+                detailRow.innerHTML = detailContent;
+                
+                // Add the detail row to the table
+                table.appendChild(detailRow);
+            }
+            
+            // Helper function to determine badge for activity type
+            function determineTypeBadge(activity) {
+                if (activity.content_type === 'movie') {
+                    return '<span class="badge bg-primary">Movie</span>';
+                } else if (activity.content_type === 'tv' || activity.content_type === 'show') {
+                    return '<span class="badge bg-success">TV Show</span>';
+                } else if (activity.content_type === 'anime') {
+                    return '<span class="badge bg-info">Anime</span>';
+                } else if (activity.content_type === 'anime_movie') {
+                    return '<span class="badge bg-warning">Anime Movie</span>';
+                } else if (activity.content_type === 'anime_tv') {
+                    return '<span class="badge bg-info">Anime TV</span>';
+                } else if (activity.action === 'symlink_create') {
+                    return '<span class="badge bg-success">Symlink Created</span>';
+                } else if (activity.action === 'symlink_remove') {
+                    return '<span class="badge bg-warning">Symlink Removed</span>';
+                } else if (activity.action === 'monitor_add') {
+                    return '<span class="badge bg-primary">Monitor Added</span>';
+                } else if (activity.action === 'monitor_remove') {
+                    return '<span class="badge bg-danger">Monitor Removed</span>';
+                } else if (activity.action === 'monitor_pause') {
+                    return '<span class="badge bg-secondary">Monitor Paused</span>';
+                } else if (activity.action === 'monitor_resume') {
+                    return '<span class="badge bg-success">Monitor Resumed</span>';
+                } else if (activity.action === 'skipped') {
+                    return '<span class="badge bg-warning">Skipped</span>';
+                } else if (activity.type === 'media_process') {
+                    return '<span class="badge bg-primary">Media Process</span>';
+                } else {
+                    return `<span class="badge bg-secondary">${activity.type || activity.action || 'Unknown'}</span>`;
+                }
+            }
+            
+            // Helper function to determine badge for status
+            function determineStatusBadge(activity) {
+                if (activity.status === 'success') {
+                    return '<span class="badge bg-success">Success</span>';
+                } else if (activity.status === 'warning') {
+                    return '<span class="badge bg-warning">Warning</span>';
+                } else if (activity.status === 'error') {
+                    return '<span class="badge bg-danger">Error</span>';
+                } else if (activity.status === 'info') {
+                    return '<span class="badge bg-info">Info</span>';
+                } else if (activity.status === 'skipped') {
+                    return '<span class="badge bg-warning">Skipped</span>';
+                } else {
+                    return `<span class="badge bg-secondary">${activity.status || 'Unknown'}</span>`;
+                }
+            }
+            
+            // Helper function to get content name
+            function getContentName(activity) {
+                return activity.content_name || 
+                       activity.name || 
+                       activity.title || 
+                       activity.file_name || 
+                       (activity.directory ? `Directory: ${activity.directory.split('/').pop()}` : '-');
+            }
+            
+            // Function to create detail content
+            function createDetailContent(activity) {
+                let content = '';
+                
+                // Show symlink operations prominently
+                if (activity.symlink_path) {
+                    if (activity.action === 'symlink_create') {
+                        content += `<div class="alert alert-success mb-2">
+                            <strong>Symlink Created:</strong> ${activity.symlink_path}
+                        </div>`;
+                    } else if (activity.action === 'symlink_remove') {
+                        content += `<div class="alert alert-warning mb-2">
+                            <strong>Symlink Removed:</strong> ${activity.symlink_path}
+                        </div>`;
+                    }
+                }
+                
+                // Show monitor directory operations prominently
+                if (activity.directory) {
+                    if (activity.action === 'monitor_add') {
+                        content += `<div class="alert alert-info mb-2">
+                            <strong>Directory Added to Monitoring:</strong> ${activity.directory}
+                        </div>`;
+                    } else if (activity.action === 'monitor_remove') {
+                        content += `<div class="alert alert-danger mb-2">
+                            <strong>Directory Removed from Monitoring:</strong> ${activity.directory}
+                        </div>`;
+                    } else if (activity.action === 'monitor_pause') {
+                        content += `<div class="alert alert-secondary mb-2">
+                            <strong>Directory Monitoring Paused:</strong> ${activity.directory}
+                        </div>`;
+                    } else if (activity.action === 'monitor_resume') {
+                        content += `<div class="alert alert-success mb-2">
+                            <strong>Directory Monitoring Resumed:</strong> ${activity.directory}
+                        </div>`;
+                    }
+                }
+                
+                // Include any message
+                if (activity.message) {
+                    content += `<div class="mb-2">
+                        <strong>Message:</strong>
+                        <pre class="p-2 bg-light">${activity.message}</pre>
+                    </div>`;
+                }
+                
+                // Include error if present
+                if (activity.error) {
+                    content += `<div class="mb-2">
+                        <strong>Error:</strong>
+                        <pre class="p-2 bg-light text-danger">${activity.error}</pre>
+                    </div>`;
+                }
+                
+                // If it's a media process, include content type and media details
+                if (activity.type === 'media_process' && activity.content_type) {
+                    content += `<div class="alert alert-info mb-2">
+                        <strong>Content Type:</strong> ${activity.content_type.charAt(0).toUpperCase() + activity.content_type.slice(1)}
+                    </div>`;
+                }
+                
+                // Include raw data for debugging (collapsible)
+                content += `<details class="mt-3">
+                    <summary>Details</summary>
+                    <pre class="p-2 bg-light small">${JSON.stringify(activity, null, 2)}</pre>
+                </details>`;
+                
+                return content;
+            }
+            
+            // Function to toggle detail rows
+            function toggleDetailRow() {
+                const activityRow = this.closest('tr');
+                const detailRow = activityRow.nextElementSibling;
+                
+                if (detailRow && detailRow.classList.contains('activity-detail-row')) {
+                    if (detailRow.style.display === 'none') {
+                        detailRow.style.display = 'table-row';
+                        this.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                    } else {
+                        detailRow.style.display = 'none';
+                        this.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                    }
+                }
+            }
+            
+            // Update pagination controls
+            function updatePaginationControls(currentPage, totalPages) {
+                const paginationContainer = document.querySelector('.pagination');
+                if (!paginationContainer) return;
+                
+                // Clear previous pagination
+                paginationContainer.innerHTML = '';
+                
+                // Previous button
+                const prevItem = document.createElement('li');
+                prevItem.className = `page-item ${currentPage <= 1 ? 'disabled' : ''}`;
+                prevItem.innerHTML = `
+                    <a class="page-link" href="#" data-page="${currentPage - 1}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                `;
+                paginationContainer.appendChild(prevItem);
+                
+                // Page numbers
+                for (let i = 1; i <= totalPages; i++) {
+                    const pageItem = document.createElement('li');
+                    pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                    pageItem.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+                    paginationContainer.appendChild(pageItem);
+                }
+                
+                // Next button
+                const nextItem = document.createElement('li');
+                nextItem.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
+                nextItem.innerHTML = `
+                    <a class="page-link" href="#" data-page="${currentPage + 1}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                `;
+                paginationContainer.appendChild(nextItem);
+                
+                // Add click handlers to pagination links
+                document.querySelectorAll('.pagination .page-link').forEach(link => {
+                    link.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        const page = this.getAttribute('data-page');
+                        if (page && !this.parentElement.classList.contains('disabled')) {
+                            fetchActivityPage(parseInt(page));
+                        }
+                    });
+                });
+            }
+            
+            // Fetch a specific page of activity data
+            function fetchActivityPage(page) {
+                const activityType = document.getElementById('activityType')?.value || '';
+                const statusFilter = document.getElementById('statusFilter')?.value || '';
+                const startDate = document.getElementById('startDate')?.value || '';
+                const endDate = document.getElementById('endDate')?.value || '';
+                
+                let queryParams = new URLSearchParams();
+                if (activityType) queryParams.append('type', activityType);
+                if (statusFilter) queryParams.append('status', statusFilter);
+                if (startDate) queryParams.append('start', startDate);
+                if (endDate) queryParams.append('end', endDate);
+                queryParams.append('page', page.toString());
+                queryParams.append('limit', '100');
+                
+                // Show loading
+                const activityTable = document.getElementById('activity-log-table').querySelector('tbody');
+                activityTable.innerHTML = '<tr><td colspan="6" class="text-center py-3"><i class="fas fa-circle-notch fa-spin me-2"></i>Loading activity data...</td></tr>';
+                
+                fetch(`/api/logs?${queryParams.toString()}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Server responded with status ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        processActivityData(data);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching activity page:', error);
+                        activityTable.innerHTML = `
+                            <tr>
+                                <td colspan="6" class="text-center py-3 text-danger">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Failed to load data: ${error.message}
+                                </td>
+                            </tr>
+                        `;
+                    });
+            }
+            
+            // Export to CSV functionality
+            const exportCSVBtn = document.getElementById('exportCSVBtn');
+            if (exportCSVBtn) {
+                exportCSVBtn.addEventListener('click', function() {
+                    exportToCSV();
+                });
+            }
+            
+            // Function to export activity data to CSV
+            function exportToCSV() {
+                // Get all visible activity items
+                const activities = [];
+                document.querySelectorAll('.activity-item').forEach(row => {
+                    if (!row.classList.contains('activity-detail-row')) {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 5) {
+                            activities.push({
+                                timestamp: cells[0].textContent,
+                                type: cells[1].textContent.trim(),
+                                path: cells[2].textContent.trim(),
+                                name: cells[3].textContent.trim(),
+                                status: cells[4].textContent.trim()
+                            });
+                        }
+                    }
+                });
+                
+                if (activities.length === 0) {
+                    alert('No activity data to export.');
+                    return;
+                }
+                
+                // Create CSV content
+                let csv = 'Timestamp,Type,Path,Name,Status\n';
+                activities.forEach(activity => {
+                    // Escape fields that might contain commas
+                    const escapedPath = `"${activity.path.replace(/"/g, '""')}"`;
+                    const escapedName = `"${activity.name.replace(/"/g, '""')}"`;
+                    csv += `${activity.timestamp},${activity.type},${escapedPath},${escapedName},${activity.status}\n`;
+                });
+                
+                // Create download link
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `scanly-activity-${new Date().toISOString().slice(0,10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            // Initialize datepickers if jQuery is available
+            if (window.$ && $.fn.datepicker) {
+                $('.datepicker').datepicker({
+                    format: 'yyyy-mm-dd',
+                    autoclose: true,
+                    todayHighlight: true,
+                    clearBtn: true
+                });
+            }
             
             // Toggle filters panel
             const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
@@ -448,135 +909,25 @@
                 });
             }
             
-            // Toggle activity details
-            document.querySelectorAll('.toggle-details').forEach(button => {
-                button.addEventListener('click', function() {
-                    const activityRow = this.closest('tr');
-                    const detailRow = activityRow.nextElementSibling;
-                    
-                    if (detailRow.style.display === 'none') {
-                        detailRow.style.display = 'table-row';
-                        this.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    } else {
-                        detailRow.style.display = 'none';
-                        this.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                    }
+            // Filter form submission
+            const filterForm = document.getElementById('filterForm');
+            if (filterForm) {
+                filterForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    fetchActivityData();
                 });
-            });
+            }
             
             // Refresh button functionality
             const refreshBtn = document.getElementById('refreshBtn');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', function() {
-                    // Show loading indicator
-                    this.innerHTML = '<i class="fas fa-sync-alt fa-spin me-1"></i>Refreshing...';
-                    
-                    // Reload the current page
-                    location.reload();
+                    fetchActivityData();
                 });
             }
             
-            // Export to CSV functionality
-            const exportCSVBtn = document.getElementById('exportCSVBtn');
-            if (exportCSVBtn) {
-                exportCSVBtn.addEventListener('click', function() {
-                    // Show loading indicator
-                    this.innerHTML = '<i class="fas fa-circle-notch fa-spin me-1"></i>Exporting...';
-                    
-                    // Get current filters
-                    const activityType = document.getElementById('activityType').value;
-                    const statusFilter = document.getElementById('statusFilter').value;
-                    const startDate = document.getElementById('startDate').value;
-                    const endDate = document.getElementById('endDate').value;
-                    
-                    // Build the export URL with query parameters
-                    let exportUrl = '/api/activity/export?format=csv';
-                    if (activityType) exportUrl += `&type=${activityType}`;
-                    if (statusFilter) exportUrl += `&status=${statusFilter}`;
-                    if (startDate) exportUrl += `&start=${startDate}`;
-                    if (endDate) exportUrl += `&end=${endDate}`;
-                    
-                    // Trigger the download
-                    window.location.href = exportUrl;
-                    
-                    // Reset the button after a short delay
-                    setTimeout(() => {
-                        this.innerHTML = '<i class="fas fa-file-export me-1"></i>Export CSV';
-                    }, 2000);
-                });
-            }
-            
-            // Filter form submission
-            const filterForm = document.getElementById('filterForm');
-            if (filterForm) {
-                filterForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    // Get filter values
-                    const activityType = document.getElementById('activityType').value;
-                    const statusFilter = document.getElementById('statusFilter').value;
-                    const startDate = document.getElementById('startDate').value;
-                    const endDate = document.getElementById('endDate').value;
-                    
-                    // Build the URL with query parameters
-                    let url = '/activity?page=1';
-                    if (activityType) url += `&type=${activityType}`;
-                    if (statusFilter) url += `&status=${statusFilter}`;
-                    if (startDate) url += `&start=${startDate}`;
-                    if (endDate) url += `&end=${endDate}`;
-                    
-                    // Navigate to filtered view
-                    window.location.href = url;
-                });
-            }
-
-            // Update system status indicators periodically
-            function updateSystemStatus() {
-                fetch('/api/dashboard/stats')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.system_status) {
-                            // Monitoring status
-                            const monitoringActive = data.system_status.monitoring_active;
-                            const monitoringIndicator = document.getElementById('monitoringStatusIndicator');
-                            const monitoringText = document.getElementById('monitoringStatusText');
-                            
-                            if (monitoringActive) {
-                                monitoringIndicator.classList.remove('status-inactive');
-                                monitoringIndicator.classList.add('status-active');
-                                monitoringText.textContent = 'Monitoring: Active';
-                            } else {
-                                monitoringIndicator.classList.remove('status-active');
-                                monitoringIndicator.classList.add('status-inactive');
-                                monitoringText.textContent = 'Monitoring: Inactive';
-                            }
-                            
-                            // Plex status
-                            const plexConfigured = data.system_status.plex_configured;
-                            const plexIndicator = document.getElementById('plexStatusIndicator');
-                            const plexText = document.getElementById('plexStatusText');
-                            
-                            if (plexConfigured) {
-                                plexIndicator.classList.remove('status-inactive');
-                                plexIndicator.classList.add('status-active');
-                                plexText.textContent = 'Plex: Connected';
-                            } else {
-                                plexIndicator.classList.remove('status-active');
-                                plexIndicator.classList.add('status-inactive');
-                                plexText.textContent = 'Plex: Not configured';
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error updating system status:', error);
-                    });
-            }
-            
-            // Initial system status update
-            updateSystemStatus();
-            
-            // Update system status every 30 seconds
-            setInterval(updateSystemStatus, 30000);
+            // Fetch activity data on page load
+            fetchActivityData();
         });
     </script>
 </body>
