@@ -865,10 +865,10 @@ class DirectoryProcessor:
             r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
 
             # Common release group names
-            r'(?i)\b(AMZN|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
+            r'(?i)\b(AMZN|GP|LC|USURY|UPSCALED|SNAKE|DATPHYR|EXTENDED|Blue Ray|Special Edition|Special Assembly|EfficientNeatChachalacaOfOpportunityTGx|BiPOLAR|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
             
             # Other common patterns
-            r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV)\b'
+            r'(?i)\b(HDR|NODLABS|Extended Version|Extended Edition|VC|10bit|8bit|Hi10P|IMAX|Sony Pictures|Criterion Collection|Criterion|MA5|PROPER|REPACK|HYBRID|DV|Theatrical Cut|H 265|FLAC|ENSUBBED|AAC2|)\b'
         ]
         
         # Apply all patterns
