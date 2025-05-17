@@ -328,6 +328,67 @@ def api_dashboard_stats():
             'error': str(e)
         }), 500
 
+@app.route('/resume')
+def resume_scan():
+    """Render the resume scan page, allowing users to continue previous scans."""
+    # Get skipped items to show what's available to resume
+    try:
+        skipped_items = load_skipped_items()
+        return render_template('resume.html', items=skipped_items)
+    except Exception as e:
+        logger.error(f"Error loading skipped items for resume: {e}")
+        flash("Error loading items to resume", "error")
+        return redirect(url_for('index'))
+
+@app.route('/review')
+def review_content():
+    """Render the review page, showing processed content for verification."""
+    try:
+        # Get destination directory from environment
+        dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
+        
+        # Initialize content collections
+        movies = []
+        tv_shows = []
+        anime_movies = []
+        anime_tv = []
+        
+        if dest_dir and os.path.exists(dest_dir):
+            # Check for Movies directory
+            movies_dir = os.path.join(dest_dir, 'Movies')
+            if os.path.exists(movies_dir):
+                movies = [d for d in os.scandir(movies_dir) if d.is_dir()]
+                
+            # Check for TV Shows directory
+            tv_dir = os.path.join(dest_dir, 'TV Shows')
+            if os.path.exists(tv_dir):
+                tv_shows = [d for d in os.scandir(tv_dir) if d.is_dir()]
+                
+            # Check for Anime Movies directory
+            anime_movies_dir = os.path.join(dest_dir, 'Anime Movies')
+            if os.path.exists(anime_movies_dir):
+                anime_movies = [d for d in os.scandir(anime_movies_dir) if d.is_dir()]
+                
+            # Check for Anime TV Shows directory
+            anime_tv_dir = os.path.join(dest_dir, 'Anime TV Shows')
+            if os.path.exists(anime_tv_dir):
+                anime_tv = [d for d in os.scandir(anime_tv_dir) if d.is_dir()]
+        
+        return render_template('review.html', 
+                               movies=movies,
+                               tv_shows=tv_shows,
+                               anime_movies=anime_movies,
+                               anime_tv=anime_tv)
+    except Exception as e:
+        logger.error(f"Error in review page: {e}", exc_info=True)
+        flash("Error loading content for review", "error")
+        return redirect(url_for('index'))
+
+@app.route('/help')
+def help_page():
+    """Render the help/documentation page."""
+    return render_template('help.html')
+
 @app.route('/api/skipped/count-test')
 def skipped_count_test():
     """A simple test endpoint that returns only the count of skipped items."""
