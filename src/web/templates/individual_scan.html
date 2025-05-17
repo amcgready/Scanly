@@ -238,7 +238,7 @@
 
             <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
-               
+
                 <div id="directorySelectInterface">
                     <div class="row mb-4">
                         <div class="col-12">
@@ -304,7 +304,7 @@
                 <!-- Scanning Interface - Hidden initially, shown after form submission -->
                 <div id="scanningInterface">
                     <!-- Progress header -->
-                    <div class="row mb-4">
+                    <div class="row mb-2">
                         <div class="col-12">
                             <div class="card">
                                 <div class="card-body py-3">
@@ -325,15 +325,13 @@
                     <div class="row">
                         <!-- Left column - Poster -->
                         <div class="col-md-4">
-                            <div style="margin-bottom: 20px;">
-                                <img src="/static/images/placeholder-poster.jpg" alt="Media Poster" class="media-poster" id="mediaPoster">
-                            </div>
+                            <img src="/static/images/placeholder-poster.jpg" alt="Media Poster" class="media-poster" id="mediaPoster">
                         </div>
 
                         <!-- Right column - Media information -->
-                        <div class="col-md-8 d-flex flex-column" style="min-height: 450px;">
-                            <!-- Search box for new title - MOVED HERE -->
-                            <div class="search-box input-group">
+                        <div class="col-md-8 d-flex flex-column" style="min-height: 430px;">
+                            <!-- Search box for new title -->
+                            <div class="search-box input-group mb-2">
                                 <input type="text" class="form-control" id="searchTitle" placeholder="Search for a different title">
                                 <button class="btn btn-outline-secondary" type="button" id="searchBtn">
                                     <i class="fas fa-search"></i> Search
@@ -341,7 +339,7 @@
                             </div>
                             
                             <!-- Path and file info -->
-                            <div class="content-box">
+                            <div class="content-box mb-2">
                                 <h5 class="mb-2">File Info</h5>
                                 <div class="media-info">
                                     <p class="mb-1"><strong>Path:</strong> <span id="mediaPath">-</span></p>
@@ -351,7 +349,7 @@
                             </div>
 
                             <!-- Media description -->
-                            <div class="content-box">
+                            <div class="content-box mb-2">
                                 <h5 class="mb-2">Media Info</h5>
                                 <div>
                                     <p class="mb-1"><strong>Title:</strong> <span id="mediaTitle">-</span></p>
