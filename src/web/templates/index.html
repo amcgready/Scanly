@@ -757,8 +757,8 @@
             
             // Setup manual refresh button
             refreshBtn.addEventListener('click', function() {
-                console.log("Manual refresh triggered");
-                updateDashboardStats();
+                console.log("Manual refresh triggered - reloading page");
+                window.location.reload();
             });
         }
         
