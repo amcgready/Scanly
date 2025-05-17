@@ -212,10 +212,6 @@
                             <span class="status-indicator status-active" id="monitoringStatusIndicator"></span>
                             <span id="monitoringStatusText">Monitoring: Active</span>
                         </li>
-                        <li class="nav-item d-flex align-items-center px-3 py-2">
-                            <span class="status-indicator status-active" id="plexStatusIndicator"></span>
-                            <span id="plexStatusText">Plex: Connected</span>
-                        </li>
                     </ul>
                 </div>
             </nav>
@@ -494,7 +490,7 @@
             
             // Monitoring status
             const monitoringActive = systemStatus.monitoring_active;
-            const monitoringIndicator = document.querySelector('.sidebar .status-indicator:first-of-type');
+            const monitoringIndicator = document.querySelector('.sidebar .status-indicator');
             const monitoringText = monitoringIndicator.nextElementSibling;
             
             if (monitoringActive) {
@@ -505,21 +501,6 @@
                 monitoringIndicator.classList.remove('status-active');
                 monitoringIndicator.classList.add('status-inactive');
                 monitoringText.textContent = 'Monitoring: Inactive';
-            }
-            
-            // Plex status
-            const plexConfigured = systemStatus.plex_configured;
-            const plexIndicator = document.querySelector('.sidebar .status-indicator:last-of-type');
-            const plexText = plexIndicator.nextElementSibling;
-            
-            if (plexConfigured) {
-                plexIndicator.classList.remove('status-inactive');
-                plexIndicator.classList.add('status-active');
-                plexText.textContent = 'Plex: Connected';
-            } else {
-                plexIndicator.classList.remove('status-active');
-                plexIndicator.classList.add('status-inactive');
-                plexText.textContent = 'Plex: Not configured';
             }
         }
 
