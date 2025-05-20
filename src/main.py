@@ -658,10 +658,6 @@ class DirectoryProcessor:
             
             # Track progress
             processed = 0
-            total = len(subdirs)
-            
-            # Display initial progress
-            self._display_progress_bar(processed, total)
             
             # Process each subfolder
             for subfolder_name in subdirs:
@@ -675,9 +671,6 @@ class DirectoryProcessor:
                     print(f"PROCESSING SUBFOLDER: {subfolder_name}")
                     print("=" * 60)
                     
-                    # Show progress
-                    self._display_progress_bar(processed, total)
-                    
                     print(f"\nFolder path: {subfolder_path}")
                     
                     # Count media files in subfolder
@@ -689,48 +682,84 @@ class DirectoryProcessor:
                     
                     print(f"Contains {len(media_files)} media files")
                     
+                    # Extract metadata from folder name
+                    self.logger.debug(f"Extracting metadata from folder name: '{subfolder_name}'")
+                    
                     # Extract title and year from folder name
                     title, year = self._extract_folder_metadata(subfolder_name)
-                    print(f"Detected Title: {title}")
-                    print(f"Detected Year: {year if year else 'Unknown'}")
                     
-                    # Detect content type
+                    # Determine content type (TV show, movie, anime, etc.)
                     is_tv = self._detect_if_tv_show(subfolder_name)
                     is_anime = self._detect_if_anime(subfolder_name)
+                    
                     content_type = "TV Show" if is_tv else "Movie"
                     anime_label = " (Anime)" if is_anime else ""
-                    print(f"Detected Content Type: {content_type}{anime_label}")
                     
-                    # If in auto mode, create symlinks without asking
+                    # Display current detection
+                    print("\nCurrent detection:")
+                    print(f"Title: {title if title else subfolder_name}")
+                    print(f"Year: {year if year else 'Unknown'}")
+                    print(f"Content type: {content_type}{anime_label}")
+                    
+                    # Automatic mode - skip user interaction
                     if self.auto_mode:
-                        print("\nAuto mode enabled - processing automatically...")
-                        self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        print(f"\nAuto processing as: {content_type}{anime_label}")
+                        # Process based on content type
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
                         continue
                     
-                    # Interactive prompt for confirmation - ask the user
-                    print("\nDo you want to:")
-                    print("1. Accept detection and process")
-                    print("2. Modify detection")
-                    print("3. Skip this item")
+                    # Interactive mode
+                    print("\nOptions:")
+                    print("1. Accept match and process (default - press Enter)")
+                    print("2. Search with new title")
+                    print("3. Change content type")
+                    print("4. Skip (save for later review)")
+                    print("5. Quit to main menu")
                     
-                    choice = input("\nEnter choice (1-3): ").strip()
+                    choice = input("\nEnter choice (1-5, or press Enter for option 1): ").strip()
+                    
+                    # Default to option 1 if user just presses Enter
+                    if not choice:
+                        choice = "1"
                     
                     if choice == "1":
                         # Process with current detection
-                        self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        print(f"\nProcessing {subfolder_name} as {content_type}{anime_label}...")
+                        
+                        # Create symlinks
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        
+                        if symlink_success:
+                            print(f"Successfully processed {subfolder_name}")
+                        else:
+                            print(f"Failed to create symlinks for {subfolder_name}")
+                        
                     elif choice == "2":
-                        # Let user modify the detection
-                        print("\nEnter new title (leave blank to keep current):")
+                        # Search with new title
+                        print("\nEnter new title:")
                         new_title = input("> ").strip()
+                        
+                        print("\nEnter year (optional, press Enter to skip):")
+                        new_year = input("> ").strip()
+                        
                         if new_title:
                             title = new_title
-                        
-                        print("\nEnter year (leave blank to keep current):")
-                        new_year = input("> ").strip()
                         if new_year:
                             year = new_year
                         
-                        print("\nSelect content type:")
+                        print(f"\nProcessing {subfolder_name} with new title: {title} ({year if year else 'Unknown year'})...")
+                        
+                        # Create symlinks with the updated title/year
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        
+                        if symlink_success:
+                            print(f"Successfully processed {subfolder_name}")
+                        else:
+                            print(f"Failed to create symlinks for {subfolder_name}")
+                        
+                    elif choice == "3":
+                        # Change content type
+                        print("\nSelect the correct content type:")
                         print("1. Movie")
                         print("2. TV Show")
                         print("3. Anime Movie")
@@ -750,35 +779,52 @@ class DirectoryProcessor:
                         elif content_choice == "4":
                             is_tv = True
                             is_anime = True
+                        else:
+                            print("\nInvalid choice. Using detected content type.")
                         
-                        # Process with updated detection
                         content_type = "TV Show" if is_tv else "Movie"
                         anime_label = " (Anime)" if is_anime else ""
-                        print(f"\nUpdated Content Type: {content_type}{anime_label}")
-                        self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
-                    elif choice == "3":
-                        # Skip this item and add to skipped items
+                        
+                        print(f"\nProcessing {subfolder_name} as {content_type}{anime_label}...")
+                        
+                        # Create symlinks with the updated content type
+                        symlink_success = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                        
+                        if symlink_success:
+                            print(f"Successfully processed {subfolder_name}")
+                        else:
+                            print(f"Failed to create symlinks for {subfolder_name}")
+                        
+                    elif choice == "4":
+                        # Skip this folder
+                        print(f"\nSkipped: {subfolder_name}")
+                        # Add to skipped items registry
                         skip_item = {
                             'path': subfolder_path,
                             'subfolder': subfolder_name,
-                            'suggested_name': f"{title}{f' ({year})' if year else ''}",
+                            'suggested_name': title,
                             'is_tv': is_tv,
                             'is_anime': is_anime,
-                            'error': 'User skipped',
+                            'error': "Skipped by user",
                             'timestamp': datetime.datetime.now().isoformat()
                         }
                         
                         skipped_items_registry.append(skip_item)
                         save_skipped_items(skipped_items_registry)
+                        continue
                         
-                        print(f"\nSkipped {subfolder_name}. Added to review list.")
-                    else:
-                        # Invalid choice - skip
-                        print("\nInvalid choice. Skipping.")
-                        
-                    # Add a pause before processing the next folder
-                    input("\nPress Enter to continue to the next folder...")
+                    elif choice == "5":
+                        # Quit to main menu
+                        print("\nReturning to main menu...")
+                        return
                     
+                    else:
+                        print("\nInvalid choice. Using detected content type.")
+                    
+                    # Add a pause between processing each subfolder
+                    if not self.auto_mode:
+                        input("\nPress Enter to continue to the next subfolder...")
+                        
                 except Exception as e:
                     self.logger.error(f"Error processing subfolder '{subfolder_name}': {e}", exc_info=True)
                     print(f"Error processing {subfolder_name}: {e}")
@@ -788,8 +834,8 @@ class DirectoryProcessor:
                         'path': subfolder_path,
                         'subfolder': subfolder_name,
                         'suggested_name': subfolder_name,
-                        'is_tv': False,
-                        'is_anime': False,
+                        'is_tv': is_tv if 'is_tv' in locals() else False,
+                        'is_anime': is_anime if 'is_anime' in locals() else False,
                         'error': str(e),
                         'timestamp': datetime.datetime.now().isoformat()
                     }
@@ -806,30 +852,6 @@ class DirectoryProcessor:
             self.logger.error(f"Error processing media files: {e}", exc_info=True)
             raise
 
-    def _display_progress_bar(self, current, total, bar_length=50):
-        """Display a progress bar showing current progress."""
-        if total == 0:
-            percent = 100
-        else:
-            percent = int(current * 100 / total)
-            
-        filled_length = int(bar_length * current // total)
-        bar = '█' * filled_length + '░' * (bar_length - filled_length)
-        
-        print(f"\nProgress: [{bar}] {percent}% ({current}/{total} directories)")
-
-    def _display_file_progress(self, current, total, bar_length=50):
-        """Display a progress bar showing current file processing progress."""
-        if total == 0:
-            percent = 100
-        else:
-            percent = int(current * 100 / total)
-            
-        filled_length = int(bar_length * current // total)
-        bar = '█' * filled_length + '░' * (bar_length - filled_length)
-        
-        print(f"\rFile progress: [{bar}] {percent}% ({current}/{total} files)", end="", flush=True)
-    
     def _extract_folder_metadata(self, folder_name):
         """Extract title and year from a folder name."""
         title = folder_name
@@ -865,10 +887,10 @@ class DirectoryProcessor:
             r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
 
             # Common release group names
-            r'(?i)\b(AMZN|GP|LC|USURY|UPSCALED|SNAKE|DATPHYR|EXTENDED|Blue Ray|Special Edition|Special Assembly|EfficientNeatChachalacaOfOpportunityTGx|BiPOLAR|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
+            r'(?i)\b(AMZN|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
             
             # Other common patterns
-            r'(?i)\b(HDR|NODLABS|Extended Version|Extended Edition|VC|10bit|8bit|Hi10P|IMAX|Sony Pictures|Criterion Collection|Criterion|MA5|PROPER|REPACK|HYBRID|DV|Theatrical Cut|H 265|FLAC|ENSUBBED|AAC2|)\b'
+            r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV)\b'
         ]
         
         # Apply all patterns
@@ -1017,80 +1039,60 @@ class DirectoryProcessor:
                     print(f"Copied file: {os.path.basename(target_file_path)}")
             else:
                 # For a directory, find all media files and process them
-                media_files = []
-                
-                # First pass: collect all media files
+                media_files_found = False
                 for root, _, files in os.walk(subfolder_path):
                     for file in files:
                         if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                            media_files.append((root, file))
-                
-                # Set up tracking variables for progress
-                total_files = len(media_files)
-                processed_files = 0
-                media_files_found = False
-                
-                print(f"\nProcessing {total_files} media files:")
-                
-                # Second pass: process each file with progress tracking
-                for root, file in media_files:
-                    if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                        media_files_found = True
-                        processed_files += 1
-                        
-                        # Update progress bar
-                        self._display_file_progress(processed_files, total_files)
-                        
-                        # Calculate relative path from the subfolder root
-                        rel_path = os.path.relpath(root, subfolder_path)
-                        
-                        # If rel_path is '.', it's in the root of the subfolder
-                        if rel_path == '.':
-                            target_file_dir = target_dir_path
-                        else:
-                            target_file_dir = os.path.join(target_dir_path, rel_path)
-                            os.makedirs(target_file_dir, exist_ok=True)
-                        
-                        # Get the file extension
-                        _, file_ext = os.path.splitext(file)
-                        
-                        # Create the correctly formatted filename for TV or movies
-                        if is_tv:
-                            # For TV shows, try to preserve episode numbering
-                            # Check for season/episode pattern in the filename
-                            ep_match = re.search(r'[sS](\d{1,2})[eE](\d{1,2})', file)
-                            if ep_match:
-                                season = ep_match.group(1).lstrip('0')
-                                episode = ep_match.group(2).lstrip('0')
-                                # Format as "Show Name S01E01.ext"
-                                new_filename = f"{title} S{int(season):02d}E{int(episode):02d}{file_ext}"
-                            else:
-                                # If no episode pattern, just use the original filename
-                                new_filename = file
-                        else:
-                            # For movies, use the standardized name without TMDB ID
-                            new_filename = f"{base_name}{file_ext}"
-                        
-                        # Create symlink or copy for each file
-                        source_file_path = os.path.join(root, file)
-                        target_file_path = os.path.join(target_file_dir, new_filename)
-                        
-                        if use_symlinks:
-                            # Remove existing symlink or file if it exists
-                            if os.path.exists(target_file_path):
-                                os.remove(target_file_path)
+                            media_files_found = True
                             
-                            # Create the symlink
-                            os.symlink(source_file_path, target_file_path)
-                            self.logger.info(f"Created symlink: {target_file_path} -> {source_file_path}")
-                        else:
-                            # Copy file instead of symlink
-                            shutil.copy2(source_file_path, target_file_path)
-                            self.logger.info(f"Copied file: {source_file_path} -> {target_file_path}")
-                
-                # Add a newline after progress bar is completed
-                if media_files_found:
-                    print("\nFile processing completed.")
+                            # Calculate relative path from the subfolder root
+                            rel_path = os.path.relpath(root, subfolder_path)
+                            
+                            # If rel_path is '.', it's in the root of the subfolder
+                            if rel_path == '.':
+                                target_file_dir = target_dir_path
+                            else:
+                                target_file_dir = os.path.join(target_dir_path, rel_path)
+                                os.makedirs(target_file_dir, exist_ok=True)
+                            
+                            # Get the file extension
+                            _, file_ext = os.path.splitext(file)
+                            
+                            # Create the correctly formatted filename for TV or movies
+                            if is_tv:
+                                # For TV shows, try to preserve episode numbering
+                                # Check for season/episode pattern in the filename
+                                ep_match = re.search(r'[sS](\d{1,2})[eE](\d{1,2})', file)
+                                if ep_match:
+                                    season = ep_match.group(1).lstrip('0')
+                                    episode = ep_match.group(2).lstrip('0')
+                                    # Format as "Show Name S01E01.ext"
+                                    new_filename = f"{title} S{int(season):02d}E{int(episode):02d}{file_ext}"
+                                else:
+                                    # If no episode pattern, just use the original filename
+                                    new_filename = file
+                            else:
+                                # For movies, use the standardized name without TMDB ID
+                                new_filename = f"{base_name}{file_ext}"
+                            
+                            # Create symlink or copy for each file
+                            source_file_path = os.path.join(root, file)
+                            target_file_path = os.path.join(target_file_dir, new_filename)
+                            
+                            if use_symlinks:
+                                # Remove existing symlink or file if it exists
+                                if os.path.exists(target_file_path):
+                                    os.remove(target_file_path)
+                                
+                                # Create the symlink - FIX THE FUNCTION NAME
+                                os.symlink(source_file_path, target_file_path)
+                                self.logger.info(f"Created symlink: {target_file_path} -> {source_file_path}")
+                                print(f"Created symlink: {os.path.basename(target_file_path)}")
+                            else:
+                                # Copy file instead of symlink
+                                shutil.copy2(source_file_path, target_file_path)
+                                self.logger.info(f"Copied file: {source_file_path} -> {target_file_path}")
+                                print(f"Copied file: {os.path.basename(target_file_path)}")
             
             print(f"\nSuccessfully created links in: {target_dir_path}")
             
