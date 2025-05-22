@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://wakatime.com/badge/user/6664df3f-26cf-4fe1-872b-44d568fe4750/project/ae93498a-e802-4588-bb19-e57cafd288af"><img src="https://wakatime.com/badge/user/6664df3f-26cf-4fe1-872b-44d568fe4750/project/ae93498a-e802-4588-bb19-e57cafd288af.svg" alt="wakatime"></a>
+  <a href="https://wakatime.com/badge/github/amcgready/Scanly"><img src="https://wakatime.com/badge/github/amcgready/Scanly.svg" alt="wakatime"></a>
 </p>
 
 # Scanly
