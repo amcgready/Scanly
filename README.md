@@ -4,15 +4,13 @@
 
 <p align="center">
   <a href="https://discord.gg/hdDj4aZTVf">
-    <img src="https://img.shields.io/badge/Chat-Join%20us%20on%20Discord-7289da?logo=discord&logoColor=white" alt="Join us on Discord">
-  </a>
-  <img src="https://img.shields.io/github/downloads/amcgready/Scanly/total" alt="GitHub all releases">
+  <a href="https://wakatime.com/badge/user/6664df3f-26cf-4fe1-872b-44d568fe4750/project/ae93498a-e802-4588-bb19-e57cafd288af"><img src="https://wakatime.com/badge/user/6664df3f-26cf-4fe1-872b-44d568fe4750/project/ae93498a-e802-4588-bb19-e57cafd288af.svg" alt="wakatime"></a>
 </p>
 
 # Scanly
 
-Version: 1.3.0
-Last Updated: 2025-04-19
+Version: 1.4.0
+Last Updated: 2025-05-19
 
 # What is Scanly?
 
@@ -121,6 +119,34 @@ export DESTINATION_DIRECTORY=/path/to/your/library
 ```bash
 docker-compose up -d
 ```
+
+## Quick Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/amcgready/Scanly.git
+cd Scanly
+```
+
+2. Create a virtual environment and install dependencies:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+3. Configure your environment:
+```bash
+cp .env.template .env
+# Edit .env with your preferred text editor and add your TMDB API key
+```
+
+4. Launch Scanly:
+```bash
+python src/main.py
+```
+
+For detailed installation instructions, see [INSTALL.md](INSTALL.md).
 
 ## Usage
 
@@ -317,6 +343,49 @@ python src/main.py --quiet
 # Show help
 python src/main.py --help
 ```
+
+## Running Scanly
+
+### Command Line Interface (CLI)
+
+Scanly can be run entirely via the command line:
+
+1. Activate your virtual environment (if you created one):
+```bash
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+2. Run the main script directly:
+```bash
+python src/main.py
+```
+
+3. Follow the interactive prompts to scan and organize your media.
+
+You can also use command line arguments for specific operations:
+
+```bash
+# Scan a specific movie directory
+python src/main.py --movie /path/to/movies
+
+# Scan a specific TV show directory
+python src/main.py --tv /path/to/tv_shows
+
+# Start in interactive menu mode
+python src/main.py --interactive
+
+# Force rescan of previously processed files
+python src/main.py --force
+
+# See all available options
+python src/main.py --help
+```
+
+The CLI mode is particularly useful for:
+- Server environments without a GUI
+- Automation via cron jobs or scripts
+- Quick scans of specific directories
+- Users who prefer terminal-based workflows
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/PhtmRaven?country.x=US&locale.x=en_US)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-💖%20GitHub%20Sponsors-orange?logo=github)](https://github.com/sponsors/amcgready)
