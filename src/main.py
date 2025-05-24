@@ -288,7 +288,7 @@ def display_help():
     clear_screen()
     display_ascii_art()
     print("=" * 84)
-    print("HELP INFORMATION")
+    print("HELP INFO".center(84))
     print("=" * 84)
     print("\nScanly is a media file scanner and organizer.")
     print("\nOptions:")
@@ -306,7 +306,7 @@ def display_help_dynamic(menu_options):
     clear_screen()
     display_ascii_art()
     print("=" * 84)
-    print("HELP INFORMATION")
+    print("HELP INFO".center(84))
     print("=" * 84)
     print("\nScanly is a media file scanner and organizer.")
     
@@ -1109,7 +1109,7 @@ if __name__ == "__main__":
             clear_screen()
             display_ascii_art()
             print("=" * 84)
-            print(" " * 37 + "MAIN MENU" + " " * 38)
+            print("MAIN MENU".center(84))
             print("=" * 84)
             
             # Create menu options dynamically (remove descriptions, keep just the options)
@@ -1160,7 +1160,7 @@ if __name__ == "__main__":
                     clear_screen()
                     display_ascii_art()
                     print("=" * 84)
-                    print("INDIVIDUAL SCAN")
+                    print("INDIVIDUAL SCAN".center(84))
                     print("=" * 84)
                     
                     # Prompt for directory path
@@ -1192,7 +1192,7 @@ if __name__ == "__main__":
                     clear_screen()
                     display_ascii_art()
                     print("=" * 84)
-                    print("MULTI SCAN")
+                    print("MULTI SCAN".center(84))
                     print("=" * 84)
                     print("\nScan multiple directories (one per line)")
                     print("Enter a blank line when finished")
@@ -1275,7 +1275,7 @@ if __name__ == "__main__":
                     clear_screen()
                     display_ascii_art()
                     print("=" * 84)
-                    print("SETTINGS")
+                    print("SETTINGS".center(84))
                     print("=" * 84)
                     print("\nCurrent settings:")
                     
