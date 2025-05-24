@@ -287,9 +287,9 @@ def display_help():
     """Display help information."""
     clear_screen()
     display_ascii_art()
-    print("=" * 60)
+    print("=" * 84)
     print("HELP INFORMATION")
-    print("=" * 60)
+    print("=" * 84)
     print("\nScanly is a media file scanner and organizer.")
     print("\nOptions:")
     print("  1. Individual Scan - Scan a single directory for media files")
@@ -313,9 +313,9 @@ def review_skipped_items():
     while True:
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
+        print("=" * 84)
         print("SKIPPED ITEMS")
-        print("=" * 60)
+        print("=" * 84)
         print(f"\nFound {len(skipped_items_registry)} skipped items:")
         
         # Show a paginated list of skipped items if there are many
@@ -937,9 +937,9 @@ class DirectoryProcessor:
             while True:
                 clear_screen()
                 display_ascii_art()
-                print("=" * 60)
+                print("=" * 84)
                 print(f"MANUAL PROCESSING: {subfolder_name}")
-                print("=" * 60)
+                print("=" * 84)
                 
                 # Display current detection
                 content_type = "TV Show" if is_tv else "Movie"
@@ -967,14 +967,14 @@ class DirectoryProcessor:
                 print(f"\nContains {len(media_files)} media files")
                 
                 # Make menu highly visible with clear formatting
-                print("\n" + "=" * 80)
-                print(" " * 30 + "MANUAL PROCESSING OPTIONS" + " " * 30 + "#")
+                print("\n" + "=" * 84)
+                print(" " * 30 + "MANUAL PROCESSING OPTIONS" + " " * 30 + " ")
                 print("1. Accept")
                 print("2. Change Type")
                 print("3. New Search")
                 print("4. Skip (For later review)")
                 print("5. Quit")
-                print("=" * 80)
+                print("=" * 84)
                 
                 choice = input("\nEnter choice (1-5): ").strip()
                 print(f"You selected: {choice}")
@@ -1088,9 +1088,9 @@ if __name__ == "__main__":
         while True:
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("MAIN MENU")
-            print("=" * 60)
+            print("=" * 84)
+            print(" " * 37 + "MAIN MENU" + " " * 38)
+            print("=" * 84)
             print("\nOptions:")
             print("1. Individual Scan")
             print("2. Multi Scan")
@@ -1117,9 +1117,9 @@ if __name__ == "__main__":
                 # Individual scan
                 clear_screen()
                 display_ascii_art()
-                print("=" * 60)
+                print("=" * 84)
                 print("INDIVIDUAL SCAN")
-                print("=" * 60)
+                print("=" * 84)
                 
                 # Prompt for directory path
                 print("\nEnter the path to scan (or press Enter to return to main menu):")
@@ -1149,9 +1149,9 @@ if __name__ == "__main__":
                 # Multi scan
                 clear_screen()
                 display_ascii_art()
-                print("=" * 60)
+                print("=" * 84)
                 print("MULTI SCAN")
-                print("=" * 60)
+                print("=" * 84)
                 print("\nScan multiple directories (one per line)")
                 print("Enter a blank line when finished")
                 
@@ -1232,9 +1232,9 @@ if __name__ == "__main__":
                 # Settings
                 clear_screen()
                 display_ascii_art()
-                print("=" * 60)
+                print("=" * 84)
                 print("SETTINGS")
-                print("=" * 60)
+                print("=" * 84)
                 print("\nCurrent settings:")
                 
                 dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
