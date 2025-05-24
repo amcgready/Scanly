@@ -3,13 +3,13 @@
 
 This module is the main entry point for the Scanly application.
 """
+import logging
 import os
-import re
 import sys
 import json
-import logging
+import re
+import traceback
 import requests
-import threading
 import datetime  # Add import for datetime to fix the skipped items functionality
 
 # Define a filter to exclude certain log messages from console
@@ -1069,7 +1069,7 @@ class DirectoryProcessor:
             return "skip"
             
     def _manual_process_folder(self, subfolder_path, subfolder_name, title, year, 
-               is_tv, is_anime, tmdb_id, imdb_id, tvdb_id, scanner_list_match_found=False):
+           is_tv, is_anime, tmdb_id, imdb_id, tvdb_id, scanner_list_match_found=False):
         """Manual processing for a folder, allowing user to adjust metadata."""
         try:
             while True:
@@ -1094,7 +1094,7 @@ class DirectoryProcessor:
                     print(f"IMDB ID: {imdb_id}")
                 if tvdb_id:
                     print(f"TVDB ID: {tvdb_id}")
-    
+
                 # Show source of information
                 if scanner_list_match_found:
                     print("\n✓ Data from scanner lists")
@@ -1105,7 +1105,7 @@ class DirectoryProcessor:
                     for file in files:
                         if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
                             media_files.append(file)
-    
+
                 print(f"\nContains {len(media_files)} media files")
                 
                 # Make menu highly visible with clear formatting
@@ -1118,7 +1118,12 @@ class DirectoryProcessor:
                 print("5. Quit")
                 print("=" * 84)
                 
-                choice = input("\nEnter choice (1-5): ").strip()
+                choice = input("\nEnter choice (1-5) [1]: ").strip()  # Added default option indicator [1]
+                
+                # If user just pressed Enter, default to option 1
+                if choice == "":
+                    choice = "1"
+                    
                 print(f"You selected: {choice}")
                 
                 if choice == "1":
