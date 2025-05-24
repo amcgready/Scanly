@@ -4,13 +4,13 @@
 This module is the main entry point for the Scanly application.
 """
 import os
+import re
 import sys
 import json
 import logging
-import re
-import shutil
 import requests
-from pathlib import Path
+import threading
+import datetime  # Add import for datetime to fix the skipped items functionality
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -357,181 +357,17 @@ def review_skipped_items():
                 subfolder_name = item.get('subfolder', 'Unknown')
                 
                 if path and os.path.exists(path):
-                    # Process the skipped item interactively
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 60)
-                    print(f"PROCESSING SKIPPED ITEM: {subfolder_name}")
-                    print("=" * 60)
+                    print(f"\nProcessing skipped item: {subfolder_name}")
+                    processor = DirectoryProcessor(os.path.dirname(path))
+                    # Process the skipped item
+                    result = processor._process_subfolder(path, subfolder_name)
                     
-                    subfolder_path = item.get('path', '')
-                    
-                    print(f"\nFolder path: {subfolder_path}")
-                    
-                    # Count media files in subfolder
-                    media_files = []
-                    for root, _, files in os.walk(subfolder_path):
-                        for file in files:
-                            if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                                media_files.append(os.path.join(root, file))
-                    
-                    print(f"Contains {len(media_files)} media files")
-                    
-                    # Get title and year from the item
-                    title = item.get('suggested_name', subfolder_name)
-                    year = None  # Extract from title if possible
-                    year_match = re.search(r'\((\d{4})\)', title)
-                    if year_match:
-                        year = year_match.group(1)
-                    
-                    # Get content type from the item
-                    is_tv = item.get('is_tv', False)
-                    is_anime = item.get('is_anime', False)
-                    
-                    content_type = "TV Show" if is_tv else "Movie"
-                    anime_label = " (Anime)" if is_anime else ""
-                    
-                    # Get ID information if available
-                    tmdb_id = item.get('tmdb_id', None)
-                    imdb_id = item.get('imdb_id', None)
-                    tvdb_id = item.get('tvdb_id', None)
-                    
-                    # Display current detection
-                    print("\nCurrent detection:")
-                    print(f"Title: {title}")
-                    print(f"Year: {year if year else 'Unknown'}")
-                    print(f"Content type: {content_type}{anime_label}")
-                    if tmdb_id:
-                        print(f"TMDB ID: {tmdb_id}")
-                    if imdb_id:
-                        print(f"IMDB ID: {imdb_id}")
-                    if tvdb_id:
-                        print(f"TVDB ID: {tvdb_id}")
-                    print(f"Error: {item.get('error', 'Unknown error')}")
-                    
-                    # Interactive mode with options loop
-                    while True:
-                        print("\nOptions:")
-                        print("1. Accept")
-                        print("2. Change title/year")
-                        print("3. Change content type") 
-                        print("4. Skip (save for later review)")
-                        print("5. Remove from review list")
-                        print("0. Return to skipped items menu")
-                        
-                        choice = input("\nEnter choice (1-5, or press Enter for option 1): ")
-
-
-                        if not choice:
-                            choice = "1"
-                        
-                        if choice == "1":
-                            # Process with current detection
-                            print(f"\nProcessing {subfolder_name} as {content_type}{anime_label}...")
-                            # Process the file/directory
-                            if os.path.isfile(path):
-                                # For files, process the parent directory
-                                processor = DirectoryProcessor(os.path.dirname(path))
-                                processor.process()
-                            else:
-                                # For directories, process directly
-                                processor = DirectoryProcessor(path)
-                                processor.process()
-                            
-                            # Remove from skipped items
-                            skipped_items_registry.pop(item_index)
-                            save_skipped_items(skipped_items_registry)
-                            input("\nPress Enter to continue...")
-                            break  # Exit the inner loop
-                            
-                        elif choice == "2":
-                            # Search with new title
-                            print("\nEnter new title:")
-                            new_title = input("> ").strip()
-                            
-                            print("\nEnter year (optional, press Enter to skip):")
-                            new_year = input("> ").strip()
-                            
-                            if new_title:
-                                item['suggested_name'] = new_title
-                            if new_year:
-                                # Update with year in parentheses
-                                if '(' in item['suggested_name']:
-                                    item['suggested_name'] = re.sub(r'\(\d{4}\)', f'({new_year})', item['suggested_name'])
-                                else:
-                                    item['suggested_name'] = f"{item['suggested_name']} ({new_year})"
-                            
-                            # Update skipped items registry
-                            save_skipped_items(skipped_items_registry)
-                            
-                            print(f"\nTitle updated to: {item['suggested_name']}")
-                            # Continue in the loop to allow more changes
-                            
-                        elif choice == "3":
-                            # Change content type
-                            print("\nSelect the correct content type:")
-                            print("1. Movie")
-                            print("2. TV Show")
-                            print("3. Anime Movie")
-                            print("4. Anime TV Show")
-                            
-                            content_choice = input("\nEnter choice (1-4): ").strip()
-                            
-                            if content_choice == "1":
-                                item['is_tv'] = False
-                                item['is_anime'] = False
-                            elif content_choice == "2":
-                                item['is_tv'] = True
-                                item['is_anime'] = False
-                            elif content_choice == "3":
-                                item['is_tv'] = False
-                                item['is_anime'] = True
-                            elif content_choice == "4":
-                                item['is_tv'] = True
-                                item['is_anime'] = True
-                            else:
-                                print("\nInvalid choice. Content type unchanged.")
-                            
-                            # Update content type variables for current session
-                            is_tv = item['is_tv']
-                            is_anime = item['is_anime']
-                            content_type = "TV Show" if is_tv else "Movie"
-                            anime_label = " (Anime)" if is_anime else ""
-                            
-                            # Update registry
-                            save_skipped_items(skipped_items_registry)
-                            
-                            print(f"\nContent type updated to: {content_type}{anime_label}")
-                            # Continue in the loop to allow more changes
-                            
-                        elif choice == "4":
-                            # Skip and keep in review list
-                            print(f"\nSkipped: {subfolder_name}")
-                            input("\nPress Enter to continue...")
-                            break  # Exit the inner loop
-                            
-                        elif choice == "5":
-                            # Remove from review list
-                            skipped_items_registry.pop(item_index)
-                            save_skipped_items(skipped_items_registry)
-                            print(f"\nRemoved {subfolder_name} from review list.")
-                            input("\nPress Enter to continue...")
-                            break  # Exit the inner loop
-                            
-                        elif choice == "0":
-                            # Return to skipped items menu
-                            break  # Exit the inner loop
-                            
-                        else:
-                            print("\nInvalid choice. Please try again.")
-                            
-                else:
-                    print(f"\nError: Item path not found: {path}")
-                    print("Would you like to remove this item from the review list? (y/n)")
-                    if input("> ").strip().lower() == 'y':
+                    # If processed successfully, remove from skipped items
+                    if result != "skip":
                         skipped_items_registry.pop(item_index)
                         save_skipped_items(skipped_items_registry)
-                        print(f"\nRemoved item from review list.")
+                else:
+                    print(f"\nError: Path {path} does not exist or is not accessible.")
                     input("\nPress Enter to continue...")
             else:
                 print(f"\nInvalid item number.")
@@ -542,11 +378,11 @@ def review_skipped_items():
             clear_skipped_items()
             break
             
-        elif choice == "3" and total_pages > 1:
+        elif total_pages > 1 and choice == "3":
             # Next page
             current_page = current_page % total_pages + 1
             
-        elif choice == "4" and total_pages > 1:
+        elif total_pages > 1 and choice == "4":
             # Previous page
             current_page = (current_page - 2) % total_pages + 1
             
@@ -726,18 +562,9 @@ class DirectoryProcessor:
         for root, _, files in os.walk(subfolder_path):
             for file in files:
                 if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                    file_lower = file.lower()
-                    is_episode = False
-                    
-                    # Check if the file name matches episode patterns
-                    for pattern in ep_patterns:
-                        if re.search(pattern, file_lower, re.IGNORECASE):
-                            episode_file_count += 1
-                            is_episode = True
-                            break
-                    
-                    # Count non-episode media files
-                    if not is_episode:
+                    if any(re.search(pattern, file, re.IGNORECASE) for pattern in ep_patterns):
+                        episode_file_count += 1
+                    else:
                         non_episode_file_count += 1
         
         # If we have multiple episode files, it's likely a TV show
@@ -845,25 +672,34 @@ class DirectoryProcessor:
                 
                 if response.status_code == 200:
                     results = response.json().get('results', [])
-                    
                     if results:
-                        # Get the first result
+                        # Get the first result (most relevant)
                         first_result = results[0]
                         tmdb_id = first_result.get('id')
+                        title = first_result.get('title' if not is_tv else 'name')
                         
-                        # Get title based on content type
-                        if is_tv:
-                            title = first_result.get('name', '')
-                        else:
-                            title = first_result.get('title', '')
+                        # Extract other metadata
+                        overview = first_result.get('overview', 'No overview available')
+                        release_date = first_result.get('release_date' if not is_tv else 'first_air_date', '')
                         
-                        print(f"Found match: {title} (TMDB ID: {tmdb_id})")
+                        if release_date and len(release_date) >= 4:
+                            year = release_date[:4]
+                        
+                        print(f"Found match: {title} ({year if year else 'Unknown year'})")
+                        print(f"TMDB ID: {tmdb_id}")
+                        
+                        # First 100 characters of overview
+                        overview_preview = overview[:100] + "..." if len(overview) > 100 else overview
+                        print(f"Overview: {overview_preview}")
+                        
                         return tmdb_id, title
                     else:
-                        print(f"No results found for '{title}'")
+                        print("No results found on TMDB")
                         return None, None
                 else:
-                    print(f"TMDB API error: {response.status_code} - {response.text}")
+                    print(f"Error searching TMDB: Status code {response.status_code}")
+                    if response.status_code == 401:
+                        print("Invalid API key. Please check your TMDB API key in settings.")
                     return None, None
                     
             except requests.exceptions.RequestException as e:
@@ -886,20 +722,19 @@ class DirectoryProcessor:
             try:
                 query = title
                 if year:
-                    query = f"{title} {year}"
+                    query += f" {year}"
                 
-                if is_tv:
+                if is_tv:  # This line was missing the condition
                     results = self.tmdb_api.search_tv(query)
                 else:
                     results = self.tmdb_api.search_movie(query)
                 
                 if results and len(results) > 0:
                     tmdb_id = results[0].get('id')
-                    # For a full implementation, we would also try to fetch
-                    # IMDB and TVDB IDs using the TMDB ID as a reference
+                    # Could also extract IMDB ID from TMDB API if needed
             except Exception as e:
                 self.logger.error(f"Error fetching media IDs for {title}: {e}")
-        
+    
         return tmdb_id, imdb_id, tvdb_id
     
     def _create_symlinks(self, subfolder_path, title, year, is_tv, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
@@ -958,25 +793,31 @@ class DirectoryProcessor:
             for file in files:
                 if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
                     source_file = os.path.join(root, file)
-                    target_file = os.path.join(target_folder, file)
+                    rel_path = os.path.relpath(source_file, subfolder_path)
+                    target_file = os.path.join(target_folder, rel_path)
                     
-                    # Create the symlink or copy the file
+                    # Create parent directories if needed
+                    target_dir = os.path.dirname(target_file)
+                    if not os.path.exists(target_dir):
+                        os.makedirs(target_dir)
+                    
                     try:
-                        if use_symlinks:
-                            # Remove existing symlink if it exists
-                            if os.path.exists(target_file):
+                        # Check if target already exists and remove it if it does
+                        if os.path.exists(target_file):
+                            if os.path.islink(target_file) or os.path.isfile(target_file):
                                 os.remove(target_file)
-                            
-                            # Create the symlink
+                        
+                        # Create symlink or copy file based on settings
+                        if use_symlinks:
                             os.symlink(source_file, target_file)
                         else:
-                            # Copy the file instead of symlinking
+                            import shutil
                             shutil.copy2(source_file, target_file)
                             
                         symlink_count += 1
                     except Exception as e:
                         self.logger.error(f"Error creating link for {file}: {e}")
-                        print(f"Error creating link for {file}: {e}")
+                        print(f"Error: Could not create link for {file}: {e}")
         
         print(f"\nCreated {symlink_count} links in {target_folder}")
         return symlink_count > 0
@@ -999,6 +840,7 @@ class DirectoryProcessor:
             
             # Track progress
             processed = 0
+            total = len(subdirs)
             
             # Process each subfolder
             for subfolder_name in subdirs:
@@ -1006,181 +848,223 @@ class DirectoryProcessor:
                 processed += 1
                 
                 try:
-                    print(f"\n[{processed}/{len(subdirs)}] Processing: {subfolder_name}")
+                    print(f"\n[{processed}/{total}] Processing: {subfolder_name}")
                     
-                    # Extract basic metadata
-                    title, year, tmdb_id, _, _ = self._extract_folder_metadata(subfolder_name)
+                    # Process the subfolder
+                    result = self._process_subfolder(subfolder_path, subfolder_name)
                     
-                    # Determine content type
-                    is_tv = self._detect_if_tv_show(subfolder_name)
-                    is_anime = self._detect_if_anime(subfolder_name)
+                    # If the user wants to quit processing
+                    if result == "quit":
+                        print("\nQuitting processing as requested.")
+                        break
                     
-                    # Print initial detection
-                    content_type = "TV Show" if is_tv else "Movie"
-                    anime_label = " (Anime)" if is_anime else ""
-                    print(f"Detected as: {content_type}{anime_label}")
-                    print(f"Title: {title}")
-                    if year:
-                        print(f"Year: {year}")
-                
-                    # If we already have a TMDB ID, use it
-                    if tmdb_id:
-                        print(f"TMDB ID: {tmdb_id}")
-                    else:
-                        # Try to fetch IDs if not already available
-                        tmdb_id, _, _ = self._fetch_media_ids(title, year, is_tv)
-                        if tmdb_id:
-                            print(f"Found TMDB ID: {tmdb_id}")
-                    
-                    # Use the subfolder_path to create symlinks or process the folder
-                    if self.auto_mode:
-                        self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id)
-                    else:
-                        # Manual processing would go here
-                        # For now, just print a message
-                        print(f"Manual processing would handle: {subfolder_path}")
+                    # If the item was skipped, add it to the registry
+                    if result == "skip":
+                        # Add to skipped items list
+                        skipped_item = {
+                            'path': subfolder_path,
+                            'subfolder': subfolder_name,
+                            'timestamp': datetime.datetime.now().isoformat()
+                        }
+                        skipped_items_registry.append(skipped_item)
+                        save_skipped_items(skipped_items_registry)
+                        print(f"Added {subfolder_name} to skipped items.")
                 
                 except Exception as e:
                     self.logger.error(f"Error processing subfolder {subfolder_name}: {e}", exc_info=True)
                     print(f"Error processing {subfolder_name}: {e}")
+                    # Continue with the next subfolder instead of breaking
+                    continue
             
             # Print the completion message
-            print(f"\nFinished processing {len(subdirs)} subdirectories.")
+            print(f"\nFinished processing {processed} of {total} subdirectories.")
         except Exception as e:
             self.logger.error(f"Error processing directory {self.directory_path}: {e}", exc_info=True)
             print(f"Error: {e}")
-        
-    def _manual_process_folder(self, subfolder_path, subfolder_name, title, year, 
-                          is_tv, is_anime, tmdb_id, imdb_id, tvdb_id):
-        """Manual processing for a folder, allowing user to adjust metadata."""
-        
-        while True:
-            clear_screen()
-            display_ascii_art()
-            print("=" * 60)
-            print(f"MANUAL PROCESSING: {subfolder_name}")
-            print("=" * 60)
+    
+    def _process_subfolder(self, subfolder_path, subfolder_name):
+        """Process a single subfolder."""
+        try:
+            # Extract initial metadata from folder name
+            title, year, existing_tmdb_id, existing_imdb_id, existing_tvdb_id = self._extract_folder_metadata(subfolder_name)
             
-            # Display current detection
+            # Detect content type (TV show vs. Movie)
+            is_tv = self._detect_if_tv_show(subfolder_name)
+            
+            # Detect if content is anime
+            is_anime = self._detect_if_anime(subfolder_name)
+            
+            # Use existing IDs if available
+            tmdb_id = existing_tmdb_id
+            imdb_id = existing_imdb_id
+            tvdb_id = existing_tvdb_id
+            
+            # In manual mode, we'll show the menu BEFORE searching TMDB
+            if not self.auto_mode:
+                result = self._manual_process_folder(subfolder_path, subfolder_name, title, year, 
+                                                  is_tv, is_anime, tmdb_id, imdb_id, tvdb_id)
+                return result
+            else:
+                # Auto mode - search TMDB and process without user intervention
+                if not tmdb_id:
+                    tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
+                    if tmdb_title and tmdb_title.lower() != title.lower():
+                        title = tmdb_title
+                        
             content_type = "TV Show" if is_tv else "Movie"
             anime_label = " (Anime)" if is_anime else ""
-            print(f"\nCurrent detection:")
-            print(f"Content type: {content_type}{anime_label}")
-            print(f"Title: {title}")
-            print(f"Year: {year if year else 'Unknown'}")
+            print(f"Detected: {content_type}{anime_label} - {title} {f'({year})' if year else ''}")
             
-            # Display IDs if available
-            if tmdb_id:
-                print(f"TMDB ID: {tmdb_id}")
-            if imdb_id:
-                print(f"IMDB ID: {imdb_id}")
-            if tvdb_id:
-                print(f"TVDB ID: {tvdb_id}")
+            # Create symlinks
+            result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
+                                         tmdb_id, imdb_id, tvdb_id)
             
-            # Count media files in the folder
-            media_files = []
-            for root, _, files in os.walk(subfolder_path):
-                for file in files:
-                    if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                        media_files.append(os.path.join(root, file))
-            
-            print(f"\nContains {len(media_files)} media files")
-            
-            # Show options
-            print("\nOptions:")
-            print("1. Accept (process with current detection)")
-            print("2. New Search Term (change title/year)")
-            print("3. Change Content Type")
-            print("4. Skip (for later review)")
-            print("5. Quit (return to main menu)")
-            
-            choice = input("\nEnter choice (1-5): ").strip()
-            
-            if choice == "1":
-                # Accept current detection and process
-                print(f"\nProcessing {subfolder_name} with current detection...")
-                result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
-                                             tmdb_id, imdb_id, tvdb_id)
-                if result:
-                    print("Processing complete.")
-                else:
-                    print("Failed to process the folder.")
-                
-                input("\nPress Enter to continue to the next folder...")
+            if result:
+                print(f"Successfully processed {subfolder_name}")
                 return "continue"
+            else:
+                print(f"Failed to process {subfolder_name}")
+                return "skip"
+        except Exception as e:
+            self.logger.error(f"Error processing subfolder {subfolder_name}: {e}", exc_info=True)
+            print(f"Error processing subfolder {subfolder_name}: {e}")
+            return "skip"
+    
+    def _manual_process_folder(self, subfolder_path, subfolder_name, title, year, 
+               is_tv, is_anime, tmdb_id, imdb_id, tvdb_id):
+        """Manual processing for a folder, allowing user to adjust metadata."""
+        try:
+            while True:
+                clear_screen()
+                display_ascii_art()
+                print("=" * 60)
+                print(f"MANUAL PROCESSING: {subfolder_name}")
+                print("=" * 60)
                 
-            elif choice == "2":
-                # Change search term
-                print("\nEnter new title (leave blank to keep current):")
-                new_title = input("> ").strip()
-                if new_title:
-                    title = new_title
+                # Display current detection
+                content_type = "TV Show" if is_tv else "Movie"
+                anime_label = " (Anime)" if is_anime else ""
+                print(f"\nCurrent detection:")
+                print(f"Content type: {content_type}{anime_label}")
+                print(f"Title: {title}")
+                print(f"Year: {year if year else 'Unknown'}")
                 
-                print("\nEnter year (leave blank to clear):")
-                new_year = input("> ").strip()
-                if new_year:
-                    if new_year.isdigit() and 1900 <= int(new_year) <= 2100:
+                # Only display IDs if they were already available
+                if tmdb_id:
+                    print(f"TMDB ID: {tmdb_id}")
+                if imdb_id:
+                    print(f"IMDB ID: {imdb_id}")
+                if tvdb_id:
+                    print(f"TVDB ID: {tvdb_id}")
+    
+                # Count media files in the folder
+                media_files = []
+                for root, _, files in os.walk(subfolder_path):
+                    for file in files:
+                        if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
+                            media_files.append(os.path.join(root, file))
+    
+                print(f"\nContains {len(media_files)} media files")
+                
+                # Make menu highly visible with clear formatting
+                print("\n" + "=" * 80)
+                print(" " * 30 + "MANUAL PROCESSING OPTIONS" + " " * 30 + "#")
+                print("1. Accept")
+                print("2. Change Type")
+                print("3. New Search")
+                print("4. Skip (For later review)")
+                print("5. Quit")
+                print("=" * 80)
+                
+                choice = input("\nEnter choice (1-5): ").strip()
+                print(f"You selected: {choice}")
+                
+                if choice == "1":
+                    # Accept current detection and process
+                    print(f"\nProcessing {subfolder_name} with current detection...")
+                    
+                    # Now we search TMDB if no ID was already found
+                    if not tmdb_id:
+                        print("\nSearching for metadata...")
+                        tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
+                        if tmdb_title and tmdb_title.lower() != title.lower():
+                            if input(f"\nUse TMDB title '{tmdb_title}' instead of '{title}'? (y/n): ").strip().lower() == 'y':
+                                title = tmdb_title
+                    
+                    result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
+                                                 tmdb_id, imdb_id, tvdb_id)
+                    if result:
+                        print(f"Successfully processed {subfolder_name}")
+                    else:
+                        print(f"Failed to process {subfolder_name}")
+                
+                    input("\nPress Enter to continue to the next folder...")
+                    return "continue"
+                    
+                elif choice == "2":
+                    # Change content type (reordering to match the menu)
+                    print("\nSelect content type:")
+                    print("1. Movie")
+                    print("2. TV Show")
+                    print("3. Anime Movie")
+                    print("4. Anime TV Show")
+                    
+                    type_choice = input("\nEnter choice (1-4): ").strip()
+                    
+                    if type_choice == "1":
+                        is_tv = False
+                        is_anime = False
+                    elif type_choice == "2":
+                        is_tv = True
+                        is_anime = False
+                    elif type_choice == "3":
+                        is_tv = False
+                        is_anime = True
+                    elif type_choice == "4":
+                        is_tv = True
+                        is_anime = True
+            
+                    # Reset IDs when changing content type
+                    tmdb_id = None
+                                
+                elif choice == "3":
+                    # Change search term
+                    print("\nEnter new title (leave blank to keep current):")
+                    new_title = input("> ").strip()
+                    if new_title:
+                        title = new_title
+                
+                    print("\nEnter year (leave blank to clear):")
+                    new_year = input("> ").strip()
+                    if new_year:
                         year = new_year
                     else:
-                        print("Invalid year format. Please enter a 4-digit year.")
-                        input("\nPress Enter to continue...")
+                        year = None
+                
+                    # Reset IDs when changing title
+                    tmdb_id = None
+            
+                elif choice == "4":
+                    # Skip for later review
+                    print("\nSkipping this folder for later review.")
+                    input("\nPress Enter to continue...")
+                    return "skip"
+                    
+                elif choice == "5":
+                    # Quit processing
+                    if input("\nAre you sure you want to quit processing? (y/n): ").strip().lower() == 'y':
+                        return "quit"
+                    
                 else:
-                    year = None
-                
-                # Re-fetch IDs with the new title/year
-                if input("\nSearch for new IDs with this title? (y/n): ").strip().lower() == 'y':
-                    tmdb_id, imdb_id, tvdb_id = self._fetch_media_ids(title, year, is_tv)
-                    if tmdb_id:
-                        print(f"Found new TMDB ID: {tmdb_id}")
-                    else:
-                        print("No TMDB ID found.")
+                    print("\nInvalid choice. Please enter a number from 1-5.")
                     input("\nPress Enter to continue...")
             
-            elif choice == "3":
-                # Change content type
-                print("\nSelect content type:")
-                print("1. Movie")
-                print("2. TV Show")
-                print("3. Anime Movie")
-                print("4. Anime TV Show")
-                
-                type_choice = input("\nEnter choice (1-4): ").strip()
-                
-                if type_choice == "1":
-                    is_tv = False
-                    is_anime = False
-                elif type_choice == "2":
-                    is_tv = True
-                    is_anime = False
-                elif type_choice == "3":
-                    is_tv = False
-                    is_anime = True
-                elif type_choice == "4":
-                    is_tv = True
-                    is_anime = True
-            
-                # Re-fetch IDs with the new content type
-                if input("\nSearch for new IDs with this content type? (y/n): ").strip().lower() == 'y':
-                    tmdb_id, imdb_id, tvdb_id = self._fetch_media_ids(title, year, is_tv)
-                    if tmdb_id:
-                        print(f"Found new TMDB ID: {tmdb_id}")
-                    else:
-                        print("No TMDB ID found.")
-                    input("\nPress Enter to continue...")
-            
-            elif choice == "4":
-                # Skip for later review
-                print("\nSkipping this folder for later review.")
-                return "skip"
-                
-            elif choice == "5":
-                # Quit processing
-                if input("\nAre you sure you want to quit processing? (y/n): ").strip().lower() == 'y':
-                    return "quit"
-                
-            else:
-                print("\nInvalid choice. Please enter a number from 1 to 5.")
-                input("\nPress Enter to continue...")
+        except Exception as e:
+            print(f"\nError in manual processing: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            input("\nPress Enter to return 'skip' value...")
+            return "skip"
 
 # Function to check the monitor status
 def _check_monitor_status():
@@ -1248,20 +1132,15 @@ if __name__ == "__main__":
                 dir_path = _clean_directory_path(dir_path)
                 
                 if not os.path.isdir(dir_path):
-                    print(f"\nError: Directory not found: {dir_path}")
+                    print(f"\nError: Directory does not exist: {dir_path}")
                     input("\nPress Enter to continue...")
                     continue
                 
-                # Ask for processing mode
-                print("\nChoose processing mode:")
-                print("1. Auto (process files automatically)")
-                print("2. Manual (review each detection)")
-                mode_choice = input("\nEnter choice (1-2): ").strip()
+                # Always use manual mode - no more asking
+                print("\nUsing manual processing mode (review each detection)")
                 
-                auto_mode = mode_choice != "2"  # Default to auto if invalid input
-                
-                # Process the directory
-                processor = DirectoryProcessor(dir_path, auto_mode=auto_mode)
+                # Process the directory with manual mode (auto_mode set to False)
+                processor = DirectoryProcessor(dir_path, auto_mode=False)
                 processor.process()
                 
                 input("\nPress Enter to return to main menu...")
@@ -1278,33 +1157,28 @@ if __name__ == "__main__":
                 
                 dirs_to_scan = []
                 while True:
-                    dir_input = input("> ").strip()
-                    if not dir_input:
+                    dir_path = input("\nEnter directory path (or blank to finish): ").strip()
+                    if not dir_path:
                         break
                     
-                    dir_path = _clean_directory_path(dir_input)
+                    dir_path = _clean_directory_path(dir_path)
                     if os.path.isdir(dir_path):
                         dirs_to_scan.append(dir_path)
                     else:
-                        print(f"Warning: Directory not found: {dir_path}")
-    
+                        print(f"Warning: Directory does not exist: {dir_path}")
+
                 if not dirs_to_scan:
                     print("\nNo valid directories to scan.")
                     input("\nPress Enter to continue...")
                     continue
                 
-                # Ask for processing mode
-                print("\nChoose processing mode:")
-                print("1. Auto (process files automatically)")
-                print("2. Manual (review each detection)")
-                mode_choice = input("\nEnter choice (1-2): ").strip()
+                # Always use manual mode - no more asking
+                print("\nUsing manual processing mode (review each detection)")
                 
-                auto_mode = mode_choice != "2"  # Default to auto if invalid input
-                
-                # Process each directory
+                # Process each directory with manual mode
                 for dir_path in dirs_to_scan:
                     print(f"\nProcessing directory: {dir_path}")
-                    processor = DirectoryProcessor(dir_path, auto_mode=auto_mode)
+                    processor = DirectoryProcessor(dir_path, auto_mode=False)
                     processor.process()
                 
                 input("\nAll directories processed. Press Enter to return to main menu...")
@@ -1317,36 +1191,26 @@ if __name__ == "__main__":
                 sub_choice = input("\nEnter choice (1-2): ").strip()
                 
                 if sub_choice == "1":
+                    # Resume scan
                     history = load_scan_history()
-                    if history:
-                        dir_path = history.get('path', '')
-                        if os.path.isdir(dir_path):
-                            print(f"\nResuming scan of: {dir_path}")
-                            
-                            # Ask for processing mode
-                            print("\nChoose processing mode:")
-                            print("1. Auto (process files automatically)")
-                            print("2. Manual (review each detection)")
-                            mode_choice = input("\nEnter choice (1-2): ").strip()
-                            
-                            auto_mode = mode_choice != "2"  # Default to auto if invalid input
-                            
-                            processor = DirectoryProcessor(dir_path, resume=True, auto_mode=auto_mode)
-                            processor.process()
-                            
-                            # Clear history after successful processing
-                            clear_scan_history()
-                        else:
-                            print(f"\nError: Directory from scan history not found: {dir_path}")
+                    dir_path = history.get('path', '')
+                    
+                    if os.path.isdir(dir_path):
+                        print(f"\nResuming scan of directory: {dir_path}")
+                        processor = DirectoryProcessor(dir_path, resume=True, auto_mode=False)
+                        processor.process()
                     else:
-                        print("\nError: Failed to load scan history.")
+                        print(f"\nError: Directory from history does not exist: {dir_path}")
+                        
                     input("\nPress Enter to continue...")
                 
                 elif sub_choice == "2":
+                    # Clear history
                     if clear_scan_history():
                         print("\nScan history cleared.")
                     else:
-                        print("\nError clearing scan history.")
+                        print("\nFailed to clear scan history.")
+                    
                     input("\nPress Enter to continue...")
             
             elif choice == "4" and has_skipped:
@@ -1357,9 +1221,11 @@ if __name__ == "__main__":
                 sub_choice = input("\nEnter choice (1-2): ").strip()
                 
                 if sub_choice == "1":
+                    # Review skipped items
                     review_skipped_items()
                 
                 elif sub_choice == "2":
+                    # Clear skipped items
                     clear_skipped_items()
             
             elif choice == "5":
@@ -1378,81 +1244,67 @@ if __name__ == "__main__":
                 print(f"2. Use symlinks: {'Yes' if use_symlinks else 'No (copy files)'}")
                 
                 tmdb_folder_id = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
-                print(f"3. Include TMDB IDs in folder names: {'Yes' if tmdb_folder_id else 'No'}")
+                print(f"3. Include TMDB ID in folder names: {'Yes' if tmdb_folder_id else 'No'}")
                 
-                imdb_folder_id = os.environ.get('IMDB_FOLDER_ID', 'false').lower() == 'true'
-                print(f"4. Include IMDB IDs in folder names: {'Yes' if imdb_folder_id else 'No'}")
+                print("\nOptions:")
+                print("1. Change destination directory")
+                print("2. Toggle symlinks/copy mode")
+                print("3. Toggle TMDB ID in folder names")
+                print("4. Set TMDB API key")
+                print("5. Check monitor status")
+                print("0. Return to main menu")
                 
-                tvdb_folder_id = os.environ.get('TVDB_FOLDER_ID', 'false').lower() == 'true'
-                print(f"5. Include TVDB IDs in folder names: {'Yes' if tvdb_folder_id else 'No'}")
-                
-                tmdb_api_key = os.environ.get('TMDB_API_KEY', '')
-                print(f"6. TMDB API Key: {tmdb_api_key[:5] + '...' if tmdb_api_key else 'Not set'}")
-                
-                refresh_plex = os.environ.get('REFRESH_PLEX', 'true').lower() == 'true'
-                print(f"7. Refresh Plex: {'Yes' if refresh_plex else 'No'}")
-                
-                print("\n8. Check monitor status")
-                
-                print("\n0. Return to main menu")
-                
-                setting_choice = input("\nEnter setting to change (0-8): ").strip()
+                setting_choice = input("\nEnter choice (0-5): ").strip()
                 
                 if setting_choice == "1":
-                    print("\nEnter the destination directory path:")
-                    new_dest_dir = input("> ").strip()
-                    if new_dest_dir:
-                        new_dest_dir = _clean_directory_path(new_dest_dir)
-                        if os.path.isdir(new_dest_dir):
-                            _update_env_var('DESTINATION_DIRECTORY', new_dest_dir)
-                            print(f"\nDestination directory updated to: {new_dest_dir}")
-                        else:
-                            print(f"\nError: {new_dest_dir} is not a valid directory.")
-                        
+                    # Change destination directory
+                    print("\nEnter new destination directory:")
+                    new_dir = input("> ").strip()
+                    new_dir = _clean_directory_path(new_dir)
+                    
+                    if os.path.isdir(new_dir):
+                        _update_env_var('DESTINATION_DIRECTORY', new_dir)
+                        print(f"\nDestination directory set to: {new_dir}")
+                    else:
+                        print(f"\nError: Directory does not exist: {new_dir}")
+                    
+                    input("\nPress Enter to continue...")
+                    
                 elif setting_choice == "2":
-                    print("\nUse symlinks? (y/n):")
-                    use_symlinks = input("> ").strip().lower() == 'y'
-                    _update_env_var('USE_SYMLINKS', 'true' if use_symlinks else 'false')
-                    print(f"\nUse symlinks set to: {'Yes' if use_symlinks else 'No'}")
+                    # Toggle symlinks/copy mode
+                    current = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+                    new_value = 'false' if current else 'true'
+                    _update_env_var('USE_SYMLINKS', new_value)
+                    
+                    print(f"\nFile mode set to: {'Symlinks' if new_value == 'true' else 'Copy'}")
+                    input("\nPress Enter to continue...")
                     
                 elif setting_choice == "3":
-                    print("\nInclude TMDB IDs in folder names? (y/n):")
-                    include_tmdb = input("> ").strip().lower() == 'y'
-                    _update_env_var('TMDB_FOLDER_ID', 'true' if include_tmdb else 'false')
-                    print(f"\nInclude TMDB IDs set to: {'Yes' if include_tmdb else 'No'}")
+                    # Toggle TMDB ID in folder names
+                    current = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
+                    new_value = 'false' if current else 'true'
+                    _update_env_var('TMDB_FOLDER_ID', new_value)
+                    
+                    print(f"\nTMDB ID in folder names: {'Enabled' if new_value == 'true' else 'Disabled'}")
+                    input("\nPress Enter to continue...")
                     
                 elif setting_choice == "4":
-                    print("\nInclude IMDB IDs in folder names? (y/n):")
-                    include_imdb = input("> ").strip().lower() == 'y'
-                    _update_env_var('IMDB_FOLDER_ID', 'true' if include_imdb else 'false')
-                    print(f"\nInclude IMDB IDs set to: {'Yes' if include_imdb else 'No'}")
+                    # Set TMDB API key
+                    print("\nEnter TMDB API key (or leave blank to keep current):")
+                    api_key = input("> ").strip()
+                    
+                    if api_key:
+                        _update_env_var('TMDB_API_KEY', api_key)
+                        print("\nTMDB API key updated.")
+                    
+                    input("\nPress Enter to continue...")
                     
                 elif setting_choice == "5":
-                    print("\nInclude TVDB IDs in folder names? (y/n):")
-                    include_tvdb = input("> ").strip().lower() == 'y'
-                    _update_env_var('TVDB_FOLDER_ID', 'true' if include_tvdb else 'false')
-                    print(f"\nInclude TVDB IDs set to: {'Yes' if include_tvdb else 'No'}")
-                    
-                elif setting_choice == "6":
-                    print("\nEnter TMDB API key (or press Enter to keep current):")
-                    new_api_key = input("> ").strip()
-                    if new_api_key:
-                        _update_env_var('TMDB_API_KEY', new_api_key)
-                        print("\nTMDB API key updated.")
-                        
-                elif setting_choice == "7":
-                    print("\nRefresh Plex after creating links? (y/n):")
-                    refresh_plex = input("> ").strip().lower() == 'y'
-                    _update_env_var('REFRESH_PLEX', 'true' if refresh_plex else 'false')
-                    print(f"\nRefresh Plex set to: {'Yes' if refresh_plex else 'No'}")
-                    
-                elif setting_choice == "8":
+                    # Check monitor status
                     _check_monitor_status()
                 
-                input("\nPress Enter to continue...")
-                
             elif choice == "6":
-                # Help information
+                # Help
                 display_help()
                 
             elif choice == "0":
@@ -1461,9 +1313,11 @@ if __name__ == "__main__":
                 break
                 
             else:
-                print("\nInvalid choice. Please enter a number from 0 to 6.")
+                print("\nInvalid choice. Please try again.")
                 input("\nPress Enter to continue...")
     
+    except KeyboardInterrupt:
+        print("\n\nProgram interrupted by user. Exiting...")
     except Exception as e:
         logger.error(f"Unhandled exception in main: {e}", exc_info=True)
         print(f"\nError: {e}")
