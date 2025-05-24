@@ -36,8 +36,8 @@ class ConsoleFilter(logging.Filter):
         ]):
             return False
         
-        # Filter out specific scanner matching messages
-        if record.msg and any(pattern in str(record.msg) for pattern in [
+        # Filter out specific scanner matching messages EXCEPT our new visible checks with ✓
+        if record.msg and "✓" not in str(record.msg) and any(pattern in str(record.msg) for pattern in [
             "EXACT MATCH:",
             "STRONG CONTAINMENT:",
             "STRONG SUBSTRING:",
@@ -919,41 +919,135 @@ class DirectoryProcessor:
             imdb_id = existing_imdb_id
             tvdb_id = existing_tvdb_id
             
-            # Check scanner lists before manual processing or TMDB search
-            from src.utils.scanner_utils import check_scanner_lists
-            scanner_match = check_scanner_lists(title)
-            if scanner_match:
-                content_type, scanner_is_anime, scanner_tmdb_id, scanner_title = scanner_match
+            # Flag to track if we found a match in scanner lists
+            scanner_list_match_found = False
+            
+            # Check scanner lists FIRST - prioritize scanner lists over everything else
+            print(f"\nChecking scanner lists for: '{title}'")
+            scanner_match = None
+            scanner_year = None
+            
+            try:
+                from src.utils.scanner_utils import find_all_matches
+                self.logger.debug(f"Checking scanner lists for: '{title}'")
                 
-                # Update values based on scanner match if they're not already set
-                if not tmdb_id and scanner_tmdb_id:
-                    tmdb_id = scanner_tmdb_id
-                    print(f"Found TMDB ID {tmdb_id} from scanner list")
+                # Get all potential matches
+                scanner_matches = find_all_matches(title)
                 
-                # Update content type and anime status if not already determined
-                if scanner_is_anime:
-                    is_anime = True
-                
-                if content_type == 'tv':
-                    is_tv = True
-                elif content_type == 'movie':
-                    is_tv = False
+                if scanner_matches and len(scanner_matches) > 0:
+                    if len(scanner_matches) == 1:
+                        # Single match found - use it automatically
+                        scanner_match = scanner_matches[0]
+                        content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
+                        
+                        match_type = "exact" if scanner_title.lower() == title.lower() else "approximate"
+                        self.logger.info(f"Scanner list {match_type} match: '{title}' -> '{scanner_title}', ID: {scanner_tmdb_id}, Year: {scanner_year}")
+                        print(f"✓ Found {match_type} match in scanner list: '{scanner_title}' ({scanner_year or 'Unknown'}), TMDB ID: {scanner_tmdb_id or 'None'}")
+                        scanner_list_match_found = True
+                    else:
+                        # Multiple matches - let the user choose in manual mode, or pick the best in auto mode
+                        print(f"✓ Found {len(scanner_matches)} potential matches in scanner lists")
+                        
+                        if not self.auto_mode:
+                            # In manual mode, let the user choose
+                            print("\nMultiple matches found. Please select the correct one:")
+                            for i, match in enumerate(scanner_matches, 1):
+                                match_content_type, match_is_anime, match_tmdb_id, match_title, match_year = match
+                                content_label = "TV" if match_content_type == "tv" else "Movie"
+                                anime_label = " (Anime)" if match_is_anime else ""
+                                print(f"{i}. {match_title} ({match_year or 'Unknown'}) - {content_label}{anime_label} [TMDB: {match_tmdb_id or 'None'}]")
+                            
+                            while True:
+                                choice = input("\nEnter number (or 0 to skip scanner matches): ")
+                                if choice.isdigit():
+                                    choice_idx = int(choice)
+                                    if choice_idx == 0:
+                                        print("Skipping scanner matches")
+                                        scanner_match = None
+                                        break
+                                    elif 1 <= choice_idx <= len(scanner_matches):
+                                        scanner_match = scanner_matches[choice_idx - 1]
+                                        content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
+                                        print(f"Selected: {scanner_title} ({scanner_year or 'Unknown'})")
+                                        scanner_list_match_found = True
+                                        break
+                                print("Invalid selection. Please try again.")
+                        else:
+                            # In auto mode, find the closest match
+                            import difflib
+                            
+                            def similarity_score(a, b):
+                                return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio()
+                            
+                            matches_with_scores = [(match, similarity_score(title, match[3])) for match in scanner_matches]
+                            matches_with_scores.sort(key=lambda x: x[1], reverse=True)
+                            
+                            # Use the best match
+                            best_match, score = matches_with_scores[0]
+                            if score > 0.8:  # Only use if it's a good match
+                                scanner_match = best_match
+                                content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
+                                print(f"✓ Using best scanner match: '{scanner_title}' ({scanner_year or 'Unknown'}), TMDB ID: {scanner_tmdb_id or 'None'}")
+                                scanner_list_match_found = True
+                            else:
+                                print("No sufficiently close scanner matches found")
                     
-                # Update title if scanner had a better title
-                if scanner_title and scanner_title != title:
-                    title = scanner_title
+                    # Apply the scanner match if one was selected or found
+                    if scanner_match:
+                        content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
+                        
+                        # Always use scanner TMDB ID if available
+                        if scanner_tmdb_id:
+                            tmdb_id = scanner_tmdb_id
+                            print(f"✓ Using TMDB ID {tmdb_id} from scanner list")
+                        
+                        # Always use scanner year if available
+                        if scanner_year:
+                            year = scanner_year
+                            print(f"✓ Using year {year} from scanner list")
+                        
+                        # Update content type and anime status
+                        if scanner_is_anime:
+                            is_anime = True
+                            print("✓ Content identified as anime from scanner list")
+                        
+                        if content_type == 'tv':
+                            is_tv = True
+                            print("✓ Content identified as TV show from scanner list")
+                        elif content_type == 'movie':
+                            is_tv = False
+                            print("✓ Content identified as movie from scanner list")
+                            
+                        # Always use scanner title
+                        if scanner_title:
+                            title = scanner_title
+                            print(f"✓ Using title from scanner list: '{scanner_title}'")
+                else:
+                    print("No matches found in scanner lists")
+                    
+            except ImportError as e:
+                self.logger.warning(f"Scanner utility module not available: {e}")
+                print("Scanner lists check skipped - module not available")
+            except Exception as e:
+                self.logger.error(f"Error checking scanner lists: {e}", exc_info=True)
+                print(f"Error checking scanner lists: {e}")
         
-            # In manual mode, we'll show the menu BEFORE searching TMDB
+            # In manual mode, show the menu, but don't search TMDB if we have a scanner match
             if not self.auto_mode:
+                # Pass the scanner_list_match_found flag to _manual_process_folder
                 result = self._manual_process_folder(subfolder_path, subfolder_name, title, year, 
-                                                  is_tv, is_anime, tmdb_id, imdb_id, tvdb_id)
+                                                  is_tv, is_anime, tmdb_id, imdb_id, tvdb_id,
+                                                  scanner_list_match_found)
                 return result
             else:
-                # Auto mode - search TMDB and process without user intervention
-                if not tmdb_id:  # Only search TMDB if we don't have an ID already
+                # Auto mode - ONLY search TMDB if we have NO tmdb_id AND NO scanner list match
+                if not tmdb_id and not scanner_list_match_found:
+                    print("No TMDB ID from scanner lists, searching TMDB...")
                     tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
                     if tmdb_title and tmdb_title.lower() != title.lower():
                         title = tmdb_title
+                elif scanner_list_match_found:
+                    print("✓ Using data from scanner lists, skipping TMDB search")
             
             content_type = "TV Show" if is_tv else "Movie"
             anime_label = " (Anime)" if is_anime else ""
@@ -973,9 +1067,9 @@ class DirectoryProcessor:
             self.logger.error(f"Error processing subfolder {subfolder_name}: {e}", exc_info=True)
             print(f"Error processing subfolder {subfolder_name}: {e}")
             return "skip"
-    
+            
     def _manual_process_folder(self, subfolder_path, subfolder_name, title, year, 
-               is_tv, is_anime, tmdb_id, imdb_id, tvdb_id):
+               is_tv, is_anime, tmdb_id, imdb_id, tvdb_id, scanner_list_match_found=False):
         """Manual processing for a folder, allowing user to adjust metadata."""
         try:
             while True:
@@ -1001,12 +1095,16 @@ class DirectoryProcessor:
                 if tvdb_id:
                     print(f"TVDB ID: {tvdb_id}")
     
+                # Show source of information
+                if scanner_list_match_found:
+                    print("\n✓ Data from scanner lists")
+                
                 # Count media files in the folder
                 media_files = []
                 for root, _, files in os.walk(subfolder_path):
                     for file in files:
                         if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                            media_files.append(os.path.join(root, file))
+                            media_files.append(file)
     
                 print(f"\nContains {len(media_files)} media files")
                 
@@ -1027,13 +1125,14 @@ class DirectoryProcessor:
                     # Accept current detection and process
                     print(f"\nProcessing {subfolder_name} with current detection...")
                     
-                    # Now we search TMDB only if no ID was already found
-                    if not tmdb_id:
+                    # Only search TMDB if we don't have an ID AND didn't find a scanner match
+                    if not tmdb_id and not scanner_list_match_found:
                         print("\nSearching for metadata...")
                         tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
                         if tmdb_title and tmdb_title.lower() != title.lower():
-                            if input(f"\nUse TMDB title '{tmdb_title}' instead of '{title}'? (y/n): ").strip().lower() == 'y':
-                                title = tmdb_title
+                            title = tmdb_title
+                    elif scanner_list_match_found:
+                        print("✓ Using data from scanner lists, skipping TMDB search")
                     
                     result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
                                                  tmdb_id, imdb_id, tvdb_id)
@@ -1068,8 +1167,9 @@ class DirectoryProcessor:
                         is_tv = True
                         is_anime = True
             
-                    # Reset IDs when changing content type
+                    # Reset IDs and scanner match flag when changing content type manually
                     tmdb_id = None
+                    scanner_list_match_found = False
                                 
                 elif choice == "3":
                     # Change search term
@@ -1085,8 +1185,9 @@ class DirectoryProcessor:
                     else:
                         year = None
                 
-                    # Reset IDs when changing title
+                    # Reset IDs and scanner match flag when changing title
                     tmdb_id = None
+                    scanner_list_match_found = False
             
                 elif choice == "4":
                     # Skip for later review
@@ -1105,7 +1206,6 @@ class DirectoryProcessor:
             
         except Exception as e:
             print(f"\nError in manual processing: {str(e)}")
-            import traceback
             traceback.print_exc()
             input("\nPress Enter to return 'skip' value...")
             return "skip"
@@ -1120,6 +1220,39 @@ def _check_monitor_status():
         print("\nMonitor module not available.")
         
     input("\nPress Enter to continue...")
+
+# Function to add to src/utils/scanner_utils.py
+def find_all_matches(title):
+    """Find all possible matches in scanner lists, not just the best one."""
+    matches = []
+    
+    # Get all potential matches from all scanner lists
+    normalized_search_title = normalize_title(title)
+    
+    # Check each list type
+    for list_type in scanner_lists:
+        for item in scanner_lists[list_type]:
+            scanner_title = item.get('title', '')
+            normalized_scanner_title = normalize_title(scanner_title)
+            
+            # Check for exact/strong/substring matches - customize as needed
+            # Add year to the output tuple
+            year = item.get('year')
+            
+            # Exact match
+            if normalized_scanner_title == normalized_search_title:
+                matches.append((list_type, item.get('anime', False), 
+                               item.get('tmdb_id'), scanner_title, year))
+            
+            # Strong containment match (title contains scanner title or vice versa)
+            elif (normalized_scanner_title in normalized_search_title or 
+                  normalized_search_title in normalized_scanner_title):
+                matches.append((list_type, item.get('anime', False), 
+                               item.get('tmdb_id'), scanner_title, year))
+            
+            # You could add more match types here if needed
+    
+    return matches
 
 # Main entry point
 if __name__ == "__main__":

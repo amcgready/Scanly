@@ -1,280 +1,197 @@
+"""
+Utility functions for scanning and matching media titles against known databases.
+"""
 import os
 import re
 import logging
-import sys
+import json
 
-def load_scanner_entries(filename):
-    """
-    Load entries from a scanner list file.
-    
-    Args:
-        filename: Name of the scanner list file
-        
-    Returns:
-        List of entries from the file
-    """
+# Get logger
+logger = logging.getLogger(__name__)
+
+# Global variables to hold scanner lists
+scanner_lists = {
+    'tv': [],
+    'movie': [],
+    'anime_tv': [],
+    'anime_movie': []
+}
+
+def normalize_title(title):
+    """Normalize a title for comparison."""
+    if not title:
+        return ""
+    # Convert to lowercase and strip whitespace
+    title = title.lower().strip()
+    # Remove special characters, replace with spaces
+    title = re.sub(r'[^\w\s]', ' ', title)
+    # Replace multiple spaces with single space
+    title = re.sub(r'\s+', ' ', title)
+    return title.strip()
+
+def load_scanner_lists():
+    """Load all scanner lists from files."""
     try:
-        # Define path to scanner file
-        scanner_file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scanners', filename)
+        # Determine the path to the scanners directory
+        scanner_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scanners')
         
-        # Check if file exists
-        if not os.path.exists(scanner_file_path):
-            logger.warning(f"Scanner file not found: {scanner_file_path}")
-            return []
+        logger.info(f"Loading scanner lists from {scanner_dir}")
         
-        # Read entries from file
-        with open(scanner_file_path, 'r', encoding='utf-8') as f:
-            entries = [line.strip() for line in f.readlines() if line.strip()]
+        # Define file paths
+        movie_file = os.path.join(scanner_dir, 'movies.txt')
+        tv_file = os.path.join(scanner_dir, 'tv_series.txt')
+        anime_movie_file = os.path.join(scanner_dir, 'anime_movies.txt')
+        anime_series_file = os.path.join(scanner_dir, 'anime_series.txt')
         
-        return entries
+        # Load each list
+        scanner_lists['movie'] = _load_list_file(movie_file, 'movie')
+        scanner_lists['tv'] = _load_list_file(tv_file, 'tv')
+        scanner_lists['anime_movie'] = _load_list_file(anime_movie_file, 'anime_movie')
+        scanner_lists['anime_tv'] = _load_list_file(anime_series_file, 'anime_tv')
+        
+        logger.info(f"Loaded {len(scanner_lists['movie'])} movies, {len(scanner_lists['tv'])} TV shows, "
+                   f"{len(scanner_lists['anime_movie'])} anime movies, {len(scanner_lists['anime_tv'])} anime series")
+        
+        return True
     except Exception as e:
-        logger.error(f"Error loading scanner entries from {filename}: {e}")
+        logger.error(f"Error loading scanner lists: {e}", exc_info=True)
+        return False
+
+def _load_list_file(file_path, list_type):
+    """Load a single scanner list file."""
+    items = []
+    if not os.path.exists(file_path):
+        logger.warning(f"Scanner list file not found: {file_path}")
+        return items
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Parse the file content based on the format in your scanner files
+        # Format appears to be: "Title (Year) [TMDB_ID]"
+        is_anime = list_type.startswith('anime_')
+        content_type = 'movie' if list_type.endswith('movie') else 'tv'
+        
+        # Process each line
+        for line in content.splitlines():
+            if not line.strip() or line.strip().startswith('//'):
+                continue
+                
+            # Extract using regex pattern
+            match = re.search(r'(.+?)\s*\((\d{4})\)\s*\[([^\]]+)\]', line.strip())
+            if match:
+                title = match.group(1).strip()
+                year = match.group(2)
+                id_value = match.group(3)
+                
+                # Handle IDs that might be prefixed with "movie:" or other tags
+                if id_value.startswith('movie:'):
+                    tmdb_id = id_value[6:]
+                elif id_value.lower() == 'error':
+                    tmdb_id = None
+                else:
+                    tmdb_id = id_value
+                
+                items.append({
+                    'title': title,
+                    'year': year,
+                    'tmdb_id': tmdb_id,
+                    'anime': is_anime
+                })
+            else:
+                logger.debug(f"Could not parse line in {list_type} list: {line}")
+        
+        logger.info(f"Loaded {len(items)} items from {file_path}")
+        return items
+        
+    except Exception as e:
+        logger.error(f"Error loading {file_path}: {e}", exc_info=True)
         return []
 
-def check_scanner_lists(title, check_full_path=False):
+def check_scanner_lists(title):
+    """Check if a title exists in any of the scanner lists.
+    Returns the best match as (content_type, is_anime, tmdb_id, title, year)
     """
-    Check if a title matches any entry in the scanner lists with weighted matching.
+    if not scanner_lists['movie'] and not scanner_lists['tv']:
+        # Lists haven't been loaded yet
+        load_scanner_lists()
     
-    Args:
-        title: The title to check
-        check_full_path: If True, match against full paths instead of just titles
-        
-    Returns:
-        A tuple of (content_type, is_anime, tmdb_id, title_override) or None if no match
-    """
-    logger = logging.getLogger(__name__)
+    normalized_search_title = normalize_title(title)
     
-    # Lists to check (in order of priority)
-    scanner_files = [
-        ('anime_series.txt', 'tv', True),
-        ('anime_movies.txt', 'movie', True),
-        ('tv_series.txt', 'tv', False),
-        ('movies.txt', 'movie', False)
-    ]
-    
-    # Get the base scanner directory
-    scanner_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scanners')
-    
-    # Clean the input title to remove technical info
-    def clean_title(text):
-        """Clean title for comparison by removing technical info"""
-        if not text:
-            return ""
+    # First try for exact matches
+    for list_type in scanner_lists:
+        for item in scanner_lists[list_type]:
+            scanner_title = item.get('title', '')
+            normalized_scanner_title = normalize_title(scanner_title)
             
-        # Remove resolution indicators
-        clean = re.sub(r'\b(?:720p|1080p|2160p|4K|UHD)\b', '', text, flags=re.IGNORECASE)
-        
-        # Remove media quality and encoding info
-        clean = re.sub(r'\b(?:BluRay|BRRip|HDTV|WEB-DL|WEBRip|DVDRip|x264|x265|HEVC|10bit|HDR|DV)\b', '', clean, flags=re.IGNORECASE)
-        
-        # Remove release group tags and technical terms
-        clean = re.sub(r'\b(?:REMUX|HYBRID|PROPER|REPACK|Atmos|ExKinoRay|YIFY|YTS(?:\.MX)?|RARBG|AMZN)\b', '', clean, flags=re.IGNORECASE)
-        
-        # Remove content in brackets and parentheses
-        clean = re.sub(r'\[[^\]]*\]|\([^)]*\)', '', clean)
-        
-        # Normalize spaces and trim
-        clean = re.sub(r'\s+', ' ', clean).strip()
-        
-        return clean
+            # Exact match
+            if normalized_scanner_title == normalized_search_title:
+                content_type = 'movie' if list_type.endswith('movie') else 'tv'
+                is_anime = list_type.startswith('anime_')
+                return (content_type, is_anime, item.get('tmdb_id'), scanner_title, item.get('year'))
     
-    # Function to normalize titles for comparison
-    def normalize_title(text):
-        if not text:
-            return ""
-        # Convert to lowercase
-        text = text.lower()
-        # Replace dots, underscores with spaces
-        text = text.replace('.', ' ').replace('_', ' ')
-        # Replace dashes with spaces
-        text = text.replace('-', ' ')
-        # Normalize whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
+    # Try for strong containment matches
+    for list_type in scanner_lists:
+        for item in scanner_lists[list_type]:
+            scanner_title = item.get('title', '')
+            normalized_scanner_title = normalize_title(scanner_title)
+            
+            # Strong containment (one contains the other completely)
+            if (normalized_scanner_title in normalized_search_title or 
+                normalized_search_title in normalized_scanner_title):
+                content_type = 'movie' if list_type.endswith('movie') else 'tv'
+                is_anime = list_type.startswith('anime_')
+                return (content_type, is_anime, item.get('tmdb_id'), scanner_title, item.get('year'))
     
-    # Calculate match score between two strings
-    def calculate_match_score(input_title, scanner_entry):
-        # First clean both titles to remove technical info
-        clean_input = clean_title(input_title)
-        clean_scanner = scanner_entry  # Scanner entries should already be clean
-        
-        # Then normalize for comparison
-        input_words = set(normalize_title(clean_input).split())
-        entry_words = set(normalize_title(clean_scanner).split())
-        
-        # Calculate word overlap
-        common_words = input_words.intersection(entry_words)
-        
-        # If no common words, no match
-        if not common_words:
-            return 0
+    # No match found
+    return None
+
+def find_all_matches(title):
+    """Find all possible matches in scanner lists."""
+    if not scanner_lists['movie'] and not scanner_lists['tv']:
+        # Lists haven't been loaded yet
+        load_scanner_lists()
+    
+    matches = []
+    normalized_search_title = normalize_title(title)
+    
+    # First collect exact matches
+    for list_type in scanner_lists:
+        for item in scanner_lists[list_type]:
+            scanner_title = item.get('title', '')
+            normalized_scanner_title = normalize_title(scanner_title)
             
-        # Calculate coverage ratio
-        input_coverage = len(common_words) / len(input_words) if input_words else 0
-        entry_coverage = len(common_words) / len(entry_words) if entry_words else 0
-        
-        # Base score calculation - weighted toward input coverage
-        base_score = (input_coverage * 0.7) + (entry_coverage * 0.3)
-        
-        # Boost for exact match
-        if normalize_title(clean_input) == normalize_title(clean_scanner):
-            base_score *= 2.0
+            content_type = 'movie' if list_type.endswith('movie') else 'tv'
+            is_anime = list_type.startswith('anime_')
             
-        # Boost for titles with similar length (prevents matching "3 Idiots" with "JourneyQuest 3.5")
-        length_ratio = min(len(input_words), len(entry_words)) / max(len(input_words), len(entry_words))
-        if length_ratio > 0.7:  # At least 70% similar in length
-            base_score *= 1.2
-            
-        # Special handling for short titles with numbers (like "3 Idiots")
-        input_has_number_prefix = bool(re.match(r'^\d+\b', normalize_title(clean_input)))
-        entry_has_number_prefix = bool(re.match(r'^\d+\b', normalize_title(clean_scanner)))
-        
-        # If input starts with number but entry doesn't (or vice versa), penalize
-        if input_has_number_prefix != entry_has_number_prefix:
-            base_score *= 0.5
-            
-        # If both start with different numbers, heavy penalty
-        if input_has_number_prefix and entry_has_number_prefix:
-            input_number = re.match(r'^(\d+)\b', normalize_title(clean_input)).group(1)
-            entry_number = re.match(r'^(\d+)\b', normalize_title(clean_scanner)).group(1)
-            if input_number != entry_number:
-                base_score *= 0.2  # Major penalty for mismatched numbers
+            # Exact match (highest priority)
+            if normalized_scanner_title == normalized_search_title:
+                matches.append((content_type, is_anime, item.get('tmdb_id'), 
+                               scanner_title, item.get('year')))
                 
-        return base_score
+    # If no exact matches, try strong containment matches
+    if not matches:
+        for list_type in scanner_lists:
+            for item in scanner_lists[list_type]:
+                scanner_title = item.get('title', '')
+                normalized_scanner_title = normalize_title(scanner_title)
+                
+                content_type = 'movie' if list_type.endswith('movie') else 'tv'
+                is_anime = list_type.startswith('anime_')
+                
+                # Strong containment (one contains the other completely)
+                if (normalized_scanner_title in normalized_search_title or 
+                    normalized_search_title in normalized_scanner_title):
+                    matches.append((content_type, is_anime, item.get('tmdb_id'), 
+                                   scanner_title, item.get('year')))
     
-    # Function to clean up scanner entry title
-    def clean_scanner_entry(scanner_entry):
-        # Remove the TMDB ID or [Error] part
-        cleaned = re.sub(r'\s*\[[^\]]*\]$', '', scanner_entry.strip())
-        return cleaned
-        
-    # Clean and normalize the input title
-    clean_input_title = clean_title(title)
-    normalized_title = normalize_title(clean_input_title)
+    # If still no matches, try partial matches
+    if not matches:
+        # Consider more aggressive matching strategies here if needed
+        pass
     
-    logger.debug(f"Checking scanner lists for: '{title}'")
-    logger.debug(f"Cleaned title for matching: '{clean_input_title}'")
-    
-    best_match = None
-    best_score = 0
-    
-    # Check each scanner list
-    for filename, content_type, is_anime in scanner_files:
-        file_path = os.path.join(scanner_dir, filename)
-        
-        if not os.path.exists(file_path):
-            continue
-            
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Extract TMDB ID if present
-                    tmdb_id = None
-                    tmdb_match = re.search(r'\[(\d+)\]$', line)
-                    if tmdb_match and tmdb_match.group(1) != "Error":
-                        tmdb_id = tmdb_match.group(1)
-                    
-                    # Clean the scanner entry (remove [Error] or [TMDB_ID])
-                    scanner_entry = clean_scanner_entry(line)
-                    
-                    # Calculate match score
-                    match_score = calculate_match_score(title, scanner_entry)
-                    
-                    # For exact matches (highly confident)
-                    if normalize_title(clean_input_title) == normalize_title(scanner_entry):
-                        logger.debug(f"EXACT MATCH: '{clean_input_title}' == '{scanner_entry}'")
-                        return (content_type, is_anime, tmdb_id, scanner_entry)
-                    
-                    # Track best match
-                    if match_score > best_score:
-                        best_score = match_score
-                        best_match = (content_type, is_anime, tmdb_id, scanner_entry)
-                        logger.debug(f"New best match: '{scanner_entry}' with score {best_score:.2f}")
-        
-        except Exception as e:
-            logger.error(f"Error reading scanner file {filename}: {e}")
-    
-    # Use a high threshold to prevent false positives
-    threshold = 0.6
-    
-    if best_match and best_score > threshold:
-        logger.debug(f"Final best match: '{best_match[3]}' with score {best_score:.2f}")
-        return best_match
-    else:
-        logger.debug(f"No good match found with score above {threshold:.2f} (best: {best_score:.2f})")
-        return None
+    return matches
 
-def update_scanner_entry(scanner_file, entry, tmdb_id):
-    """
-    Update a scanner entry with a new TMDB ID.
-    
-    Args:
-        scanner_file: The scanner file to update (tv_series.txt, movies.txt, etc.)
-        entry: The entry to update
-        tmdb_id: The new TMDB ID
-        
-    Returns:
-        Boolean indicating success
-    """
-    import os
-    import re
-    
-    scanner_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'scanners', scanner_file)
-    
-    if not os.path.exists(scanner_path):
-        return False
-    
-    # Read the file
-    with open(scanner_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-    
-    # Entry might have trailing whitespace in the file
-    entry = entry.strip()
-    
-    # Find and update the entry
-    updated = False
-    for i, line in enumerate(lines):
-        if line.strip() == entry:
-            # Clean entry (remove the existing ERROR part)
-            clean_entry = re.sub(r'\s*\[.*?\]\s*$', '', entry).strip()
-            # Add the new TMDB ID
-            lines[i] = f"{clean_entry} [{tmdb_id}]\n"
-            updated = True
-            break
-    
-    # Write the file back if updated
-    if updated:
-        with open(scanner_path, 'w', encoding='utf-8') as f:
-            f.writelines(lines)
-        return True
-    
-    return False
-
-if __name__ == "__main__":
-    # Configure logging for direct script execution
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
-    
-    # Test with some examples
-    test_items = [
-        "Star Trek: The Next Generation",
-        "Star.Trek.The.Next.Generation.S01E01",
-        "Pokemon Origins",
-        "Pokemon.Origins.S01.1080p.WEB-DL.AAC2.0.H.264-Pikanet128[rartv]",
-        "Pokemon Destiny Deoxys"
-    ]
-    
-    for item in test_items:
-        print(f"\nTesting: {item}")
-        result = check_scanner_lists(item)
-        if result:
-            print(f"Match found: {result}")
-        else:
-            print("No match found")
+# Load scanner lists when the module is imported
+load_scanner_lists()
