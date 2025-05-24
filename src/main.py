@@ -300,6 +300,26 @@ def display_help():
     print("\nPress Enter to continue...")
     input()
 
+# Updated help function to use dynamic menu options
+def display_help_dynamic(menu_options):
+    """Display help information with dynamic menu options."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("HELP INFORMATION")
+    print("=" * 84)
+    print("\nScanly is a media file scanner and organizer.")
+    
+    print("\nOptions:")
+    # Display the same dynamic menu options from the main menu
+    for i, (option, description) in enumerate(menu_options, 1):
+        print(f"  {i}. {option:<14} - {description}")
+    
+    print("  0. Quit           - Exit the application")
+    
+    print("\nPress Enter to continue...")
+    input()
+
 # Function to review skipped items
 def review_skipped_items():
     """Review and process previously skipped items."""
@@ -1091,227 +1111,243 @@ if __name__ == "__main__":
             print("=" * 84)
             print(" " * 37 + "MAIN MENU" + " " * 38)
             print("=" * 84)
-            print("\nOptions:")
-            print("1. Individual Scan")
-            print("2. Multi Scan")
+            
+            # Create menu options dynamically
+            menu_options = [
+                ("Individual Scan", "Scan a single directory for media files"),
+                ("Multi Scan", "Scan multiple directories")
+            ]
             
             # Check if there's a scan history to resume
             has_history = history_exists() and load_scan_history() and load_scan_history().get('path')
             if has_history:
-                print("3. Resume Scan    - Resume a previously interrupted scan")
-                print("   Clear History  - Delete scan history")
-
+                menu_options.append(("Resume Scan", "Resume a previously interrupted scan"))
+            
             # Check if there are skipped items to review
             has_skipped = skipped_items_registry and len(skipped_items_registry) > 0
             if has_skipped:
-                print(f"4. Review Skipped - Review previously skipped items ({len(skipped_items_registry)})")
-                print("   Clear Skipped  - Delete all skipped items")
+                menu_options.append(("Review Skipped", f"Review previously skipped items ({len(skipped_items_registry)})"))
             
-            print("5. Settings")
-            print("6. Help")
-            print("0. Quit")
+            # Always add Settings and Help
+            menu_options.append(("Settings", "Configure application settings"))
+            menu_options.append(("Help", "Display help information"))
             
-            choice = input("\nEnter choice (0-6): ").strip()
+            # Display menu with dynamic numbering
+            print("\nOptions:")
+            option_map = {}  # Map displayed numbers to option names
             
-            if choice == "1":
-                # Individual scan
-                clear_screen()
-                display_ascii_art()
-                print("=" * 84)
-                print("INDIVIDUAL SCAN")
-                print("=" * 84)
-                
-                # Prompt for directory path
-                print("\nEnter the path to scan (or press Enter to return to main menu):")
-                dir_path = input("> ").strip()
-                
-                if not dir_path:
-                    continue
-                
-                # Clean and validate the path
-                dir_path = _clean_directory_path(dir_path)
-                
-                if not os.path.isdir(dir_path):
-                    print(f"\nError: Directory does not exist: {dir_path}")
-                    input("\nPress Enter to continue...")
-                    continue
-                
-                # Always use manual mode - no more asking
-                print("\nUsing manual processing mode (review each detection)")
-                
-                # Process the directory with manual mode (auto_mode set to False)
-                processor = DirectoryProcessor(dir_path, auto_mode=False)
-                processor.process()
-                
-                input("\nPress Enter to return to main menu...")
-                
-            elif choice == "2":
-                # Multi scan
-                clear_screen()
-                display_ascii_art()
-                print("=" * 84)
-                print("MULTI SCAN")
-                print("=" * 84)
-                print("\nScan multiple directories (one per line)")
-                print("Enter a blank line when finished")
-                
-                dirs_to_scan = []
-                while True:
-                    dir_path = input("\nEnter directory path (or blank to finish): ").strip()
-                    if not dir_path:
-                        break
-                    
-                    dir_path = _clean_directory_path(dir_path)
-                    if os.path.isdir(dir_path):
-                        dirs_to_scan.append(dir_path)
-                    else:
-                        print(f"Warning: Directory does not exist: {dir_path}")
-
-                if not dirs_to_scan:
-                    print("\nNo valid directories to scan.")
-                    input("\nPress Enter to continue...")
-                    continue
-                
-                # Always use manual mode - no more asking
-                print("\nUsing manual processing mode (review each detection)")
-                
-                # Process each directory with manual mode
-                for dir_path in dirs_to_scan:
-                    print(f"\nProcessing directory: {dir_path}")
-                    processor = DirectoryProcessor(dir_path, auto_mode=False)
-                    processor.process()
-                
-                input("\nAll directories processed. Press Enter to return to main menu...")
-                
-            elif choice == "3" and has_history:
-                # Check if user wants to resume or clear history
-                print("\nDo you want to resume the scan or clear the history?")
-                print("1. Resume Scan")
-                print("2. Clear History")
-                sub_choice = input("\nEnter choice (1-2): ").strip()
-                
-                if sub_choice == "1":
-                    # Resume scan
-                    history = load_scan_history()
-                    dir_path = history.get('path', '')
-                    
-                    if os.path.isdir(dir_path):
-                        print(f"\nResuming scan of directory: {dir_path}")
-                        processor = DirectoryProcessor(dir_path, resume=True, auto_mode=False)
-                        processor.process()
-                    else:
-                        print(f"\nError: Directory from history does not exist: {dir_path}")
-                        
-                    input("\nPress Enter to continue...")
-                
-                elif sub_choice == "2":
-                    # Clear history
-                    if clear_scan_history():
-                        print("\nScan history cleared.")
-                    else:
-                        print("\nFailed to clear scan history.")
-                    
-                    input("\nPress Enter to continue...")
+            for i, (option, description) in enumerate(menu_options, 1):
+                print(f"{i}. {option:<15} - {description}")
+                option_map[str(i)] = option
             
-            elif choice == "4" and has_skipped:
-                # Check if user wants to review or clear skipped items
-                print("\nDo you want to review skipped items or clear them?")
-                print("1. Review Skipped Items")
-                print("2. Clear Skipped Items")
-                sub_choice = input("\nEnter choice (1-2): ").strip()
-                
-                if sub_choice == "1":
-                    # Review skipped items
-                    review_skipped_items()
-                
-                elif sub_choice == "2":
-                    # Clear skipped items
-                    clear_skipped_items()
+            # Always add Quit as option 0
+            print("0. Quit            - Exit the application")
             
-            elif choice == "5":
-                # Settings
-                clear_screen()
-                display_ascii_art()
-                print("=" * 84)
-                print("SETTINGS")
-                print("=" * 84)
-                print("\nCurrent settings:")
-                
-                dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
-                print(f"1. Destination directory: {dest_dir if dest_dir else 'Not set'}")
-                
-                use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-                print(f"2. Use symlinks: {'Yes' if use_symlinks else 'No (copy files)'}")
-                
-                tmdb_folder_id = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
-                print(f"3. Include TMDB ID in folder names: {'Yes' if tmdb_folder_id else 'No'}")
-                
-                print("\nOptions:")
-                print("1. Change destination directory")
-                print("2. Toggle symlinks/copy mode")
-                print("3. Toggle TMDB ID in folder names")
-                print("4. Set TMDB API key")
-                print("5. Check monitor status")
-                print("0. Return to main menu")
-                
-                setting_choice = input("\nEnter choice (0-5): ").strip()
-                
-                if setting_choice == "1":
-                    # Change destination directory
-                    print("\nEnter new destination directory:")
-                    new_dir = input("> ").strip()
-                    new_dir = _clean_directory_path(new_dir)
-                    
-                    if os.path.isdir(new_dir):
-                        _update_env_var('DESTINATION_DIRECTORY', new_dir)
-                        print(f"\nDestination directory set to: {new_dir}")
-                    else:
-                        print(f"\nError: Directory does not exist: {new_dir}")
-                    
-                    input("\nPress Enter to continue...")
-                    
-                elif setting_choice == "2":
-                    # Toggle symlinks/copy mode
-                    current = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-                    new_value = 'false' if current else 'true'
-                    _update_env_var('USE_SYMLINKS', new_value)
-                    
-                    print(f"\nFile mode set to: {'Symlinks' if new_value == 'true' else 'Copy'}")
-                    input("\nPress Enter to continue...")
-                    
-                elif setting_choice == "3":
-                    # Toggle TMDB ID in folder names
-                    current = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
-                    new_value = 'false' if current else 'true'
-                    _update_env_var('TMDB_FOLDER_ID', new_value)
-                    
-                    print(f"\nTMDB ID in folder names: {'Enabled' if new_value == 'true' else 'Disabled'}")
-                    input("\nPress Enter to continue...")
-                    
-                elif setting_choice == "4":
-                    # Set TMDB API key
-                    print("\nEnter TMDB API key (or leave blank to keep current):")
-                    api_key = input("> ").strip()
-                    
-                    if api_key:
-                        _update_env_var('TMDB_API_KEY', api_key)
-                        print("\nTMDB API key updated.")
-                    
-                    input("\nPress Enter to continue...")
-                    
-                elif setting_choice == "5":
-                    # Check monitor status
-                    _check_monitor_status()
-                
-            elif choice == "6":
-                # Help
-                display_help()
-                
-            elif choice == "0":
-                # Quit
+            # Get user input with dynamic max number
+            max_option = len(menu_options)
+            choice = input(f"\nEnter choice (0-{max_option}): ").strip()
+            
+            # Process based on the choice
+            if choice == "0":
                 print("\nExiting Scanly. Goodbye!")
                 break
+            elif choice in option_map:
+                option_name = option_map[choice]
                 
+                # Handle each option based on its name
+                if option_name == "Individual Scan":
+                    # Individual scan
+                    clear_screen()
+                    display_ascii_art()
+                    print("=" * 84)
+                    print("INDIVIDUAL SCAN")
+                    print("=" * 84)
+                    
+                    # Prompt for directory path
+                    print("\nEnter the path to scan (or press Enter to return to main menu):")
+                    dir_path = input("> ").strip()
+                    
+                    if not dir_path:
+                        continue
+                    
+                    # Clean and validate the path
+                    dir_path = _clean_directory_path(dir_path)
+                    
+                    if not os.path.isdir(dir_path):
+                        print(f"\nError: Directory does not exist: {dir_path}")
+                        input("\nPress Enter to continue...")
+                        continue
+                    
+                    # Always use manual mode - no more asking
+                    print("\nUsing manual processing mode (review each detection)")
+                    
+                    # Process the directory with manual mode (auto_mode set to False)
+                    processor = DirectoryProcessor(dir_path, auto_mode=False)
+                    processor.process()
+                    
+                    input("\nPress Enter to return to main menu...")
+                
+                elif option_name == "Multi Scan":
+                    # Multi scan
+                    clear_screen()
+                    display_ascii_art()
+                    print("=" * 84)
+                    print("MULTI SCAN")
+                    print("=" * 84)
+                    print("\nScan multiple directories (one per line)")
+                    print("Enter a blank line when finished")
+                    
+                    dirs_to_scan = []
+                    while True:
+                        dir_path = input("\nEnter directory path (or blank to finish): ").strip()
+                        if not dir_path:
+                            break
+                        
+                        dir_path = _clean_directory_path(dir_path)
+                        if os.path.isdir(dir_path):
+                            dirs_to_scan.append(dir_path)
+                        else:
+                            print(f"Warning: Directory does not exist: {dir_path}")
+
+                    if not dirs_to_scan:
+                        print("\nNo valid directories to scan.")
+                        input("\nPress Enter to continue...")
+                        continue
+                    
+                    # Always use manual mode - no more asking
+                    print("\nUsing manual processing mode (review each detection)")
+                    
+                    # Process each directory with manual mode
+                    for dir_path in dirs_to_scan:
+                        print(f"\nProcessing directory: {dir_path}")
+                        processor = DirectoryProcessor(dir_path, auto_mode=False)
+                        processor.process()
+                    
+                    input("\nAll directories processed. Press Enter to return to main menu...")
+                
+                elif option_name == "Resume Scan" and has_history:
+                    # Check if user wants to resume or clear history
+                    print("\nDo you want to resume the scan or clear the history?")
+                    print("1. Resume Scan")
+                    print("2. Clear History")
+                    sub_choice = input("\nEnter choice (1-2): ").strip()
+                    
+                    if sub_choice == "1":
+                        # Resume scan
+                        history = load_scan_history()
+                        dir_path = history.get('path', '')
+                        
+                        if os.path.isdir(dir_path):
+                            print(f"\nResuming scan of directory: {dir_path}")
+                            processor = DirectoryProcessor(dir_path, resume=True, auto_mode=False)
+                            processor.process()
+                        else:
+                            print(f"\nError: Directory from history does not exist: {dir_path}")
+                            
+                        input("\nPress Enter to continue...")
+                    
+                    elif sub_choice == "2":
+                        # Clear history
+                        if clear_scan_history():
+                            print("\nScan history cleared.")
+                        else:
+                            print("\nFailed to clear scan history.")
+                        
+                        input("\nPress Enter to continue...")
+                
+                elif option_name == "Review Skipped" and has_skipped:
+                    # Check if user wants to review or clear skipped items
+                    print("\nDo you want to review skipped items or clear them?")
+                    print("1. Review Skipped Items")
+                    print("2. Clear Skipped Items")
+                    sub_choice = input("\nEnter choice (1-2): ").strip()
+                    
+                    if sub_choice == "1":
+                        # Review skipped items
+                        review_skipped_items()
+                    
+                    elif sub_choice == "2":
+                        # Clear skipped items
+                        clear_skipped_items()
+                
+                elif option_name == "Settings":
+                    # Settings
+                    clear_screen()
+                    display_ascii_art()
+                    print("=" * 84)
+                    print("SETTINGS")
+                    print("=" * 84)
+                    print("\nCurrent settings:")
+                    
+                    dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
+                    print(f"1. Destination directory: {dest_dir if dest_dir else 'Not set'}")
+                    
+                    use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+                    print(f"2. Use symlinks: {'Yes' if use_symlinks else 'No (copy files)'}")
+                    
+                    tmdb_folder_id = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
+                    print(f"3. Include TMDB ID in folder names: {'Yes' if tmdb_folder_id else 'No'}")
+                    
+                    print("\nOptions:")
+                    print("1. Change destination directory")
+                    print("2. Toggle symlinks/copy mode")
+                    print("3. Toggle TMDB ID in folder names")
+                    print("4. Set TMDB API key")
+                    print("5. Check monitor status")
+                    print("0. Return to main menu")
+                    
+                    setting_choice = input("\nEnter choice (0-5): ").strip()
+                    
+                    if setting_choice == "1":
+                        # Change destination directory
+                        print("\nEnter new destination directory:")
+                        new_dir = input("> ").strip()
+                        new_dir = _clean_directory_path(new_dir)
+                        
+                        if os.path.isdir(new_dir):
+                            _update_env_var('DESTINATION_DIRECTORY', new_dir)
+                            print(f"\nDestination directory set to: {new_dir}")
+                        else:
+                            print(f"\nError: Directory does not exist: {new_dir}")
+                        
+                        input("\nPress Enter to continue...")
+                        
+                    elif setting_choice == "2":
+                        # Toggle symlinks/copy mode
+                        current = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+                        new_value = 'false' if current else 'true'
+                        _update_env_var('USE_SYMLINKS', new_value)
+                        
+                        print(f"\nFile mode set to: {'Symlinks' if new_value == 'true' else 'Copy'}")
+                        input("\nPress Enter to continue...")
+                        
+                    elif setting_choice == "3":
+                        # Toggle TMDB ID in folder names
+                        current = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
+                        new_value = 'false' if current else 'true'
+                        _update_env_var('TMDB_FOLDER_ID', new_value)
+                        
+                        print(f"\nTMDB ID in folder names: {'Enabled' if new_value == 'true' else 'Disabled'}")
+                        input("\nPress Enter to continue...")
+                        
+                    elif setting_choice == "4":
+                        # Set TMDB API key
+                        print("\nEnter TMDB API key (or leave blank to keep current):")
+                        api_key = input("> ").strip()
+                        
+                        if api_key:
+                            _update_env_var('TMDB_API_KEY', api_key)
+                            print("\nTMDB API key updated.")
+                        
+                        input("\nPress Enter to continue...")
+                        
+                    elif setting_choice == "5":
+                        # Check monitor status
+                        _check_monitor_status()
+                
+                elif option_name == "Help":
+                    # Help - also update the help menu to be dynamic
+                    display_help_dynamic(menu_options)
             else:
                 print("\nInvalid choice. Please try again.")
                 input("\nPress Enter to continue...")
