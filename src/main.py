@@ -919,6 +919,30 @@ class DirectoryProcessor:
             imdb_id = existing_imdb_id
             tvdb_id = existing_tvdb_id
             
+            # Check scanner lists before manual processing or TMDB search
+            from src.utils.scanner_utils import check_scanner_lists
+            scanner_match = check_scanner_lists(title)
+            if scanner_match:
+                content_type, scanner_is_anime, scanner_tmdb_id, scanner_title = scanner_match
+                
+                # Update values based on scanner match if they're not already set
+                if not tmdb_id and scanner_tmdb_id:
+                    tmdb_id = scanner_tmdb_id
+                    print(f"Found TMDB ID {tmdb_id} from scanner list")
+                
+                # Update content type and anime status if not already determined
+                if scanner_is_anime:
+                    is_anime = True
+                
+                if content_type == 'tv':
+                    is_tv = True
+                elif content_type == 'movie':
+                    is_tv = False
+                    
+                # Update title if scanner had a better title
+                if scanner_title and scanner_title != title:
+                    title = scanner_title
+        
             # In manual mode, we'll show the menu BEFORE searching TMDB
             if not self.auto_mode:
                 result = self._manual_process_folder(subfolder_path, subfolder_name, title, year, 
@@ -926,11 +950,11 @@ class DirectoryProcessor:
                 return result
             else:
                 # Auto mode - search TMDB and process without user intervention
-                if not tmdb_id:
+                if not tmdb_id:  # Only search TMDB if we don't have an ID already
                     tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
                     if tmdb_title and tmdb_title.lower() != title.lower():
                         title = tmdb_title
-                        
+            
             content_type = "TV Show" if is_tv else "Movie"
             anime_label = " (Anime)" if is_anime else ""
             print(f"Detected: {content_type}{anime_label} - {title} {f'({year})' if year else ''}")
@@ -1003,7 +1027,7 @@ class DirectoryProcessor:
                     # Accept current detection and process
                     print(f"\nProcessing {subfolder_name} with current detection...")
                     
-                    # Now we search TMDB if no ID was already found
+                    # Now we search TMDB only if no ID was already found
                     if not tmdb_id:
                         print("\nSearching for metadata...")
                         tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
