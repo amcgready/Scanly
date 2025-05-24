@@ -311,11 +311,11 @@ def display_help_dynamic(menu_options):
     print("\nScanly is a media file scanner and organizer.")
     
     print("\nOptions:")
-    # Display the same dynamic menu options from the main menu
-    for i, (option, description) in enumerate(menu_options, 1):
-        print(f"  {i}. {option:<14} - {description}")
+    # Display the same dynamic menu options from the main menu without descriptions
+    for i, option in enumerate(menu_options, 1):
+        print(f"  {i}. {option}")
     
-    print("  0. Quit           - Exit the application")
+    print("  0. Quit")
     
     print("\nPress Enter to continue...")
     input()
@@ -1112,36 +1112,36 @@ if __name__ == "__main__":
             print(" " * 37 + "MAIN MENU" + " " * 38)
             print("=" * 84)
             
-            # Create menu options dynamically
+            # Create menu options dynamically (remove descriptions, keep just the options)
             menu_options = [
-                ("Individual Scan", "Scan a single directory for media files"),
-                ("Multi Scan", "Scan multiple directories")
+                "Individual Scan",
+                "Multi Scan"
             ]
             
             # Check if there's a scan history to resume
             has_history = history_exists() and load_scan_history() and load_scan_history().get('path')
             if has_history:
-                menu_options.append(("Resume Scan", "Resume a previously interrupted scan"))
+                menu_options.append("Resume Scan")
             
             # Check if there are skipped items to review
             has_skipped = skipped_items_registry and len(skipped_items_registry) > 0
             if has_skipped:
-                menu_options.append(("Review Skipped", f"Review previously skipped items ({len(skipped_items_registry)})"))
+                menu_options.append(f"Review Skipped ({len(skipped_items_registry)})")
             
             # Always add Settings and Help
-            menu_options.append(("Settings", "Configure application settings"))
-            menu_options.append(("Help", "Display help information"))
+            menu_options.append("Settings")
+            menu_options.append("Help")
             
             # Display menu with dynamic numbering
             print("\nOptions:")
             option_map = {}  # Map displayed numbers to option names
             
-            for i, (option, description) in enumerate(menu_options, 1):
-                print(f"{i}. {option:<15} - {description}")
+            for i, option in enumerate(menu_options, 1):
+                print(f"{i}. {option}")
                 option_map[str(i)] = option
             
             # Always add Quit as option 0
-            print("0. Quit            - Exit the application")
+            print("0. Quit")
             
             # Get user input with dynamic max number
             max_option = len(menu_options)
