@@ -452,7 +452,7 @@ class DirectoryProcessor:
             print(f"Error: {e}")
             return False
     
-    def _create_symlinks(self, subfolder_path, title, year, is_tv, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
+    def _create_symlinks(self, subfolder_path, title, year, is_tv, is_anime, is_wrestling=False, tmdb_id=None, imdb_id=None, tvdb_id=None):
         """Create symbolic links to the media files."""
         # Get destination directory from environment
         dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
@@ -462,14 +462,16 @@ class DirectoryProcessor:
             return False
         
         # Determine the target subdirectory based on content type
-        if is_tv:
+        if is_wrestling:
+            target_subdir = os.path.join(dest_dir, "Wrestling")
+        elif is_tv:
             if is_anime:
-                target_subdir = os.path.join(dest_dir, "TV Shows", "Anime")
+                target_subdir = os.path.join(dest_dir, "Anime Series")
             else:
-                target_subdir = os.path.join(dest_dir, "TV Shows")
+                target_subdir = os.path.join(dest_dir, "TV Series")
         else:
             if is_anime:
-                target_subdir = os.path.join(dest_dir, "Movies", "Anime")
+                target_subdir = os.path.join(dest_dir, "Anime Movies")
             else:
                 target_subdir = os.path.join(dest_dir, "Movies")
         
@@ -503,9 +505,9 @@ class DirectoryProcessor:
         
         # Use symlinks by default, but can be overridden to use copies
         use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-
-        # TV shows need special handling with season folders
-        if is_tv:
+    
+        # TV shows and wrestling need special handling with season folders
+        if is_tv or is_wrestling:
             # Track episodes by season
             season_episodes = {}
             
@@ -521,62 +523,57 @@ class DirectoryProcessor:
                         
                         # Common patterns for TV show episodes
                         patterns = [
-                            r'S(\d+)E(\d+)',                # S01E01
-                            r's(\d+)e(\d+)',                # s01e01
-                            r'\.S(\d+)\.E(\d+)\.',          # .S01.E01.
-                            r'\.S(\d+)[\s\.]?E(\d+)',       # S01 E01 or S01.E01
-                            r'\.(\d{1,2})x(\d{2})\.',       # .1x01.
-                            r'(\d{1,2})x(\d{2})',           # 1x01
-                            r'Season\s*(\d+)\s*Episode\s*(\d+)',  # Season 1 Episode 1
-                            r'[\._\s](\d)(\d{2})[\._\s]',  # .102. (season 1, episode 02)
+                            r'S(\d+)E(\d+)',
+                            r's(\d+)e(\d+)',
+                            r'\.S(\d+)\.E(\d+)\.',
+                            r'\.S(\d+)[\s\.]?E(\d+)',
+                            r'\.(\d{1,2})x(\d{2})\.',
+                            r'(\d{1,2})x(\d{2})',
+                            r'Season\s*(\d+)\s*Episode\s*(\d+)',
+                            r'[\._\s](\d)(\d{2})[\._\s]',
                         ]
                         
                         for pattern in patterns:
                             match = re.search(pattern, file, re.IGNORECASE)
                             if match:
-                                # If the pattern has two groups, use them as season and episode
-                                if len(match.groups()) == 2:
-                                    season_num = int(match.group(1))
-                                    episode_num = int(match.group(2))
-                                    break
-                    
-                    # Single episode patterns (assume season 1)
-                    if season_num is None:
-                        single_ep_patterns = [
-                            r'[^0-9]E(\d+)[^0-9]',     # E01 (not part of another number)
-                            r'[^0-9]EP(\d+)[^0-9]',    # EP01 (not part of another number)
-                            r'[^0-9]Episode\s*(\d+)[^0-9]',  # Episode 01
-                        ]
-                        
-                        for pattern in single_ep_patterns:
-                            match = re.search(pattern, ' ' + file + ' ', re.IGNORECASE) 
-                            if match:
-                                season_num = 1
-                                episode_num = int(match.group(1))
+                                season_num = int(match.group(1))
+                                episode_num = int(match.group(2))
                                 break
                     
-                    # If we couldn't determine season/episode, default to Season 1
-                    if season_num is None:
-                        season_num = 1
-                        # Try to extract just a number for the episode
-                        number_match = re.search(r'[^0-9](\d{1,2})[^0-9]', ' ' + file + ' ')
-                        if number_match:
-                            episode_num = int(number_match.group(1))
-                        else:
-                            # If we can't find any number, use a counter
-                            if 1 not in season_episodes:
-                                season_episodes[1] = []
-                            episode_num = len(season_episodes[1]) + 1
+                        # Single episode patterns (assume season 1)
+                        if season_num is None:
+                            single_ep_patterns = [
+                                r'[^0-9]E(\d+)[^0-9]',
+                                r'[^0-9]EP(\d+)[^0-9]',
+                                r'[^0-9]Episode\s*(\d+)[^0-9]',
+                            ]
+                            
+                            for pattern in single_ep_patterns:
+                                match = re.search(pattern, ' ' + file + ' ', re.IGNORECASE)
+                                if match:
+                                    season_num = 1
+                                    episode_num = int(match.group(1))
+                                    break
                     
-                    # Store file info by season
-                    if season_num not in season_episodes:
-                        season_episodes[season_num] = []
+                        # If we couldn't determine season/episode, default to Season 1
+                        if season_num is None:
+                            season_num = 1
+                            # Try to extract just a number for the episode
+                            number_match = re.search(r'[^0-9](\d{1,2})[^0-9]', ' ' + file + ' ')
+                            if number_match:
+                                episode_num = int(number_match.group(1))
+                            else:
+                                episode_num = 1  # Default episode number
                     
-                    season_episodes[season_num].append({
-                        'file': source_file,
-                        'episode': episode_num,
-                        'original_name': file
-                    })
+                        # Store file info by season
+                        if season_num not in season_episodes:
+                            season_episodes[season_num] = []
+                    
+                        season_episodes[season_num].append({
+                            'file': source_file,
+                            'episode': episode_num,
+                            'original_name': file
+                        })
         
             # Second pass - create season folders and link files
             for season_num, episodes in season_episodes.items():
@@ -595,59 +592,60 @@ class DirectoryProcessor:
                     ext = os.path.splitext(episode_data['original_name'])[1]
                     
                     # Format episode filename: "SHOW TITLE (YEAR) - SXXEXX.ext"
-                    episode_filename = f"{title_folder} - S{season_num:02d}E{episode_num:02d}{ext}"
+                    episode_filename = f"{title} ({year if year else ''}) - S{season_num:02d}E{episode_num:02d}{ext}"
                     target_file = os.path.join(season_folder, episode_filename)
                     
                     try:
-                        # Check if target already exists and remove it if it does
                         if os.path.exists(target_file):
-                            if os.path.islink(target_file) or os.path.isfile(target_file):
-                                os.remove(target_file)
+                            print(f"Target file already exists: {target_file}")
+                            continue
                         
-                        # Create symlink or copy file based on settings
                         if use_symlinks:
+                            # Create symbolic link
                             os.symlink(source_file, target_file)
                         else:
+                            # Copy the file instead
+                            import shutil
                             shutil.copy2(source_file, target_file)
-                            
+                        
                         symlink_count += 1
                     except Exception as e:
-                        self.logger.error(f"Error creating link for {episode_filename}: {e}")
-                        print(f"Error: Could not create link for {episode_filename}: {e}")
+                        self.logger.error(f"Error creating link: {e}", exc_info=True)
+                        print(f"Error creating link: {e}")
+                
         else:
             # For movies, just link the files directly
             for root, _, files in os.walk(subfolder_path):
                 for file in files:
                     if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
                         source_file = os.path.join(root, file)
-                        rel_path = os.path.relpath(source_file, subfolder_path)
-                        target_file = os.path.join(target_folder, rel_path)
+                        ext = os.path.splitext(file)[1]
                         
-                        # Create parent directories if needed
-                        target_dir = os.path.dirname(target_file)
-                        if not os.path.exists(target_dir):
-                            os.makedirs(target_dir)
+                        # Format movie filename: "MOVIE TITLE (YEAR).ext"
+                        movie_filename = f"{title} ({year if year else ''}){ext}"
+                        target_file = os.path.join(target_folder, movie_filename)
                         
                         try:
-                            # Check if target already exists and remove it if it does
                             if os.path.exists(target_file):
-                                if os.path.islink(target_file) or os.path.isfile(target_file):
-                                    os.remove(target_file)
+                                print(f"Target file already exists: {target_file}")
+                                continue
                             
-                            # Create symlink or copy file based on settings
                             if use_symlinks:
+                                # Create symbolic link
                                 os.symlink(source_file, target_file)
                             else:
+                                # Copy the file instead
+                                import shutil
                                 shutil.copy2(source_file, target_file)
-                                
+                            
                             symlink_count += 1
                         except Exception as e:
-                            self.logger.error(f"Error creating link for {file}: {e}")
-                            print(f"Error: Could not create link for {file}: {e}")
+                            self.logger.error(f"Error creating link: {e}", exc_info=True)
+                            print(f"Error creating link: {e}")
     
         print(f"\nCreated {symlink_count} links in {target_folder}")
         return symlink_count > 0
-    
+
     def _extract_folder_metadata(self, folder_name):
         """Extract title and year from a folder name."""
         # Extract existing media IDs if present
@@ -737,6 +735,42 @@ class DirectoryProcessor:
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year, tmdb_id, imdb_id, tvdb_id
     
+    def _detect_if_wrestling(self, folder_name):
+        """Detect if a folder contains wrestling content based on naming patterns."""
+        # Common wrestling indicators
+        wrestling_indicators = [
+            'wwe', 'aew', 'nxt', 'raw', 'smackdown', 'wrestlemania', 
+            'summerslam', 'royal rumble', 'survivor series', 'tna', 'impact',
+            'njpw', 'roh', 'ring of honor', 'dynamite', 'rampage', 'collision',
+            'wrestle', 'wrestling', 'ppv', 'pay-per-view'
+        ]
+        
+        # Check for common terms
+        lowercase_name = folder_name.lower()
+        
+        # Check for common wrestling indicators
+        for indicator in wrestling_indicators:
+            if indicator in lowercase_name:
+                self.logger.debug(f"Wrestling detected by indicator: '{indicator}' in '{folder_name}'")
+                return True
+        
+        # Additional pattern checks for wrestling
+        wrestling_patterns = [
+            r'\d{2}\.\d{2}\.\d{2,4}',  # Date formats often used in wrestling releases
+            r'\d{2}-\d{2}-\d{2,4}',    # Another date format
+            r'S\d{2}E\d{2}',           # Season/Episode format for weekly shows
+            r'Week\s*\d+',              # Weekly show indicators
+            r'Day\s*\d+',               # Event days
+        ]
+        
+        for pattern in wrestling_patterns:
+            if re.search(pattern, folder_name):
+                match = re.search(pattern, folder_name).group(0)
+                self.logger.debug(f"Wrestling detected by pattern: '{match}' in '{folder_name}'")
+                return True
+
+        return False
+
     def _detect_if_tv_show(self, folder_name):
         """Detect if a folder contains a TV show based on its name and content."""
         # Check for common TV show indicators in folder name
@@ -960,202 +994,7 @@ class DirectoryProcessor:
     
         return tmdb_id, imdb_id, tvdb_id
     
-    def _create_symlinks(self, subfolder_path, title, year, is_tv, is_anime, tmdb_id=None, imdb_id=None, tvdb_id=None):
-        """Create symbolic links to the media files."""
-        # Get destination directory from environment
-        dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
-        if not dest_dir:
-            print("\nError: Destination directory not set.")
-            print("Please set the DESTINATION_DIRECTORY in the settings menu.")
-            return False
-        
-        # Determine the target subdirectory based on content type
-        if is_tv:
-            if is_anime:
-                target_subdir = os.path.join(dest_dir, "TV Shows", "Anime")
-            else:
-                target_subdir = os.path.join(dest_dir, "TV Shows")
-        else:
-            if is_anime:
-                target_subdir = os.path.join(dest_dir, "Movies", "Anime")
-            else:
-                target_subdir = os.path.join(dest_dir, "Movies")
-        
-        # Create the target subdirectory if it doesn't exist
-        if not os.path.exists(target_subdir):
-            os.makedirs(target_subdir)
-        
-        # Create a folder name with title, year, and IDs based on settings
-        title_folder = title
-        if year:
-            title_folder = f"{title} ({year})"
-        
-        # Add IDs to folder name if enabled in settings
-        if tmdb_id and os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true':
-            title_folder = f"{title_folder} [tmdb-{tmdb_id}]"
-            
-        if imdb_id and os.environ.get('IMDB_FOLDER_ID', 'false').lower() == 'true':
-            title_folder = f"{title_folder} [imdb-{imdb_id}]"
-            
-        if tvdb_id and os.environ.get('TVDB_FOLDER_ID', 'false').lower() == 'true':
-            title_folder = f"{title_folder} [tvdb-{tvdb_id}]"
-    
-        target_folder = os.path.join(target_subdir, title_folder)
-        
-        # Create the title folder if it doesn't exist
-        if not os.path.exists(target_folder):
-            os.makedirs(target_folder)
-        
-        # Create symbolic links for all media files in the subfolder
-        symlink_count = 0
-        
-        # Use symlinks by default, but can be overridden to use copies
-        use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
 
-        # TV shows need special handling with season folders
-        if is_tv:
-            # Track episodes by season
-            season_episodes = {}
-            
-            # First pass - identify seasons and episodes
-            for root, _, files in os.walk(subfolder_path):
-                for file in files:
-                    if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                        source_file = os.path.join(root, file)
-                        
-                        # Try to extract season and episode numbers from filename
-                        season_num = None
-                        episode_num = None
-                        
-                        # Common patterns for TV show episodes
-                        patterns = [
-                            r'S(\d+)E(\d+)',                # S01E01
-                            r's(\d+)e(\d+)',                # s01e01
-                            r'\.S(\d+)\.E(\d+)\.',          # .S01.E01.
-                            r'\.S(\d+)[\s\.]?E(\d+)',       # S01 E01 or S01.E01
-                            r'\.(\d{1,2})x(\d{2})\.',       # .1x01.
-                            r'(\d{1,2})x(\d{2})',           # 1x01
-                            r'Season\s*(\d+)\s*Episode\s*(\d+)',  # Season 1 Episode 1
-                            r'[\._\s](\d)(\d{2})[\._\s]',  # .102. (season 1, episode 02)
-                        ]
-                        
-                        for pattern in patterns:
-                            match = re.search(pattern, file, re.IGNORECASE)
-                            if match:
-                                # If the pattern has two groups, use them as season and episode
-                                if len(match.groups()) == 2:
-                                    season_num = int(match.group(1))
-                                    episode_num = int(match.group(2))
-                                    break
-                    
-                    # Single episode patterns (assume season 1)
-                    if season_num is None:
-                        single_ep_patterns = [
-                            r'[^0-9]E(\d+)[^0-9]',     # E01 (not part of another number)
-                            r'[^0-9]EP(\d+)[^0-9]',    # EP01 (not part of another number)
-                            r'[^0-9]Episode\s*(\d+)[^0-9]',  # Episode 01
-                        ]
-                        
-                        for pattern in single_ep_patterns:
-                            match = re.search(pattern, ' ' + file + ' ', re.IGNORECASE) 
-                            if match:
-                                season_num = 1
-                                episode_num = int(match.group(1))
-                                break
-                    
-                    # If we couldn't determine season/episode, default to Season 1
-                    if season_num is None:
-                        season_num = 1
-                        # Try to extract just a number for the episode
-                        number_match = re.search(r'[^0-9](\d{1,2})[^0-9]', ' ' + file + ' ')
-                        if number_match:
-                            episode_num = int(number_match.group(1))
-                        else:
-                            # If we can't find any number, use a counter
-                            if 1 not in season_episodes:
-                                season_episodes[1] = []
-                            episode_num = len(season_episodes[1]) + 1
-                    
-                    # Store file info by season
-                    if season_num not in season_episodes:
-                        season_episodes[season_num] = []
-                    
-                    season_episodes[season_num].append({
-                        'file': source_file,
-                        'episode': episode_num,
-                        'original_name': file
-                    })
-        
-            # Second pass - create season folders and link files
-            for season_num, episodes in season_episodes.items():
-                # Create season folder
-                season_folder = os.path.join(target_folder, f"Season {season_num}")
-                if not os.path.exists(season_folder):
-                    os.makedirs(season_folder)
-                
-                # Sort episodes by episode number
-                episodes.sort(key=lambda x: x['episode'])
-                
-                # Link each episode with proper naming
-                for episode_data in episodes:
-                    source_file = episode_data['file']
-                    episode_num = episode_data['episode']
-                    ext = os.path.splitext(episode_data['original_name'])[1]
-                    
-                    # Format episode filename: "SHOW TITLE (YEAR) - SXXEXX.ext"
-                    episode_filename = f"{title_folder} - S{season_num:02d}E{episode_num:02d}{ext}"
-                    target_file = os.path.join(season_folder, episode_filename)
-                    
-                    try:
-                        # Check if target already exists and remove it if it does
-                        if os.path.exists(target_file):
-                            if os.path.islink(target_file) or os.path.isfile(target_file):
-                                os.remove(target_file)
-                        
-                        # Create symlink or copy file based on settings
-                        if use_symlinks:
-                            os.symlink(source_file, target_file)
-                        else:
-                            shutil.copy2(source_file, target_file)
-                            
-                        symlink_count += 1
-                    except Exception as e:
-                        self.logger.error(f"Error creating link for {episode_filename}: {e}")
-                        print(f"Error: Could not create link for {episode_filename}: {e}")
-        else:
-            # For movies, just link the files directly
-            for root, _, files in os.walk(subfolder_path):
-                for file in files:
-                    if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                        source_file = os.path.join(root, file)
-                        rel_path = os.path.relpath(source_file, subfolder_path)
-                        target_file = os.path.join(target_folder, rel_path)
-                        
-                        # Create parent directories if needed
-                        target_dir = os.path.dirname(target_file)
-                        if not os.path.exists(target_dir):
-                            os.makedirs(target_dir)
-                        
-                        try:
-                            # Check if target already exists and remove it if it does
-                            if os.path.exists(target_file):
-                                if os.path.islink(target_file) or os.path.isfile(target_file):
-                                    os.remove(target_file)
-                        
-                            # Create symlink or copy file based on settings
-                            if use_symlinks:
-                                os.symlink(source_file, target_file)
-                            else:
-                                shutil.copy2(source_file, target_file)
-                                
-                            symlink_count += 1
-                        except Exception as e:
-                            self.logger.error(f"Error creating link for {file}: {e}")
-                            print(f"Error: Could not create link for {file}: {e}")
-    
-        print(f"\nCreated {symlink_count} links in {target_folder}")
-        return symlink_count > 0
-    
     def _process_media_files(self):
         """Process media files in the directory."""
         # Place global declaration at the beginning of function
