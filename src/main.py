@@ -451,7 +451,6 @@ class DirectoryProcessor:
             self.logger.error(f"Error processing directory {self.directory_path}: {e}", exc_info=True)
             print(f"Error: {e}")
             return False
-    
     def _create_symlinks(self, subfolder_path, title, year, is_tv, is_anime, is_wrestling=False, tmdb_id=None, imdb_id=None, tvdb_id=None):
         """Create symbolic links to the media files."""
         # Get destination directory from environment
@@ -478,173 +477,126 @@ class DirectoryProcessor:
         # Create the target subdirectory if it doesn't exist
         if not os.path.exists(target_subdir):
             os.makedirs(target_subdir)
-        
-        # Create a folder name with title, year, and IDs based on settings
-        title_folder = title
+            
+        # Format the media folder name with title, year, and IDs
+        media_folder_name = title
         if year:
-            title_folder = f"{title} ({year})"
+            media_folder_name += f" ({year})"
         
-        # Add IDs to folder name if enabled in settings
+        # Add IDs to folder name if configured to do so
         if tmdb_id and os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true':
-            title_folder = f"{title_folder} [tmdb-{tmdb_id}]"
-            
+            media_folder_name += f" [tmdb-{tmdb_id}]"
         if imdb_id and os.environ.get('IMDB_FOLDER_ID', 'false').lower() == 'true':
-            title_folder = f"{title_folder} [imdb-{imdb_id}]"
-            
+            media_folder_name += f" [imdb-{imdb_id}]"
         if tvdb_id and os.environ.get('TVDB_FOLDER_ID', 'false').lower() == 'true':
-            title_folder = f"{title_folder} [tvdb-{tvdb_id}]"
-    
-        target_folder = os.path.join(target_subdir, title_folder)
+            media_folder_name += f" [tvdb-{tvdb_id}]"
         
-        # Create the title folder if it doesn't exist
-        if not os.path.exists(target_folder):
-            os.makedirs(target_folder)
+        # Create the full path for the media folder
+        media_folder_path = os.path.join(target_subdir, media_folder_name)
         
-        # Create symbolic links for all media files in the subfolder
-        symlink_count = 0
-        
-        # Use symlinks by default, but can be overridden to use copies
-        use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-    
-        # TV shows and wrestling need special handling with season folders
-        if is_tv or is_wrestling:
-            # Track episodes by season
-            season_episodes = {}
-            
-            # First pass - identify seasons and episodes
-            for root, _, files in os.walk(subfolder_path):
-                for file in files:
-                    if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                        source_file = os.path.join(root, file)
-                        
-                        # Try to extract season and episode numbers from filename
-                        season_num = None
-                        episode_num = None
-                        
-                        # Common patterns for TV show episodes
-                        patterns = [
-                            r'S(\d+)E(\d+)',
-                            r's(\d+)e(\d+)',
-                            r'\.S(\d+)\.E(\d+)\.',
-                            r'\.S(\d+)[\s\.]?E(\d+)',
-                            r'\.(\d{1,2})x(\d{2})\.',
-                            r'(\d{1,2})x(\d{2})',
-                            r'Season\s*(\d+)\s*Episode\s*(\d+)',
-                            r'[\._\s](\d)(\d{2})[\._\s]',
-                        ]
-                        
-                        for pattern in patterns:
-                            match = re.search(pattern, file, re.IGNORECASE)
-                            if match:
-                                season_num = int(match.group(1))
-                                episode_num = int(match.group(2))
-                                break
-                    
-                        # Single episode patterns (assume season 1)
-                        if season_num is None:
-                            single_ep_patterns = [
-                                r'[^0-9]E(\d+)[^0-9]',
-                                r'[^0-9]EP(\d+)[^0-9]',
-                                r'[^0-9]Episode\s*(\d+)[^0-9]',
-                            ]
-                            
-                            for pattern in single_ep_patterns:
-                                match = re.search(pattern, ' ' + file + ' ', re.IGNORECASE)
-                                if match:
-                                    season_num = 1
-                                    episode_num = int(match.group(1))
-                                    break
-                    
-                        # If we couldn't determine season/episode, default to Season 1
-                        if season_num is None:
-                            season_num = 1
-                            # Try to extract just a number for the episode
-                            number_match = re.search(r'[^0-9](\d{1,2})[^0-9]', ' ' + file + ' ')
-                            if number_match:
-                                episode_num = int(number_match.group(1))
-                            else:
-                                episode_num = 1  # Default episode number
-                    
-                        # Store file info by season
-                        if season_num not in season_episodes:
-                            season_episodes[season_num] = []
-                    
-                        season_episodes[season_num].append({
-                            'file': source_file,
-                            'episode': episode_num,
-                            'original_name': file
-                        })
-        
-            # Second pass - create season folders and link files
-            for season_num, episodes in season_episodes.items():
-                # Create season folder
-                season_folder = os.path.join(target_folder, f"Season {season_num}")
-                if not os.path.exists(season_folder):
-                    os.makedirs(season_folder)
-                
-                # Sort episodes by episode number
-                episodes.sort(key=lambda x: x['episode'])
-                
-                # Link each episode with proper naming
-                for episode_data in episodes:
-                    source_file = episode_data['file']
-                    episode_num = episode_data['episode']
-                    ext = os.path.splitext(episode_data['original_name'])[1]
-                    
-                    # Format episode filename: "SHOW TITLE (YEAR) - SXXEXX.ext"
-                    episode_filename = f"{title} ({year if year else ''}) - S{season_num:02d}E{episode_num:02d}{ext}"
-                    target_file = os.path.join(season_folder, episode_filename)
-                    
-                    try:
-                        if os.path.exists(target_file):
-                            print(f"Target file already exists: {target_file}")
-                            continue
-                        
-                        if use_symlinks:
-                            # Create symbolic link
-                            os.symlink(source_file, target_file)
-                        else:
-                            # Copy the file instead
-                            import shutil
-                            shutil.copy2(source_file, target_file)
-                        
-                        symlink_count += 1
-                    except Exception as e:
-                        self.logger.error(f"Error creating link: {e}", exc_info=True)
-                        print(f"Error creating link: {e}")
-                
+        # Create the media folder if it doesn't exist
+        if not os.path.exists(media_folder_path):
+            os.makedirs(media_folder_path)
+            self.logger.info(f"Created media folder: {media_folder_path}")
+            print(f"\nCreated folder: {media_folder_path}")
         else:
-            # For movies, just link the files directly
-            for root, _, files in os.walk(subfolder_path):
-                for file in files:
-                    if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                        source_file = os.path.join(root, file)
-                        ext = os.path.splitext(file)[1]
-                        
-                        # Format movie filename: "MOVIE TITLE (YEAR).ext"
-                        movie_filename = f"{title} ({year if year else ''}){ext}"
-                        target_file = os.path.join(target_folder, movie_filename)
-                        
-                        try:
-                            if os.path.exists(target_file):
-                                print(f"Target file already exists: {target_file}")
-                                continue
-                            
-                            if use_symlinks:
-                                # Create symbolic link
-                                os.symlink(source_file, target_file)
-                            else:
-                                # Copy the file instead
-                                import shutil
-                                shutil.copy2(source_file, target_file)
-                            
-                            symlink_count += 1
-                        except Exception as e:
-                            self.logger.error(f"Error creating link: {e}", exc_info=True)
-                            print(f"Error creating link: {e}")
-    
-        print(f"\nCreated {symlink_count} links in {target_folder}")
-        return symlink_count > 0
+            self.logger.info(f"Using existing media folder: {media_folder_path}")
+            print(f"\nUsing existing folder: {media_folder_path}")
+        
+        # Check if we should use symlinks or copies
+        use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+        
+        # Track results
+        total_files = 0
+        created_links = 0
+        skipped_links = 0
+        
+        # Process all files in the source directory
+        for root, _, files in os.walk(subfolder_path):
+            for file in files:
+                # Skip hidden files and small files that are likely not media
+                if file.startswith('.'):
+                    continue
+                    
+                # Calculate relative path from the source subfolder root
+                rel_path = os.path.relpath(root, subfolder_path)
+                if rel_path == '.':
+                    rel_path = ''
+                
+                # Create corresponding subdirectory in the target
+                target_file_dir = os.path.join(media_folder_path, rel_path)
+                if rel_path and not os.path.exists(target_file_dir):
+                    os.makedirs(target_file_dir)
+                
+                # Get file extension
+                file_ext = os.path.splitext(file)[1].lower()
+                
+                # Generate proper file name based on media title and year
+                # For main media files, use the title and year
+                if file_ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v']:
+                    proper_file_name = f"{title}"
+                    if year:
+                        proper_file_name += f" ({year})"
+                    proper_file_name += file_ext
+                else:
+                    # For subtitle files and other supporting files, keep original name
+                    proper_file_name = file
+                
+                # Full paths for source and target files
+                source_file = os.path.join(root, file)
+                target_file = os.path.join(target_file_dir, proper_file_name)
+                
+                # Skip non-media files under a certain size (e.g., NFOs, thumbnails)
+                if os.path.getsize(source_file) < 1024 * 1024:  # Skip files smaller than 1MB
+                    # Only keep media files regardless of size
+                    if file_ext not in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.srt', '.sub', '.idx', '.ass']:
+                        continue
+                
+                # Count total files being processed
+                total_files += 1
+                
+                try:
+                    # Check if target already exists
+                    if os.path.exists(target_file):
+                        # If it's already a link to our source, skip
+                        if os.path.islink(target_file) and os.path.realpath(target_file) == os.path.realpath(source_file):
+                            self.logger.debug(f"Skipping existing link: {target_file} -> {source_file}")
+                            print(f"Skipped link (already exists): {proper_file_name}")
+                            skipped_links += 1
+                            continue
+                        else:
+                            # Target exists but points elsewhere, remove it and recreate
+                            self.logger.info(f"Replacing existing link/file: {target_file}")
+                            print(f"Replacing existing file: {proper_file_name}")
+                            os.remove(target_file)
+                    
+                    # Create symlink or copy
+                    if use_symlinks:
+                        os.symlink(source_file, target_file)
+                        self.logger.info(f"Created symlink: {target_file} -> {source_file}")
+                        print(f"Created link: {proper_file_name}")
+                        created_links += 1
+                    else:
+                        shutil.copy2(source_file, target_file)
+                        self.logger.info(f"Copied file: {source_file} to {target_file}")
+                        print(f"Copied file: {proper_file_name}")
+                        created_links += 1
+                
+                except Exception as e:
+                    self.logger.error(f"Error creating link for {file}: {e}")
+                    print(f"Error processing {file}: {e}")
+            
+            # Print summary
+        if created_links > 0:
+            print(f"\n✓ Created {created_links} {'symlinks' if use_symlinks else 'copies'} in {media_folder_path}")
+        if skipped_links > 0:
+            print(f"ℹ️ Skipped {skipped_links} files (already linked)")
+        
+        if created_links == 0 and skipped_links == 0:
+            print("\n⚠️ No files were processed. Check that the source folder contains media files.")
+            return False
+        
+        return True
 
     def _extract_folder_metadata(self, folder_name):
         """Extract title and year from a folder name."""
@@ -668,9 +620,21 @@ class DirectoryProcessor:
         if tvdb_match:
             tvdb_id = tvdb_match.group(1)
         
-        # Extract year using regex
-        year_match = re.search(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', folder_name)
-        year = year_match.group(1) if year_match else None
+        # Extract year using regex - more specific to avoid matching resolutions
+        # Look for 4-digit years between 1900 and current year + 5
+        current_year = datetime.datetime.now().year
+        year_pattern = r'(?:^|[^0-9])(?:19\d{2}|20[0-2]\d)(?:[^0-9]|$)'
+        year_match = re.search(year_pattern, folder_name)
+        year = None
+        if year_match:
+            # Extract just the 4 digits
+            year_str = year_match.group(0)
+            year_digits = re.search(r'(19\d{2}|20[0-2]\d)', year_str)
+            if year_digits:
+                year_candidate = year_digits.group(1)
+                # Only accept years between 1900 and current year + 5
+                if 1900 <= int(year_candidate) <= current_year + 5:
+                    year = year_candidate
         
         # First level of cleaning - remove common patterns
         clean_title = folder_name
@@ -693,14 +657,17 @@ class DirectoryProcessor:
         
         # Remove common quality/format indicators
         patterns_to_remove = [
-            # Resolution patterns
+            # Resolution patterns - make this more comprehensive
             r'(?i)\b(720p|1080p|1440p|2160p|4320p|480p|576p|8K|4K|UHD|HD|FHD|QHD)\b',
+            r'(?i)\b(720|1080|1440|2160|4320|480|576)\b',  # Numbers only, without p
             
             # Format patterns
             r'(?i)\b(BluRay|Blu Ray|Blu-ray|BD|REMUX|BDRemux|BDRip|DVDRip|HDTV|WebRip|WEB-DL|WEBRip|Web|HDRip|DVD|DVDR)\b',
             
-            # Codec patterns
+            # Codec patterns - expanded
             r'(?i)\b(xvid|divx|x264|x265|hevc|h264|h265|HEVC|avc|vp9|av1)\b',
+            r'(?i)\bH\s*26[45]\b',  # H 264 or H 265 with space
+            r'(?i)\b0\s*H\s*26[45]\b',  # 0 H 264 pattern (specifically for Pokemon Origins)
             
             # Audio patterns
             r'(?i)\b(DTS[-\.]?(HD|ES|X)?|DD5\.1|AAC|AC3|TrueHD|Atmos|MA|5\.1|7\.1|2\.0|opus)\b',
@@ -712,7 +679,7 @@ class DirectoryProcessor:
             r'(?i)\b(AMZN|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
             
             # Other common patterns
-            r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV|p|AAC\d|H\s*264|Pikanet\d+)\b'
+            r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV|p|AAC\d|Pikanet\d+)\b'
         ]
         
         # Apply all patterns
@@ -725,7 +692,7 @@ class DirectoryProcessor:
         # Remove the FGT pattern explicitly (as seen in the example)
         clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
         
-        # NEW: Remove empty parentheses
+        # Remove empty parentheses
         clean_title = re.sub(r'\(\s*\)', '', clean_title)
         
         # Replace multiple spaces with a single space and trim
@@ -735,6 +702,7 @@ class DirectoryProcessor:
         if not clean_title:
             clean_title = folder_name
         
+        # Log the results
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year, tmdb_id, imdb_id, tvdb_id
 
@@ -852,16 +820,21 @@ class DirectoryProcessor:
         anime_indicators = [
             'anime', 'manga', 'otaku', 'subs', 'dubbed', 
             'subbed', '[BD]', '[DVD]', '[TV]', '[MOVIE]',
-            'cour', 'season', '1080p', '720p', '480p', 'HEVC',
-            'x265', 'x264', 'WEB-DL', 'Blu-ray', 'BluRay',
-            'FLAC', 'AAC', 'AC3', '5.1', '2.0'
+            'cour'
         ]
         
-        # Common anime titles/franchises
+        # Common anime studios and terminology
+        anime_studios = [
+            'ghibli', 'toei', 'madhouse', 'kyoani', 'shaft',
+            'gainax', 'mappa', 'wit', 'bones', 'ufotable',
+            'crunchyroll', 'funimation'
+        ]
+        
+        # Common anime titles/franchises - should be specific enough to avoid false positives
         common_anime_titles = [
             'pokemon', 'naruto', 'bleach', 'one piece', 'dragon ball',
             'sailor moon', 'detective conan', 'case closed', 'doraemon',
-            'yugioh', 'yu-gi-oh', 'digimon', 'gundam', 'evangelion', 'ghibli',
+            'yugioh', 'yu-gi-oh', 'digimon', 'gundam', 'evangelion',
             'totoro', 'miyazaki', 'demon slayer', 'attack on titan', 'jojo',
             'sword art online', 'my hero academia', 'fullmetal', 'death note',
             'hunter x hunter', 'fairy tail', 'fate', 'gintama', 'haikyuu',
@@ -871,32 +844,63 @@ class DirectoryProcessor:
         # Check for common terms
         lowercase_name = folder_name.lower()
         
-        # Direct check for common anime titles
+        # Direct check for common anime titles - these are reliable indicators
         for title in common_anime_titles:
             if title in lowercase_name:
                 self.logger.debug(f"Anime detected by title match: '{title}' in '{folder_name}'")
                 return True
         
-        # Check for common anime indicators
-        for indicator in anime_indicators:
-            if indicator.lower() in lowercase_name:
-                self.logger.debug(f"Anime detected by indicator: '{indicator}' in '{folder_name}'")
+        # Check for common anime studios - these are reliable indicators
+        for studio in anime_studios:
+            if studio in lowercase_name:
+                self.logger.debug(f"Anime detected by studio: '{studio}' in '{folder_name}'")
                 return True
         
-        # Additional pattern-based checks
-        anime_patterns = [
-            r'\[.*?\]',  # Anything in square brackets like [Anime]
-            r'\(.*?\)',  # Anything in parentheses like (Subbed)
-            r'S\d+',     # Season indicators like S01
-            r'E\d+',     # Episode indicators like E01
+        # Check for specific anime format indicators - these are likely but not guaranteed
+        anime_format_indicators = [
+            '[dual audio]', '[bd]', '[bluray]', '[jp]', '[jpn]', 
+            '[eng]', '[english]', '[1080]', '[720]', '[subs]',
+            '[multi subs]', '[raw]', 'uncensored', 'season'
         ]
         
-        for pattern in anime_patterns:
-            if re.search(pattern, folder_name):
-                match = re.search(pattern, folder_name).group(0)
-                self.logger.debug(f"Anime detected by pattern: '{match}' in '{folder_name}'")
+        # Check for Japanese text which is a strong indicator of anime
+        if re.search(r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]', folder_name):
+            self.logger.debug(f"Anime detected by Japanese characters in '{folder_name}'")
+            return True
+        
+        # Check if the title contains common anime title patterns
+        anime_title_patterns = [
+            r'S\d+\s*-\s*S\d+',  # Range of seasons, like S1-S3
+            r'\[\s*\d{1,2}\s*of\s*\d{1,2}\s*\]',  # [1 of 12], etc.
+            r'\s+OVA\s*\d*\s*$',  # OVA, OVA2, etc at the end
+            r'\s+OAV\s*\d*\s*$',  # OAV, OAV2, etc at the end
+            r'cour\s*\d+',  # cour 1, cour 2, etc.
+            r'\bova\b|\boav\b',  # OVA/OAV terms
+        ]
+        
+        for pattern in anime_title_patterns:
+            if re.search(pattern, lowercase_name, re.IGNORECASE):
+                self.logger.debug(f"Anime detected by title pattern: '{pattern}' in '{folder_name}'")
                 return True
-    
+        
+        # For generic terms like 'season', 'bluray', etc., require at least 2 matches
+        # to avoid false positives like with "12 Angry Men"
+        matches = 0
+        for indicator in anime_indicators + anime_format_indicators:
+            if indicator.lower() in lowercase_name:
+                matches += 1
+                if matches >= 2:  # Require at least 2 matches for generic terms
+                    self.logger.debug(f"Anime detected by multiple indicators ({matches}) in '{folder_name}'")
+                    return True
+        
+        # Additional check: if 'jp', 'jpn', or 'japan' is in the folder name AND 
+        # it contains typical media format indicators, it's likely anime
+        if any(jp_term in lowercase_name for jp_term in ['jp', 'jpn', 'japan']):
+            if any(fmt in lowercase_name for fmt in ['1080', '720', 'x264', 'x265', 'h264', 'h265']):
+                self.logger.debug(f"Anime detected by Japanese language + format indicators in '{folder_name}'")
+                return True
+        
+        # Not enough evidence to classify as anime
         return False
     
     def _get_tmdb_id(self, title, year=None, is_tv=False):
@@ -970,7 +974,7 @@ class DirectoryProcessor:
             self.logger.error(f"Error searching for TMDB ID: {e}", exc_info=True)
             print(f"Error searching for TMDB ID: {str(e)}")
             return None, None
-    
+
     def _fetch_media_ids(self, title, year, is_tv):
         """Fetch media IDs from online services."""
         tmdb_id = None
@@ -1070,6 +1074,9 @@ class DirectoryProcessor:
             # Detect if content is anime
             is_anime = self._detect_if_anime(subfolder_name)
             
+            # Also detect if content is wrestling - this was missing!
+            is_wrestling = self._detect_if_wrestling(subfolder_name)
+            
             # Use existing IDs if available
             tmdb_id = existing_tmdb_id
             imdb_id = existing_imdb_id
@@ -1085,10 +1092,10 @@ class DirectoryProcessor:
     
             try:
                 # Map our internal content type to scanner list content type
-                content_type = 'tv' if is_tv else 'movie'
+                content_type_for_scanner = 'tv' if is_tv else 'movie'
                 
                 # Call our new helper method
-                scanner_list_match_found, scanner_match = self._check_scanner_lists(title, content_type)
+                scanner_list_match_found, scanner_match = self._check_scanner_lists(title, content_type_for_scanner)
                 
                 if scanner_list_match_found:
                     if scanner_match:
@@ -1099,7 +1106,7 @@ class DirectoryProcessor:
                         print(f"✓ Found {match_type} match in scanner list: '{scanner_title}' ({scanner_year or 'Unknown'}), TMDB ID: {scanner_tmdb_id or 'None'}")
                         scanner_list_match_found = True
                 else:
-                    print(f"No matches found in {content_type} scanner lists")
+                    print(f"No matches found in {content_type_for_scanner} scanner lists")
                 
             except ImportError as e:
                 self.logger.warning(f"Scanner utility module not available: {e}")
@@ -1112,8 +1119,8 @@ class DirectoryProcessor:
             if not self.auto_mode:
                 # Pass the scanner_list_match_found flag to _manual_process_folder
                 result = self._manual_process_folder(subfolder_path, subfolder_name, title, year, 
-                                                  is_tv, is_anime, tmdb_id, imdb_id, tvdb_id,
-                                                  scanner_list_match_found)
+                                                 is_tv, is_anime, tmdb_id, imdb_id, tvdb_id,
+                                                 scanner_list_match_found)
                 return result
             else:
                 # Auto mode - ONLY search TMDB if we have NO tmdb_id AND NO scanner list match
@@ -1125,15 +1132,20 @@ class DirectoryProcessor:
                 elif scanner_list_match_found:
                     print("✓ Using data from scanner lists, skipping TMDB search")
             
-            # Fixed: Change display format for anime content types
+            # Display content type correctly
             content_type = "TV Show" if is_tv else "Movie"
             if is_anime:
                 content_type = f"Anime {content_type}"
+            elif is_wrestling:  # Add this check to show wrestling content type
+                content_type = "Wrestling"
             print(f"Detected: {content_type} - {title} {f'({year})' if year else ''}")
             
-            # Create symlinks
+            # Debug statement to show detection values
+            print(f"DEBUG - is_tv: {is_tv}, is_anime: {is_anime}, is_wrestling: {is_wrestling}")
+            
+            # Create symlinks - pass is_wrestling parameter
             result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
-                                         tmdb_id, imdb_id, tvdb_id)
+                                         is_wrestling, tmdb_id, imdb_id, tvdb_id)
             
             if result:
                 print(f"Successfully processed {subfolder_name}")
@@ -1144,12 +1156,15 @@ class DirectoryProcessor:
         except Exception as e:
             self.logger.error(f"Error processing subfolder {subfolder_name}: {e}", exc_info=True)
             print(f"Error processing subfolder {subfolder_name}: {e}")
-            return "skip"         
+            return "skip"
 
     def _manual_process_folder(self, subfolder_path, subfolder_name, title, year, 
        is_tv, is_anime, tmdb_id, imdb_id, tvdb_id, scanner_list_match_found=False):
         """Manual processing for a folder, allowing user to adjust metadata."""
         try:
+            # Add is_wrestling detection
+            is_wrestling = self._detect_if_wrestling(subfolder_name)
+            
             while True:
                 clear_screen()
                 display_ascii_art()
@@ -1159,9 +1174,10 @@ class DirectoryProcessor:
                 
                 # Display current detection
                 content_type = "TV Show" if is_tv else "Movie"
-                # Fixed: Change "Movie (Anime)" format to "Anime Movie" format
                 if is_anime:
                     content_type = f"Anime {content_type}"
+                elif is_wrestling:  # Add wrestling type display
+                    content_type = "Wrestling"
                 print(f"\nCurrent detection:")
                 print(f"Content type: {content_type}")
                 print(f"Title: {title}")
@@ -1174,61 +1190,47 @@ class DirectoryProcessor:
                     print(f"IMDB ID: {imdb_id}")
                 if tvdb_id:
                     print(f"TVDB ID: {tvdb_id}")
-
+    
                 # Show source of information
                 if scanner_list_match_found:
                     print("\n✓ Data from scanner lists")
                 
-                # Count media files in the folder
-                media_files = []
-                for root, _, files in os.walk(subfolder_path):
-                    for file in files:
-                        if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v')):
-                            media_files.append(file)
-
-                print(f"\nContains {len(media_files)} media files")
+                # Show simplified menu options
+                print("\nOptions:")
+                print("1. Accept and process")
+                print("2. Change content type")
+                print("3. New search (Title/Year)")
+                print("4. Skip this item")
+                print("0. Quit processing")
+                print("\nPress Enter to accept")
                 
-                # Make menu highly visible with clear formatting
-                print("\n" + "=" * 84)
-                print(" " * 30 + "MANUAL PROCESSING OPTIONS" + " " * 30 + " ")
-                print("1. Accept")
-                print("2. Change Type")
-                print("3. New Search")
-                print("4. Skip (For later review)")
-                print("5. Quit")
-                print("=" * 84)
+                choice = input("\nEnter choice: ").strip()
                 
-                choice = input("\nEnter choice (1-5) [1]: ").strip()  # Added default option indicator [1]
-                
-                # If user just pressed Enter, default to option 1
+                # Treat empty input as option 1 (Accept)
                 if choice == "":
                     choice = "1"
                     
-                print(f"You selected: {choice}")
-                
-                if choice == "1":
+                if choice == "0":
+                    return "quit"
+                    
+                elif choice == "1":
                     # Accept current detection and process
                     print(f"\nProcessing {subfolder_name} with current detection...")
                     
-                    # Only search TMDB if we don't have an ID AND didn't find a scanner match
-                    if not tmdb_id and not scanner_list_match_found:
-                        print("\nSearching for metadata...")
-                        tmdb_id, tmdb_title = self._get_tmdb_id(title, year, is_tv)
-                        if tmdb_title and tmdb_title.lower() != title.lower():
-                            title = tmdb_title
-                    elif scanner_list_match_found:
-                        print("✓ Using data from scanner lists, skipping TMDB search")
+                    # Debug info after selection
+                    print(f"DEBUG - Using: is_tv={is_tv}, is_anime={is_anime}, is_wrestling={is_wrestling}")
                     
+                    # Create symlinks with is_wrestling parameter
                     result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
-                                                 tmdb_id, imdb_id, tvdb_id)
+                                                 is_wrestling, tmdb_id, imdb_id, tvdb_id)
+                    
                     if result:
                         print(f"Successfully processed {subfolder_name}")
+                        return "continue"
                     else:
                         print(f"Failed to process {subfolder_name}")
+                        return "skip"
                 
-                    input("\nPress Enter to continue to the next folder...")
-                    return "continue"
-                    
                 elif choice == "2":
                     # Change content type (reordering to match the menu)
                     print("\nSelect content type:")
@@ -1236,97 +1238,94 @@ class DirectoryProcessor:
                     print("2. TV Show")
                     print("3. Anime Movie")
                     print("4. Anime TV Show")
+                    print("5. Wrestling")
                     
-                    type_choice = input("\nEnter choice (1-4): ").strip()
+                    type_choice = input("\nEnter choice (1-5): ").strip()
                     
-                    previous_is_tv = is_tv
+                    # Reset all type flags first
+                    is_tv = False
+                    is_anime = False
+                    is_wrestling = False
                     
-                    if type_choice == "1":
+                    # Set the appropriate flags based on user choice
+                    if type_choice == "1":  # Movie
                         is_tv = False
                         is_anime = False
-                    elif type_choice == "2":
+                        is_wrestling = False
+                    elif type_choice == "2":  # TV Show
                         is_tv = True
                         is_anime = False
-                    elif type_choice == "3":
+                        is_wrestling = False
+                    elif type_choice == "3":  # Anime Movie
                         is_tv = False
                         is_anime = True
-                    elif type_choice == "4":
+                        is_wrestling = False
+                    elif type_choice == "4":  # Anime TV Show
                         is_tv = True
                         is_anime = True
-
-                    # If content type changed, check appropriate scanner lists
-                    if previous_is_tv != is_tv:
-                        # Reset IDs
-                        tmdb_id = None
-                        scanner_list_match_found = False
+                        is_wrestling = False
+                    elif type_choice == "5":  # Wrestling
+                        is_wrestling = True
+                        is_tv = False
+                        is_anime = False
+                    
+                    # Show a confirmation message
+                    content_type = "TV Show" if is_tv else "Movie"
+                    if is_anime:
+                        content_type = f"Anime {content_type}"
+                    elif is_wrestling:
+                        content_type = "Wrestling"
                         
-                        # Check scanner lists with new content type
-                        try:
-                            from src.utils.scanner_utils import find_all_matches
-                            new_content_type = 'tv' if is_tv else 'movie'
-                            scanner_matches = find_all_matches(title, new_content_type)
-                            
-                            if scanner_matches and len(scanner_matches) > 0:
-                                print(f"\n✓ Found {len(scanner_matches)} matches in {new_content_type} scanner lists")
-                                # Use first match as default
-                                scanner_match = scanner_matches[0]
-                                content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
-                                
-                                if scanner_tmdb_id:
-                                    tmdb_id = scanner_tmdb_id
-                                    print(f"✓ Using TMDB ID {tmdb_id} from scanner list")
-                                
-                                if scanner_year:
-                                    year = scanner_year
-                                    print(f"✓ Using year {year} from scanner list")
-                                    
-                                if scanner_title and scanner_title != title:
-                                    title = scanner_title
-                                    print(f"✓ Using title from scanner list: '{scanner_title}'")
-                                
-                                scanner_list_match_found = True
-                            else:
-                                print(f"\nNo matches found in {new_content_type} scanner lists")
-                        except Exception as e:
-                            print(f"Error checking scanner lists: {e}")
-                
+                    print(f"\nContent type changed to: {content_type}")
+                    input("\nPress Enter to continue...")
+                    
                 elif choice == "3":
-                    # Change search term
-                    print("\nEnter new title (leave blank to keep current):")
-                    new_title = input("> ").strip()
+                    # New search (Title/Year)
+                    new_title = input(f"\nCurrent title: {title}\nEnter new title (or press Enter to keep current): ").strip()
+                    new_year = input(f"\nCurrent year: {year or 'Unknown'}\nEnter new year (or press Enter to keep current): ").strip()
+                    
                     if new_title:
                         title = new_title
-                
-                    print("\nEnter year (leave blank to clear):")
-                    new_year = input("> ").strip()
-                    if new_year:
+                    
+                    if new_year and new_year.isdigit() and len(new_year) == 4:
                         year = new_year
-                    else:
+                    elif new_year == "":
+                        # Keep current year
+                        pass
+                    elif new_year.lower() == "none":
                         year = None
+                    else:
+                        print("Invalid year format. Year should be a 4-digit number.")
+                        input("\nPress Enter to continue...")
+                        continue
+                    
+                    # If title or year changed, try to get new TMDB ID
+                    if new_title or (new_year and new_year != year):
+                        print(f"\nSearching for new metadata with title: {title} {f'({year})' if year else ''}")
+                        tmdb_id, new_title_from_search = self._get_tmdb_id(title, year, is_tv)
+                        
+                        if tmdb_id:
+                            if new_title_from_search and new_title_from_search != title:
+                                title = new_title_from_search
+                            print(f"\nFound new TMDB ID: {tmdb_id}")
+                        else:
+                            print("\nNo TMDB match found. Using manual entry.")
+    
+                    print(f"\nTitle set to: {title}")
+                    print(f"Year set to: {year or 'None'}")
+                    input("\nPress Enter to continue...")
                 
-                    # Reset IDs and scanner match flag when changing title
-                    tmdb_id = None
-                    scanner_list_match_found = False
-            
                 elif choice == "4":
-                    # Skip for later review
-                    print("\nSkipping this folder for later review.")
-                    input("\nPress Enter to continue...")
+                    # Skip this item
+                    print(f"\nSkipping {subfolder_name}")
                     return "skip"
-                    
-                elif choice == "5":
-                    # Quit processing
-                    if input("\nAre you sure you want to quit processing? (y/n): ").strip().lower() == 'y':
-                        return "quit"
-                    
+                
                 else:
-                    print("\nInvalid choice. Please enter a number from 1-5.")
+                    print("\nInvalid choice. Please try again.")
                     input("\nPress Enter to continue...")
-            
         except Exception as e:
-            print(f"\nError in manual processing: {str(e)}")
-            traceback.print_exc()
-            input("\nPress Enter to return 'skip' value...")
+            self.logger.error(f"Error in manual processing: {e}", exc_info=True)
+            print(f"Error: {e}")
             return "skip"
 
 # Function to check the monitor status
