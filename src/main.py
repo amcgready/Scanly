@@ -610,53 +610,56 @@ class DirectoryProcessor:
         return False
     
     def _detect_if_anime(self, folder_name):
-        """Detect if content is likely anime based on folder name."""
-        # Simple anime detection based on folder name
-        folder_lower = folder_name.lower()
-        
-        # More comprehensive list of anime indicators
+        """Detect if a folder contains anime based on naming patterns."""
+        # Common anime indicators in folder names
         anime_indicators = [
-            r'\banime\b', 
-            r'\bsubbed\b', 
-            r'\bdubbed\b', 
-            r'\[jp\]', 
-            r'\[jpn\]', 
-            r'ova\b', 
-            r'ova\d+', 
-            r'アニメ', 
-            r'japanese animation',
-            r'\bjapanese\b',
-            r'\bsub(bed|titled)?\b',
-            r'\braw\b',
-            r'\bsenpai\b',
-            r'\botaku\b',
-            r'\bnekonime\b',
-            r'\bcr\b',  # Common in anime release groups
-            r'\bhorriblesubs\b',
-            r'\bnyaa\b',
-            r'\bfansub\b',
-            r'crunchyroll',
-            r'funimation',
-            r'aniplex',
-            r'tohei',
-            r'sentai filmworks',
-            r'ghibli'
+            'anime', 'manga', 'otaku', 'subs', 'dubbed', 
+            'subbed', '[BD]', '[DVD]', '[TV]', '[MOVIE]',
+            'cour', 'season', '1080p', '720p', '480p', 'HEVC',
+            'x265', 'x264', 'WEB-DL', 'Blu-ray', 'BluRay',
+            'FLAC', 'AAC', 'AC3', '5.1', '2.0'
         ]
         
+        # Common anime titles/franchises
+        common_anime_titles = [
+            'pokemon', 'naruto', 'bleach', 'one piece', 'dragon ball',
+            'sailor moon', 'detective conan', 'case closed', 'doraemon',
+            'yugioh', 'yu-gi-oh', 'digimon', 'gundam', 'evangelion', 'ghibli',
+            'totoro', 'miyazaki', 'demon slayer', 'attack on titan', 'jojo',
+            'sword art online', 'my hero academia', 'fullmetal', 'death note',
+            'hunter x hunter', 'fairy tail', 'fate', 'gintama', 'haikyuu',
+            'your name', 'weathering with you', 'jujutsu', 'chainsaw'
+        ]
+        
+        # Check for common terms
+        lowercase_name = folder_name.lower()
+        
+        # Direct check for common anime titles
+        for title in common_anime_titles:
+            if title in lowercase_name:
+                self.logger.debug(f"Anime detected by title match: '{title}' in '{folder_name}'")
+                return True
+        
+        # Check for common anime indicators
         for indicator in anime_indicators:
-            if re.search(indicator, folder_lower, re.IGNORECASE):
+            if indicator.lower() in lowercase_name:
+                self.logger.debug(f"Anime detected by indicator: '{indicator}' in '{folder_name}'")
                 return True
         
-        # Check for common anime release groups
-        anime_groups = [
-            'horriblesubs', 'subsplease', 'erai-raws', 'nyaa', 'animekaizoku',
-            'animekayo', 'anime time', 'reaktor', 'judas', 'anime land'
+        # Additional pattern-based checks
+        anime_patterns = [
+            r'\[.*?\]',  # Anything in square brackets like [Anime]
+            r'\(.*?\)',  # Anything in parentheses like (Subbed)
+            r'S\d+',     # Season indicators like S01
+            r'E\d+',     # Episode indicators like E01
         ]
         
-        for group in anime_groups:
-            if group in folder_lower:
+        for pattern in anime_patterns:
+            if re.search(pattern, folder_name):
+                match = re.search(pattern, folder_name).group(0)
+                self.logger.debug(f"Anime detected by pattern: '{match}' in '{folder_name}'")
                 return True
-                
+    
         return False
     
     def _get_tmdb_id(self, title, year=None, is_tv=False):
