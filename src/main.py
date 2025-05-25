@@ -707,7 +707,7 @@ class DirectoryProcessor:
             
             # Release group patterns (in brackets or after hyphen)
             r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
-
+    
             # Common release group names
             r'(?i)\b(AMZN|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
             
@@ -725,6 +725,9 @@ class DirectoryProcessor:
         # Remove the FGT pattern explicitly (as seen in the example)
         clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
         
+        # NEW: Remove empty parentheses
+        clean_title = re.sub(r'\(\s*\)', '', clean_title)
+        
         # Replace multiple spaces with a single space and trim
         clean_title = re.sub(r'\s+', ' ', clean_title).strip()
         
@@ -734,7 +737,7 @@ class DirectoryProcessor:
         
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year, tmdb_id, imdb_id, tvdb_id
-    
+
     def _detect_if_wrestling(self, folder_name):
         """Detect if a folder contains wrestling content based on naming patterns."""
         # Common wrestling indicators
@@ -1079,7 +1082,7 @@ class DirectoryProcessor:
             print(f"\nChecking scanner lists for: '{title}'")
             scanner_match = None
             scanner_year = None
-
+    
             try:
                 # Map our internal content type to scanner list content type
                 content_type = 'tv' if is_tv else 'movie'
@@ -1122,9 +1125,11 @@ class DirectoryProcessor:
                 elif scanner_list_match_found:
                     print("✓ Using data from scanner lists, skipping TMDB search")
             
+            # Fixed: Change display format for anime content types
             content_type = "TV Show" if is_tv else "Movie"
-            anime_label = " (Anime)" if is_anime else ""
-            print(f"Detected: {content_type}{anime_label} - {title} {f'({year})' if year else ''}")
+            if is_anime:
+                content_type = f"Anime {content_type}"
+            print(f"Detected: {content_type} - {title} {f'({year})' if year else ''}")
             
             # Create symlinks
             result = self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, 
@@ -1139,10 +1144,10 @@ class DirectoryProcessor:
         except Exception as e:
             self.logger.error(f"Error processing subfolder {subfolder_name}: {e}", exc_info=True)
             print(f"Error processing subfolder {subfolder_name}: {e}")
-            return "skip"
-            
+            return "skip"         
+
     def _manual_process_folder(self, subfolder_path, subfolder_name, title, year, 
-           is_tv, is_anime, tmdb_id, imdb_id, tvdb_id, scanner_list_match_found=False):
+       is_tv, is_anime, tmdb_id, imdb_id, tvdb_id, scanner_list_match_found=False):
         """Manual processing for a folder, allowing user to adjust metadata."""
         try:
             while True:
@@ -1154,9 +1159,11 @@ class DirectoryProcessor:
                 
                 # Display current detection
                 content_type = "TV Show" if is_tv else "Movie"
-                anime_label = " (Anime)" if is_anime else ""
+                # Fixed: Change "Movie (Anime)" format to "Anime Movie" format
+                if is_anime:
+                    content_type = f"Anime {content_type}"
                 print(f"\nCurrent detection:")
-                print(f"Content type: {content_type}{anime_label}")
+                print(f"Content type: {content_type}")
                 print(f"Title: {title}")
                 print(f"Year: {year if year else 'Unknown'}")
                 
