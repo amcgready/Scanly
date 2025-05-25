@@ -926,105 +926,25 @@ class DirectoryProcessor:
             print(f"\nChecking scanner lists for: '{title}'")
             scanner_match = None
             scanner_year = None
-            
+
             try:
-                from src.utils.scanner_utils import find_all_matches
-                self.logger.debug(f"Checking scanner lists for: '{title}'")
+                # Map our internal content type to scanner list content type
+                content_type = 'tv' if is_tv else 'movie'
                 
-                # Get all potential matches
-                scanner_matches = find_all_matches(title)
+                # Call our new helper method
+                scanner_list_match_found, scanner_match = self._check_scanner_lists(title, content_type)
                 
-                if scanner_matches and len(scanner_matches) > 0:
-                    if len(scanner_matches) == 1:
-                        # Single match found - use it automatically
-                        scanner_match = scanner_matches[0]
+                if scanner_list_match_found:
+                    if scanner_match:
                         content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
                         
                         match_type = "exact" if scanner_title.lower() == title.lower() else "approximate"
                         self.logger.info(f"Scanner list {match_type} match: '{title}' -> '{scanner_title}', ID: {scanner_tmdb_id}, Year: {scanner_year}")
                         print(f"✓ Found {match_type} match in scanner list: '{scanner_title}' ({scanner_year or 'Unknown'}), TMDB ID: {scanner_tmdb_id or 'None'}")
                         scanner_list_match_found = True
-                    else:
-                        # Multiple matches - let the user choose in manual mode, or pick the best in auto mode
-                        print(f"✓ Found {len(scanner_matches)} potential matches in scanner lists")
-                        
-                        if not self.auto_mode:
-                            # In manual mode, let the user choose
-                            print("\nMultiple matches found. Please select the correct one:")
-                            for i, match in enumerate(scanner_matches, 1):
-                                match_content_type, match_is_anime, match_tmdb_id, match_title, match_year = match
-                                content_label = "TV" if match_content_type == "tv" else "Movie"
-                                anime_label = " (Anime)" if match_is_anime else ""
-                                print(f"{i}. {match_title} ({match_year or 'Unknown'}) - {content_label}{anime_label} [TMDB: {match_tmdb_id or 'None'}]")
-                            
-                            while True:
-                                choice = input("\nEnter number (or 0 to skip scanner matches): ")
-                                if choice.isdigit():
-                                    choice_idx = int(choice)
-                                    if choice_idx == 0:
-                                        print("Skipping scanner matches")
-                                        scanner_match = None
-                                        break
-                                    elif 1 <= choice_idx <= len(scanner_matches):
-                                        scanner_match = scanner_matches[choice_idx - 1]
-                                        content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
-                                        print(f"Selected: {scanner_title} ({scanner_year or 'Unknown'})")
-                                        scanner_list_match_found = True
-                                        break
-                                print("Invalid selection. Please try again.")
-                        else:
-                            # In auto mode, find the closest match
-                            import difflib
-                            
-                            def similarity_score(a, b):
-                                return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio()
-                            
-                            matches_with_scores = [(match, similarity_score(title, match[3])) for match in scanner_matches]
-                            matches_with_scores.sort(key=lambda x: x[1], reverse=True)
-                            
-                            # Use the best match
-                            best_match, score = matches_with_scores[0]
-                            if score > 0.8:  # Only use if it's a good match
-                                scanner_match = best_match
-                                content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
-                                print(f"✓ Using best scanner match: '{scanner_title}' ({scanner_year or 'Unknown'}), TMDB ID: {scanner_tmdb_id or 'None'}")
-                                scanner_list_match_found = True
-                            else:
-                                print("No sufficiently close scanner matches found")
-                    
-                    # Apply the scanner match if one was selected or found
-                    if scanner_match:
-                        content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
-                        
-                        # Always use scanner TMDB ID if available
-                        if scanner_tmdb_id:
-                            tmdb_id = scanner_tmdb_id
-                            print(f"✓ Using TMDB ID {tmdb_id} from scanner list")
-                        
-                        # Always use scanner year if available
-                        if scanner_year:
-                            year = scanner_year
-                            print(f"✓ Using year {year} from scanner list")
-                        
-                        # Update content type and anime status
-                        if scanner_is_anime:
-                            is_anime = True
-                            print("✓ Content identified as anime from scanner list")
-                        
-                        if content_type == 'tv':
-                            is_tv = True
-                            print("✓ Content identified as TV show from scanner list")
-                        elif content_type == 'movie':
-                            is_tv = False
-                            print("✓ Content identified as movie from scanner list")
-                            
-                        # Always use scanner title
-                        if scanner_title:
-                            title = scanner_title
-                            print(f"✓ Using title from scanner list: '{scanner_title}'")
                 else:
-                    print("No matches found in scanner lists")
-                    
+                    print(f"No matches found in {content_type} scanner lists")
+                
             except ImportError as e:
                 self.logger.warning(f"Scanner utility module not available: {e}")
                 print("Scanner lists check skipped - module not available")
@@ -1159,6 +1079,8 @@ class DirectoryProcessor:
                     
                     type_choice = input("\nEnter choice (1-4): ").strip()
                     
+                    previous_is_tv = is_tv
+                    
                     if type_choice == "1":
                         is_tv = False
                         is_anime = False
@@ -1171,11 +1093,43 @@ class DirectoryProcessor:
                     elif type_choice == "4":
                         is_tv = True
                         is_anime = True
-            
-                    # Reset IDs and scanner match flag when changing content type manually
-                    tmdb_id = None
-                    scanner_list_match_found = False
+
+                    # If content type changed, check appropriate scanner lists
+                    if previous_is_tv != is_tv:
+                        # Reset IDs
+                        tmdb_id = None
+                        scanner_list_match_found = False
+                        
+                        # Check scanner lists with new content type
+                        try:
+                            from src.utils.scanner_utils import find_all_matches
+                            new_content_type = 'tv' if is_tv else 'movie'
+                            scanner_matches = find_all_matches(title, new_content_type)
+                            
+                            if scanner_matches and len(scanner_matches) > 0:
+                                print(f"\n✓ Found {len(scanner_matches)} matches in {new_content_type} scanner lists")
+                                # Use first match as default
+                                scanner_match = scanner_matches[0]
+                                content_type, scanner_is_anime, scanner_tmdb_id, scanner_title, scanner_year = scanner_match
                                 
+                                if scanner_tmdb_id:
+                                    tmdb_id = scanner_tmdb_id
+                                    print(f"✓ Using TMDB ID {tmdb_id} from scanner list")
+                                
+                                if scanner_year:
+                                    year = scanner_year
+                                    print(f"✓ Using year {year} from scanner list")
+                                    
+                                if scanner_title and scanner_title != title:
+                                    title = scanner_title
+                                    print(f"✓ Using title from scanner list: '{scanner_title}'")
+                                
+                                scanner_list_match_found = True
+                            else:
+                                print(f"\nNo matches found in {new_content_type} scanner lists")
+                        except Exception as e:
+                            print(f"Error checking scanner lists: {e}")
+                
                 elif choice == "3":
                     # Change search term
                     print("\nEnter new title (leave blank to keep current):")
@@ -1226,298 +1180,222 @@ def _check_monitor_status():
         
     input("\nPress Enter to continue...")
 
-# Function to add to src/utils/scanner_utils.py
-def find_all_matches(title):
-    """Find all possible matches in scanner lists, not just the best one."""
-    matches = []
-    
-    # Get all potential matches from all scanner lists
-    normalized_search_title = normalize_title(title)
-    
-    # Check each list type
-    for list_type in scanner_lists:
-        for item in scanner_lists[list_type]:
-            scanner_title = item.get('title', '')
-            normalized_scanner_title = normalize_title(scanner_title)
-            
-            # Check for exact/strong/substring matches - customize as needed
-            # Add year to the output tuple
-            year = item.get('year')
-            
-            # Exact match
-            if normalized_scanner_title == normalized_search_title:
-                matches.append((list_type, item.get('anime', False), 
-                               item.get('tmdb_id'), scanner_title, year))
-            
-            # Strong containment match (title contains scanner title or vice versa)
-            elif (normalized_scanner_title in normalized_search_title or 
-                  normalized_search_title in normalized_scanner_title):
-                matches.append((list_type, item.get('anime', False), 
-                               item.get('tmdb_id'), scanner_title, year))
-            
-            # You could add more match types here if needed
-    
-    return matches
+# New method for DirectoryProcessor class
 
-# Main entry point
-if __name__ == "__main__":
+def _check_scanner_lists(self, title, content_type):
+    """Check scanner lists for a title with specific content type.
+    
+    Args:
+        title: Title to search for
+        content_type: Content type ('tv' or 'movie')
+        
+    Returns:
+        Tuple: (found_match, scanner_match_tuple)
+    """
     try:
-        # Initialize application
+        from src.utils.scanner_utils import find_all_matches
+        self.logger.debug(f"Checking {content_type} scanner lists for: '{title}'")
+        
+        # Get all potential matches for this content type
+        scanner_matches = find_all_matches(title, content_type)
+        
+        if scanner_matches and len(scanner_matches) > 0:
+            # Return the first match
+            return True, scanner_matches[0]
+        else:
+            return False, None
+    except ImportError:
+        self.logger.warning(f"Scanner utility module not available")
+        return False, None
+    except Exception as e:
+        self.logger.error(f"Error checking scanner lists: {e}", exc_info=True)
+        return False, None
+
+def main():
+    """Main entry point for the Scanly application."""
+    try:
         clear_screen()
         display_ascii_art()
         
-        # Display main menu
+        # Dynamic menu options
+        menu_options = [
+            "Individual Scan",    # Scan a single directory
+            "Multi Scan",         # Scan multiple directories
+            "Resume Scan",        # Resume a previously interrupted scan
+            "Settings"            # Configure application settings
+        ]
+        
+        # Add monitor option if available
+        try:
+            from src.core.monitor import check_monitor_status
+            menu_options.append("Monitor Status")
+        except ImportError:
+            pass
+        
+        # Add skipped items review if we have any
+        if skipped_items_registry:
+            menu_options.append(f"Review Skipped Items ({len(skipped_items_registry)})")
+        
+        # Add help option
+        menu_options.append("Help")
+        
         while True:
             clear_screen()
             display_ascii_art()
+            
             print("=" * 84)
             print("MAIN MENU".center(84))
             print("=" * 84)
             
-            # Create menu options dynamically (remove descriptions, keep just the options)
-            menu_options = [
-                "Individual Scan",
-                "Multi Scan"
-            ]
-            
-            # Check if there's a scan history to resume
-            has_history = history_exists() and load_scan_history() and load_scan_history().get('path')
-            if has_history:
-                menu_options.append("Resume Scan")
-            
-            # Check if there are skipped items to review
-            has_skipped = skipped_items_registry and len(skipped_items_registry) > 0
-            if has_skipped:
-                menu_options.append(f"Review Skipped ({len(skipped_items_registry)})")
-            
-            # Always add Settings and Help
-            menu_options.append("Settings")
-            menu_options.append("Help")
-            
-            # Display menu with dynamic numbering
-            print("\nOptions:")
-            option_map = {}  # Map displayed numbers to option names
-            
+            # Display menu options
             for i, option in enumerate(menu_options, 1):
                 print(f"{i}. {option}")
-                option_map[str(i)] = option
-            
-            # Always add Quit as option 0
             print("0. Quit")
             
-            # Get user input with dynamic max number
-            max_option = len(menu_options)
-            choice = input(f"\nEnter choice (0-{max_option}): ").strip()
+            choice = input("\nSelect an option: ").strip()
             
-            # Process based on the choice
-            if choice == "0":
+            if choice == '0':
                 print("\nExiting Scanly. Goodbye!")
                 break
-            elif choice in option_map:
-                option_name = option_map[choice]
                 
-                # Handle each option based on its name
-                if option_name == "Individual Scan":
-                    # Individual scan
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 84)
-                    print("INDIVIDUAL SCAN".center(84))
-                    print("=" * 84)
-                    
-                    # Prompt for directory path
-                    print("\nEnter the path to scan (or press Enter to return to main menu):")
-                    dir_path = input("> ").strip()
-                    
-                    if not dir_path:
-                        continue
-                    
-                    # Clean and validate the path
+            # Convert to integer if possible
+            try:
+                choice = int(choice)
+                if choice < 0 or choice > len(menu_options):
+                    raise ValueError("Invalid option")
+            except ValueError:
+                print("\nInvalid selection. Please try again.")
+                input("\nPress Enter to continue...")
+                continue
+            
+            # Process the selected option
+            if choice == 1:  # Individual Scan
+                dir_path = input("\nEnter directory path to scan: ").strip()
+                if dir_path:
                     dir_path = _clean_directory_path(dir_path)
-                    
-                    if not os.path.isdir(dir_path):
-                        print(f"\nError: Directory does not exist: {dir_path}")
-                        input("\nPress Enter to continue...")
-                        continue
-                    
-                    # Always use manual mode - no more asking
-                    print("\nUsing manual processing mode (review each detection)")
-                    
-                    # Process the directory with manual mode (auto_mode set to False)
-                    processor = DirectoryProcessor(dir_path, auto_mode=False)
+                    processor = DirectoryProcessor(dir_path)
                     processor.process()
-                    
                     input("\nPress Enter to return to main menu...")
-                
-                elif option_name == "Multi Scan":
-                    # Multi scan
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 84)
-                    print("MULTI SCAN".center(84))
-                    print("=" * 84)
-                    print("\nScan multiple directories (one per line)")
-                    print("Enter a blank line when finished")
-                    
-                    dirs_to_scan = []
-                    while True:
-                        dir_path = input("\nEnter directory path (or blank to finish): ").strip()
-                        if not dir_path:
-                            break
-                        
+            
+            elif choice == 2:  # Multi Scan
+                while True:
+                    dir_path = input("\nEnter directory path to scan (or 'done' to finish): ").strip()
+                    if dir_path.lower() == 'done':
+                        break
+                    if dir_path:
                         dir_path = _clean_directory_path(dir_path)
-                        if os.path.isdir(dir_path):
-                            dirs_to_scan.append(dir_path)
-                        else:
-                            print(f"Warning: Directory does not exist: {dir_path}")
-
-                    if not dirs_to_scan:
-                        print("\nNo valid directories to scan.")
-                        input("\nPress Enter to continue...")
-                        continue
-                    
-                    # Always use manual mode - no more asking
-                    print("\nUsing manual processing mode (review each detection)")
-                    
-                    # Process each directory with manual mode
-                    for dir_path in dirs_to_scan:
-                        print(f"\nProcessing directory: {dir_path}")
-                        processor = DirectoryProcessor(dir_path, auto_mode=False)
+                        processor = DirectoryProcessor(dir_path)
                         processor.process()
-                    
-                    input("\nAll directories processed. Press Enter to return to main menu...")
                 
-                elif option_name == "Resume Scan" and has_history:
-                    # Check if user wants to resume or clear history
-                    print("\nDo you want to resume the scan or clear the history?")
-                    print("1. Resume Scan")
-                    print("2. Clear History")
-                    sub_choice = input("\nEnter choice (1-2): ").strip()
-                    
-                    if sub_choice == "1":
-                        # Resume scan
-                        history = load_scan_history()
-                        dir_path = history.get('path', '')
-                        
-                        if os.path.isdir(dir_path):
-                            print(f"\nResuming scan of directory: {dir_path}")
-                            processor = DirectoryProcessor(dir_path, resume=True, auto_mode=False)
-                            processor.process()
-                        else:
-                            print(f"\nError: Directory from history does not exist: {dir_path}")
-                            
-                        input("\nPress Enter to continue...")
-                    
-                    elif sub_choice == "2":
-                        # Clear history
-                        if clear_scan_history():
-                            print("\nScan history cleared.")
-                        else:
-                            print("\nFailed to clear scan history.")
-                        
-                        input("\nPress Enter to continue...")
+                input("\nAll directories processed. Press Enter to return to main menu...")
+            
+            elif choice == 3:  # Resume Scan
+                history = load_scan_history()
+                if history and 'path' in history:
+                    dir_path = history['path']
+                    print(f"\nResuming scan of: {dir_path}")
+                    processor = DirectoryProcessor(dir_path, resume=True)
+                    processor.process()
+                else:
+                    print("\nNo previous scan to resume.")
                 
-                elif option_name == "Review Skipped" and has_skipped:
-                    # Check if user wants to review or clear skipped items
-                    print("\nDo you want to review skipped items or clear them?")
-                    print("1. Review Skipped Items")
-                    print("2. Clear Skipped Items")
-                    sub_choice = input("\nEnter choice (1-2): ").strip()
-                    
-                    if sub_choice == "1":
-                        # Review skipped items
-                        review_skipped_items()
-                    
-                    elif sub_choice == "2":
-                        # Clear skipped items
-                        clear_skipped_items()
-                
-                elif option_name == "Settings":
-                    # Settings
+                input("\nPress Enter to return to main menu...")
+            
+            elif choice == 4:  # Settings
+                # Implement settings menu
+                while True:
                     clear_screen()
                     display_ascii_art()
                     print("=" * 84)
                     print("SETTINGS".center(84))
                     print("=" * 84)
-                    print("\nCurrent settings:")
                     
-                    dest_dir = os.environ.get('DESTINATION_DIRECTORY', '')
-                    print(f"1. Destination directory: {dest_dir if dest_dir else 'Not set'}")
+                    print("\n1. Set Destination Directory")
+                    print("2. Set TMDB API Key")
+                    print("3. Toggle ID Folder Options")
+                    print("4. Toggle Symlinks/Copies")
+                    print("5. Clear Skipped Items")
+                    print("0. Back to Main Menu")
                     
-                    use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-                    print(f"2. Use symlinks: {'Yes' if use_symlinks else 'No (copy files)'}")
+                    settings_choice = input("\nSelect an option: ").strip()
                     
-                    tmdb_folder_id = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
-                    print(f"3. Include TMDB ID in folder names: {'Yes' if tmdb_folder_id else 'No'}")
-                    
-                    print("\nOptions:")
-                    print("1. Change destination directory")
-                    print("2. Toggle symlinks/copy mode")
-                    print("3. Toggle TMDB ID in folder names")
-                    print("4. Set TMDB API key")
-                    print("5. Check monitor status")
-                    print("0. Return to main menu")
-                    
-                    setting_choice = input("\nEnter choice (0-5): ").strip()
-                    
-                    if setting_choice == "1":
-                        # Change destination directory
-                        print("\nEnter new destination directory:")
-                        new_dir = input("> ").strip()
-                        new_dir = _clean_directory_path(new_dir)
+                    if settings_choice == '0':
+                        break
                         
-                        if os.path.isdir(new_dir):
-                            _update_env_var('DESTINATION_DIRECTORY', new_dir)
-                            print(f"\nDestination directory set to: {new_dir}")
-                        else:
-                            print(f"\nError: Directory does not exist: {new_dir}")
-                        
+                    # Handle settings options
+                    if settings_choice == '1':
+                        new_path = input("\nEnter destination directory: ").strip()
+                        if new_path:
+                            _update_env_var('DESTINATION_DIRECTORY', _clean_directory_path(new_path))
+                            print(f"\nDestination directory set to: {new_path}")
+                            input("\nPress Enter to continue...")
+                    
+                    elif settings_choice == '2':
+                        new_key = input("\nEnter TMDB API Key: ").strip()
+                        if new_key:
+                            _update_env_var('TMDB_API_KEY', new_key)
+                            print("\nTMDB API Key updated.")
+                            input("\nPress Enter to continue...")
+                    
+                    elif settings_choice == '3':
+                        # Toggle ID folder options
+                        while True:
+                            clear_screen()
+                            print("\nID Folder Options:")
+                            print(f"1. TMDB ID in folder names: {os.environ.get('TMDB_FOLDER_ID', 'false')}")
+                            print(f"2. IMDB ID in folder names: {os.environ.get('IMDB_FOLDER_ID', 'false')}")
+                            print(f"3. TVDB ID in folder names: {os.environ.get('TVDB_FOLDER_ID', 'false')}")
+                            print("0. Back to Settings")
+                            
+                            id_choice = input("\nSelect an option to toggle: ").strip()
+                            
+                            if id_choice == '0':
+                                break
+                            elif id_choice == '1':
+                                current = os.environ.get('TMDB_FOLDER_ID', 'false').lower()
+                                new_val = 'false' if current == 'true' else 'true'
+                                _update_env_var('TMDB_FOLDER_ID', new_val)
+                            elif id_choice == '2':
+                                current = os.environ.get('IMDB_FOLDER_ID', 'false').lower()
+                                new_val = 'false' if current == 'true' else 'true'
+                                _update_env_var('IMDB_FOLDER_ID', new_val)
+                            elif id_choice == '3':
+                                current = os.environ.get('TVDB_FOLDER_ID', 'false').lower()
+                                new_val = 'false' if current == 'true' else 'true'
+                                _update_env_var('TVDB_FOLDER_ID', new_val)
+                    
+                    elif settings_choice == '4':
+                        # Toggle symlinks/copies
+                        current = os.environ.get('USE_SYMLINKS', 'true').lower()
+                        new_val = 'false' if current == 'true' else 'true'
+                        _update_env_var('USE_SYMLINKS', new_val)
+                        print(f"\nSet to use {'symlinks' if new_val == 'true' else 'copies'}.")
                         input("\nPress Enter to continue...")
-                        
-                    elif setting_choice == "2":
-                        # Toggle symlinks/copy mode
-                        current = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-                        new_value = 'false' if current else 'true'
-                        _update_env_var('USE_SYMLINKS', new_value)
-                        
-                        print(f"\nFile mode set to: {'Symlinks' if new_value == 'true' else 'Copy'}")
-                        input("\nPress Enter to continue...")
-                        
-                    elif setting_choice == "3":
-                        # Toggle TMDB ID in folder names
-                        current = os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true'
-                        new_value = 'false' if current else 'true'
-                        _update_env_var('TMDB_FOLDER_ID', new_value)
-                        
-                        print(f"\nTMDB ID in folder names: {'Enabled' if new_value == 'true' else 'Disabled'}")
-                        input("\nPress Enter to continue...")
-                        
-                    elif setting_choice == "4":
-                        # Set TMDB API key
-                        print("\nEnter TMDB API key (or leave blank to keep current):")
-                        api_key = input("> ").strip()
-                        
-                        if api_key:
-                            _update_env_var('TMDB_API_KEY', api_key)
-                            print("\nTMDB API key updated.")
-                        
-                        input("\nPress Enter to continue...")
-                        
-                    elif setting_choice == "5":
-                        # Check monitor status
-                        _check_monitor_status()
+                    
+                    elif settings_choice == '5':
+                        # Clear skipped items
+                        if input("\nAre you sure you want to clear all skipped items? (y/n): ").lower() == 'y':
+                            clear_skipped_items()
+            
+            # Handle dynamic options at the end of the menu
+            elif 4 < choice <= len(menu_options):
+                option_text = menu_options[choice-1].lower()
                 
-                elif option_name == "Help":
-                    # Help - also update the help menu to be dynamic
+                if "monitor status" in option_text:
+                    _check_monitor_status()
+                    
+                elif "review skipped" in option_text:
+                    review_skipped_items()
+                    
+                elif "help" in option_text:
                     display_help_dynamic(menu_options)
-            else:
-                print("\nInvalid choice. Please try again.")
-                input("\nPress Enter to continue...")
     
-    except KeyboardInterrupt:
-        print("\n\nProgram interrupted by user. Exiting...")
     except Exception as e:
-        logger.error(f"Unhandled exception in main: {e}", exc_info=True)
-        print(f"\nError: {e}")
-        print("\nAn unexpected error occurred. Check the logs for details.")
+        logger.error(f"Error in main application: {e}", exc_info=True)
+        print(f"\nAn error occurred: {str(e)}")
+        print("\nCheck the log file for details.")
         input("\nPress Enter to exit...")
+
+# This ensures the script is executed when run directly
+if __name__ == "__main__":
+    main()
