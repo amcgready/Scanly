@@ -10,7 +10,8 @@ import json
 import re
 import traceback
 import requests
-import datetime  # Add import for datetime to fix the skipped items functionality
+import datetime
+import shutil
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -483,9 +484,20 @@ class DirectoryProcessor:
         if year:
             media_folder_name += f" ({year})"
         
+        # Debug log to check environment variable
+        self.logger.debug(f"TMDB_FOLDER_ID setting: {os.environ.get('TMDB_FOLDER_ID', 'not set')}")
+        
         # Add IDs to folder name if configured to do so
-        if tmdb_id and os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true':
-            media_folder_name += f" [tmdb-{tmdb_id}]"
+        if tmdb_id:
+            self.logger.debug(f"Found TMDB ID: {tmdb_id}")
+            if os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true':
+                self.logger.info(f"Adding TMDB ID {tmdb_id} to folder name")
+                media_folder_name += f" [tmdb-{tmdb_id}]"
+            else:
+                self.logger.debug("TMDB_FOLDER_ID is not set to 'true', not adding ID to folder name")
+        else:
+            self.logger.debug("No TMDB ID available for this folder")
+        
         if imdb_id and os.environ.get('IMDB_FOLDER_ID', 'false').lower() == 'true':
             media_folder_name += f" [imdb-{imdb_id}]"
         if tvdb_id and os.environ.get('TVDB_FOLDER_ID', 'false').lower() == 'true':
@@ -551,7 +563,7 @@ class DirectoryProcessor:
                     # Only keep media files regardless of size
                     if file_ext not in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.srt', '.sub', '.idx', '.ass']:
                         continue
-                
+            
                 # Count total files being processed
                 total_files += 1
                 
@@ -560,15 +572,13 @@ class DirectoryProcessor:
                     if os.path.exists(target_file):
                         # If it's already a link to our source, skip
                         if os.path.islink(target_file) and os.path.realpath(target_file) == os.path.realpath(source_file):
-                            self.logger.debug(f"Skipping existing link: {target_file} -> {source_file}")
-                            print(f"Skipped link (already exists): {proper_file_name}")
+                            self.logger.debug(f"Skipping existing link: {target_file}")
+                            print(f"Skipping (already linked): {proper_file_name}")
                             skipped_links += 1
                             continue
                         else:
-                            # Target exists but points elsewhere, remove it and recreate
-                            self.logger.info(f"Replacing existing link/file: {target_file}")
-                            print(f"Replacing existing file: {proper_file_name}")
-                            os.remove(target_file)
+                            self.logger.warning(f"Target file exists but is not linked to our source: {target_file}")
+                            print(f"Warning: {proper_file_name} exists but points elsewhere")
                     
                     # Create symlink or copy
                     if use_symlinks:
@@ -586,7 +596,7 @@ class DirectoryProcessor:
                     self.logger.error(f"Error creating link for {file}: {e}")
                     print(f"Error processing {file}: {e}")
             
-            # Print summary
+        # Print summary
         if created_links > 0:
             print(f"\n✓ Created {created_links} {'symlinks' if use_symlinks else 'copies'} in {media_folder_path}")
         if skipped_links > 0:
