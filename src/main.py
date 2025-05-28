@@ -3,15 +3,19 @@
 
 This module is the main entry point for the Scanly application.
 """
+import json
 import logging
 import os
-import sys
-import json
 import re
+import sys
 import traceback
-import requests
 import datetime
-import shutil
+from pathlib import Path
+
+try:
+    import requests
+except ImportError:
+    print("Warning: requests package not installed. TMDB functionality will be limited.")
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -490,7 +494,7 @@ class DirectoryProcessor:
         # Add IDs to folder name if configured to do so
         if tmdb_id:
             self.logger.debug(f"Found TMDB ID: {tmdb_id}")
-            if os.environ.get('TMDB_FOLDER_ID', 'false').lower() == 'true':
+            if os.environ.get('TMDB_FOLDER_ID', 'true').lower() == 'true':
                 self.logger.info(f"Adding TMDB ID {tmdb_id} to folder name")
                 media_folder_name += f" [tmdb-{tmdb_id}]"
             else:
@@ -1381,18 +1385,73 @@ def _check_scanner_lists(self, title, content_type):
         return False, None
 
 def main():
-    """Main entry point for the Scanly application."""
+    """Main entry point for the application."""
     try:
+        # Try to import the CLI module
+        try:
+            # Add current directory to path to find cli.py
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from cli import run_cli
+            logger.info("Successfully imported CLI module")
+            
+            # Parse command-line arguments
+            args = run_cli()
+            
+            # Process command-line arguments if provided
+            if args.debug:
+                logging.getLogger().setLevel(logging.DEBUG)
+                logger.debug("Debug mode enabled")
+            
+            if args.version:
+                from version import __version__
+                print(f"Scanly version {__version__}")
+                return
+            
+            if args.path:
+                # Process the specified path
+                path = _clean_directory_path(args.path)
+                if os.path.exists(path):
+                    print(f"Successfully processing: {path}")  # Fixed the unterminated string
+                    processor = DirectoryProcessor(path)
+                    processor.process()
+                else:
+                    print(f"\nError: Path does not exist: {path}")
+                return
+            
+            # No command-line arguments, show the main menu
+            show_main_menu()
+            
+        except ImportError as e:
+            logger.error(f"Could not import CLI module, falling back to simple interface: {e}")
+            print("Command-line interface not available, using simple menu")
+            
+            # Still show the main menu
+            show_main_menu()
+            
+    except KeyboardInterrupt:
+        print("\nExiting Scanly...")
+        sys.exit(0)
+    except Exception as e:
+        logger.exception("An unexpected error occurred")
+        print(f"An unexpected error occurred: {e}")
+        sys.exit(1)
+
+def show_main_menu():
+    """Display the main menu and handle user input."""
+    while True:
         clear_screen()
         display_ascii_art()
         
-        # Dynamic menu options
+        # Build the menu options
         menu_options = [
             "Individual Scan",    # Scan a single directory
             "Multi Scan",         # Scan multiple directories
-            "Resume Scan",        # Resume a previously interrupted scan
-            "Settings"            # Configure application settings
         ]
+        
+        if history_exists():
+            menu_options.append("Resume Scan")  # Resume a previously interrupted scan
+            
+        menu_options.append("Settings")  # Configure application settings
         
         # Add monitor option if available
         try:
@@ -1408,163 +1467,280 @@ def main():
         # Add help option
         menu_options.append("Help")
         
-        while True:
-            clear_screen()
-            display_ascii_art()
-            
-            print("=" * 84)
-            print("MAIN MENU".center(84))
-            print("=" * 84)
-            
-            # Display menu options
-            for i, option in enumerate(menu_options, 1):
-                print(f"{i}. {option}")
-            print("0. Quit")
-            
-            choice = input("\nSelect an option: ").strip()
-            
-            if choice == '0':
-                print("\nExiting Scanly. Goodbye!")
-                break
+        print("=" * 84)
+        print("MAIN MENU".center(84))
+        print("=" * 84)
+        
+        # Display menu options
+        for i, option in enumerate(menu_options, 1):
+            print(f"{i}. {option}")
+        print("0. Quit")
+        
+        # Get user input
+        choice = input("\nSelect option: ").strip()
+        
+        if choice == "0":
+            print("\nExiting Scanly...")
+            sys.exit(0)
+        
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(menu_options):
+                option = menu_options[choice_num - 1]
                 
-            # Convert to integer if possible
-            try:
-                choice = int(choice)
-                if choice < 0 or choice > len(menu_options):
-                    raise ValueError("Invalid option")
-            except ValueError:
-                print("\nInvalid selection. Please try again.")
-                input("\nPress Enter to continue...")
-                continue
-            
-            # Process the selected option
-            if choice == 1:  # Individual Scan
-                dir_path = input("\nEnter directory path to scan: ").strip()
-                if dir_path:
-                    dir_path = _clean_directory_path(dir_path)
-                    processor = DirectoryProcessor(dir_path)
-                    processor.process()
-                    input("\nPress Enter to return to main menu...")
-            
-            elif choice == 2:  # Multi Scan
-                while True:
-                    dir_path = input("\nEnter directory path to scan (or 'done' to finish): ").strip()
-                    if dir_path.lower() == 'done':
-                        break
-                    if dir_path:
-                        dir_path = _clean_directory_path(dir_path)
-                        processor = DirectoryProcessor(dir_path)
-                        processor.process()
-                
-                input("\nAll directories processed. Press Enter to return to main menu...")
-            
-            elif choice == 3:  # Resume Scan
-                history = load_scan_history()
-                if history and 'path' in history:
-                    dir_path = history['path']
-                    print(f"\nResuming scan of: {dir_path}")
-                    processor = DirectoryProcessor(dir_path, resume=True)
-                    processor.process()
-                else:
-                    print("\nNo previous scan to resume.")
-                
-                input("\nPress Enter to return to main menu...")
-            
-            elif choice == 4:  # Settings
-                # Implement settings menu
-                while True:
-                    clear_screen()
-                    display_ascii_art()
-                    print("=" * 84)
-                    print("SETTINGS".center(84))
-                    print("=" * 84)
-                    
-                    print("\n1. Set Destination Directory")
-                    print("2. Set TMDB API Key")
-                    print("3. Toggle ID Folder Options")
-                    print("4. Toggle Symlinks/Copies")
-                    print("5. Clear Skipped Items")
-                    print("0. Back to Main Menu")
-                    
-                    settings_choice = input("\nSelect an option: ").strip()
-                    
-                    if settings_choice == '0':
-                        break
-                        
-                    # Handle settings options
-                    if settings_choice == '1':
-                        new_path = input("\nEnter destination directory: ").strip()
-                        if new_path:
-                            _update_env_var('DESTINATION_DIRECTORY', _clean_directory_path(new_path))
-                            print(f"\nDestination directory set to: {new_path}")
-                            input("\nPress Enter to continue...")
-                    
-                    elif settings_choice == '2':
-                        new_key = input("\nEnter TMDB API Key: ").strip()
-                        if new_key:
-                            _update_env_var('TMDB_API_KEY', new_key)
-                            print("\nTMDB API Key updated.")
-                            input("\nPress Enter to continue...")
-                    
-                    elif settings_choice == '3':
-                        # Toggle ID folder options
-                        while True:
-                            clear_screen()
-                            print("\nID Folder Options:")
-                            print(f"1. TMDB ID in folder names: {os.environ.get('TMDB_FOLDER_ID', 'false')}")
-                            print(f"2. IMDB ID in folder names: {os.environ.get('IMDB_FOLDER_ID', 'false')}")
-                            print(f"3. TVDB ID in folder names: {os.environ.get('TVDB_FOLDER_ID', 'false')}")
-                            print("0. Back to Settings")
-                            
-                            id_choice = input("\nSelect an option to toggle: ").strip()
-                            
-                            if id_choice == '0':
-                                break
-                            elif id_choice == '1':
-                                current = os.environ.get('TMDB_FOLDER_ID', 'false').lower()
-                                new_val = 'false' if current == 'true' else 'true'
-                                _update_env_var('TMDB_FOLDER_ID', new_val)
-                            elif id_choice == '2':
-                                current = os.environ.get('IMDB_FOLDER_ID', 'false').lower()
-                                new_val = 'false' if current == 'true' else 'true'
-                                _update_env_var('IMDB_FOLDER_ID', new_val)
-                            elif id_choice == '3':
-                                current = os.environ.get('TVDB_FOLDER_ID', 'false').lower()
-                                new_val = 'false' if current == 'true' else 'true'
-                                _update_env_var('TVDB_FOLDER_ID', new_val)
-                    
-                    elif settings_choice == '4':
-                        # Toggle symlinks/copies
-                        current = os.environ.get('USE_SYMLINKS', 'true').lower()
-                        new_val = 'false' if current == 'true' else 'true'
-                        _update_env_var('USE_SYMLINKS', new_val)
-                        print(f"\nSet to use {'symlinks' if new_val == 'true' else 'copies'}.")
-                        input("\nPress Enter to continue...")
-                    
-                    elif settings_choice == '5':
-                        # Clear skipped items
-                        if input("\nAre you sure you want to clear all skipped items? (y/n): ").lower() == 'y':
-                            clear_skipped_items()
-            
-            # Handle dynamic options at the end of the menu
-            elif 4 < choice <= len(menu_options):
-                option_text = menu_options[choice-1].lower()
-                
-                if "monitor status" in option_text:
+                if option == "Individual Scan":
+                    _directory_scan()
+                elif option == "Multi Scan":
+                    _multi_scan()
+                elif option == "Resume Scan":
+                    _resume_scan()
+                elif option == "Settings":
+                    _settings_menu()
+                elif "Monitor Status" in option:
                     _check_monitor_status()
-                    
-                elif "review skipped" in option_text:
+                elif "Review Skipped Items" in option:
                     review_skipped_items()
-                    
-                elif "help" in option_text:
-                    display_help_dynamic(menu_options)
-    
-    except Exception as e:
-        logger.error(f"Error in main application: {e}", exc_info=True)
-        print(f"\nAn error occurred: {str(e)}")
-        print("\nCheck the log file for details.")
-        input("\nPress Enter to exit...")
+                elif option == "Help":
+                    if 'display_help_dynamic' in globals():
+                        display_help_dynamic(menu_options)
+                    else:
+                        _show_help()
+            else:
+                print("\nInvalid option. Please try again.")
+                input("\nPress Enter to continue...")
+        except ValueError:
+            print("\nInvalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
 
-# This ensures the script is executed when run directly
+# Add these functions before the main() function
+
+def _directory_scan():
+    """Scan a single directory."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("DIRECTORY SCAN".center(84))
+    print("=" * 84)
+    
+    # Get directory path from user
+    print("\nEnter the path to the directory you want to scan:")
+    path = input("> ").strip()
+    
+    # Clean the path
+    path = _clean_directory_path(path)
+    
+    if not path:
+        print("\nNo path provided. Returning to main menu.")
+        input("\nPress Enter to continue...")
+        return
+    
+    if not os.path.exists(path):
+        print(f"\nPath does not exist: {path}")
+        input("\nPress Enter to continue...")
+        return
+    
+    if not os.path.isdir(path):
+        print(f"\nPath is not a directory: {path}")
+        input("\nPress Enter to continue...")
+        return
+    
+    # Process the directory
+    processor = DirectoryProcessor(path)
+    processor.process()
+    
+    input("\nPress Enter to continue...")
+
+def _multi_scan():
+    """Scan multiple directories."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MULTI SCAN".center(84))
+    print("=" * 84)
+    
+    print("\nEnter the paths to scan, one per line.")
+    print("Leave blank and press Enter when done.")
+    
+    paths = []
+    while True:
+        path = input(f"Path {len(paths) + 1}: ").strip()
+        if not path:
+            break
+        
+        path = _clean_directory_path(path)
+        if os.path.exists(path) and os.path.isdir(path):
+            paths.append(path)
+        else:
+            print(f"Invalid path: {path}")
+    
+    if not paths:
+        print("\nNo valid paths provided. Returning to main menu.")
+        input("\nPress Enter to continue...")
+        return
+    
+    print(f"\nProcessing {len(paths)} paths...")
+    
+    for i, path in enumerate(paths, 1):
+        print(f"\n[{i}/{len(paths)}] Processing: {path}")
+        processor = DirectoryProcessor(path)
+        processor.process()
+    
+    print("\nAll paths processed.")
+    input("\nPress Enter to continue...")
+
+def _resume_scan():
+    """Resume a previously interrupted scan."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("RESUME SCAN".center(84))
+    print("=" * 84)
+    
+    if not history_exists():
+        print("\nNo scan history found.")
+        input("\nPress Enter to continue...")
+        return
+    
+    history = load_scan_history()
+    if not history:
+        print("\nCould not load scan history.")
+        input("\nPress Enter to continue...")
+        return
+    
+    path = history.get('path')
+    if not path or not os.path.exists(path) or not os.path.isdir(path):
+        print("\nInvalid path in scan history.")
+        input("\nPress Enter to continue...")
+        return
+    
+    print(f"\nResume scanning directory: {path}")
+    choice = input("Continue? (y/n): ").strip().lower()
+    
+    if choice == 'y':
+        processor = DirectoryProcessor(path, resume=True)
+        processor.process()
+    else:
+        print("\nScan canceled.")
+        input("\nPress Enter to continue...")
+
+def _settings_menu():
+    """Display and manage settings."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("SETTINGS".center(84))
+    print("=" * 84)
+    
+    settings = [
+        ('DESTINATION_DIRECTORY', 'Destination Directory', os.environ.get('DESTINATION_DIRECTORY', '')),
+        ('TMDB_API_KEY', 'TMDB API Key', os.environ.get('TMDB_API_KEY', '')),
+        ('USE_SYMLINKS', 'Use Symlinks', os.environ.get('USE_SYMLINKS', 'true')),
+        ('TMDB_FOLDER_ID', 'Add TMDB ID to Folder Names', os.environ.get('TMDB_FOLDER_ID', 'false')),
+        ('IMDB_FOLDER_ID', 'Add IMDB ID to Folder Names', os.environ.get('IMDB_FOLDER_ID', 'false')),
+        ('TVDB_FOLDER_ID', 'Add TVDB ID to Folder Names', os.environ.get('TVDB_FOLDER_ID', 'false')),
+        ('LOG_LEVEL', 'Log Level', os.environ.get('LOG_LEVEL', 'INFO')),
+    ]
+    
+    while True:
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("SETTINGS".center(84))
+        print("=" * 84)
+        
+        for i, (key, name, value) in enumerate(settings, 1):
+            # Mask API key for privacy
+            if key == 'TMDB_API_KEY' and value:
+                display_value = value[0:4] + '*' * (len(value) - 4)
+            else:
+                display_value = value
+            print(f"{i}. {name}: {display_value}")
+        
+        print("\n0. Return to main menu")
+        
+        choice = input("\nSelect setting to change (0-7): ").strip()
+        
+        if choice == '0':
+            break
+        
+        try:
+            choice = int(choice)
+            if 1 <= choice <= len(settings):
+                key, name, value = settings[choice - 1]
+                new_value = input(f"Enter new value for {name} [{value}]: ").strip()
+                
+                if new_value:
+                    _update_env_var(key, new_value)
+                    settings[choice - 1] = (key, name, new_value)
+                    print(f"\n{name} updated.")
+                else:
+                    print("\nNo change made.")
+                
+                input("\nPress Enter to continue...")
+            else:
+                print("\nInvalid choice.")
+                input("\nPress Enter to continue...")
+        except ValueError:
+            print("\nInvalid choice.")
+            input("\nPress Enter to continue...")
+
+def _monitor_menu():
+    """Display the monitor menu."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MONITOR MENU".center(84))
+    print("=" * 84)
+    
+    print("\nMonitor functionality not yet implemented.")
+    input("\nPress Enter to continue...")
+
+def _show_help():
+    """Display help information."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("HELP INFO".center(84))
+    print("=" * 84)
+    
+    print("\nScanly is a media file scanner and organizer.")
+    print("\nMain Menu Options:")
+    print("  1. Individual Scan - Scan a single directory for media files")
+    print("  2. Multi Scan     - Scan multiple directories")
+    print("  3. Resume Scan    - Resume a previously interrupted scan")
+    print("  4. Settings       - Configure application settings")
+    print("  5. Monitor Status - Check and control the monitor service")
+    print("  6. Help           - Show this help information")
+    print("  0. Quit           - Exit the application")
+    
+    input("\nPress Enter to continue...")
+# Make sure this is at the end of your file
+
 if __name__ == "__main__":
+    print("Starting Scanly...")  # Debug print to see if the file is being executed
+    # Make sure all necessary imports are available before calling main()
+    import json
+    import logging
+    import os
+    import re
+    import sys
+    import traceback
+    import datetime
+    from pathlib import Path
+    
+    try:
+        import requests
+    except ImportError:
+        print("Warning: requests package not installed. Some features may not work.")
+    
+    # Define minimal implementations of missing functions for debugging
+    if 'clear_screen' not in globals():
+        def clear_screen():
+            print("\n" * 2)  # Simple clear screen for debugging
+    
+    if 'display_ascii_art' not in globals():
+        def display_ascii_art():
+            print("SCANLY")  # Simple ASCII art for debugging
+    
+    # Call main function
     main()
