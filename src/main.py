@@ -890,6 +890,16 @@ class DirectoryProcessor:
             print(f"Error: {e}")
             return -1
 
+def perform_multi_scan():
+    """Perform a multi-scan operation using ThreadedDirectoryProcessor."""
+    try:
+        # Import the threaded processor
+        from src.core.threaded_processor import perform_multi_scan as threaded_scan
+        threaded_scan()
+    except ImportError as e:
+        print(f"\nError importing threaded processor: {e}")
+        input("\nPress Enter to continue...")
+
 def main():
     """Main function to run the Scanly application."""
     clear_screen()
@@ -922,6 +932,10 @@ def main():
             else:
                 print("\nInvalid directory path.")
                 input("\nPress Enter to continue...")
+        
+        elif choice == "2":
+            # Multi scan
+            perform_multi_scan()
         
         elif choice == "4":
             # Review skipped items
