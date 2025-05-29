@@ -12,6 +12,7 @@ import traceback
 import requests
 import datetime
 from pathlib import Path
+import difflib
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -435,10 +436,118 @@ class DirectoryProcessor:
         self._detected_content_type = None
         self._detected_tmdb_id = None
     
-    def _check_scanner_lists(self):
-        """Check scanner lists for known titles."""
-        return []
-    
+    def _check_scanner_lists(self, title, year=None, is_tv=False, is_anime=False):
+        """Check appropriate scanner lists for matches based on content type.
+        
+        Args:
+            title (str): Title to check
+            year (str, optional): Year to check. If provided, filters matches by year.
+            is_tv (bool): Whether the content is a TV series
+            is_anime (bool): Whether the content is anime
+            
+        Returns:
+            list: List of matching items from scanner lists.
+        """
+        # Determine which scanner list to use based on content type
+        if is_anime and is_tv:
+            scanner_file = "anime_series.txt"
+        elif is_anime and not is_tv:
+            scanner_file = "anime_movies.txt"
+        elif is_tv and not is_anime:
+            scanner_file = "tv_series.txt"
+        else:
+            scanner_file = "movies.txt"
+        
+        # Get the full path to the scanner file
+        scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+        scanner_path = os.path.join(scanners_dir, scanner_file)
+        
+        # Log which scanner we're checking
+        self.logger.info(f"Checking scanner list: {scanner_file} for title: '{title}' ({year if year else 'any year'})")
+        
+        # Check if scanner file exists
+        if not os.path.exists(scanner_path):
+            self.logger.warning(f"Scanner file not found: {scanner_path}")
+            return []
+        
+        matches = []
+        try:
+            # Read the scanner file
+            with open(scanner_path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue  # Skip empty lines and comments
+                    
+                    # Parse the line (format: "Title (Year)" or just "Title")
+                    match = re.match(r'(.+?)(?:\s+\((\d{4})\))?$', line)
+                    if not match:
+                        continue
+                    
+                    scan_title = match.group(1).strip()
+                    scan_year = match.group(2) if match.group(2) else None
+                    
+                    # Check for match (normalized, case-insensitive)
+                    if self._is_title_match(title, scan_title):
+                        # If year is specified, check it too
+                        if year and scan_year and year != scan_year:
+                            continue
+                        
+                        # Add to matches
+                        matches.append({
+                            'title': scan_title,
+                            'year': scan_year,
+                            'source': scanner_file
+                        })
+            
+            self.logger.info(f"Found {len(matches)} matches in {scanner_file}")
+            return matches
+            
+        except Exception as e:
+            self.logger.error(f"Error reading scanner file {scanner_path}: {e}")
+            return []
+
+    def _is_title_match(self, title1, title2):
+        """Compare two titles to determine if they match.
+        
+        Uses several normalization techniques to improve matching:
+        - Convert to lowercase
+        - Remove punctuation
+        - Normalize whitespace
+        
+        Args:
+            title1 (str): First title
+            title2 (str): Second title
+            
+        Returns:
+            bool: True if titles match, False otherwise
+        """
+        # Normalize both titles
+        def normalize(title):
+            # Convert to lowercase
+            title = title.lower()
+            # Remove punctuation
+            title = re.sub(r'[^\w\s]', '', title)
+            # Normalize whitespace
+            title = re.sub(r'\s+', ' ', title).strip()
+            return title
+        
+        norm1 = normalize(title1)
+        norm2 = normalize(title2)
+        
+        # Check for exact match after normalization
+        if norm1 == norm2:
+            return True
+        
+        # Check for substring match (one title contained in another)
+        if norm1 in norm2 or norm2 in norm1:
+            return True
+        
+        # Calculate similarity score
+        similarity = difflib.SequenceMatcher(None, norm1, norm2).ratio()
+        # Return True if similarity is above threshold
+        return similarity > 0.8
+
     def _extract_folder_metadata(self, folder_name):
         """Extract title and year from a folder name."""
         title = folder_name
@@ -522,7 +631,7 @@ class DirectoryProcessor:
         
         # Check for common anime indicators
         anime_indicators = [
-            r'anime', r'subbed', r'dubbed', r'\[jp\]', r'\[jpn\]', r'ova\b', 
+             r'anime', r'subbed', r'dubbed', r'\[jp\]', r'\[jpn\]', r'ova\b', 
             r'ova\d+', r'アニメ', r'japanese animation'
         ]
         
@@ -633,7 +742,7 @@ class DirectoryProcessor:
                 is_anime = self._detect_if_anime(subfolder_name)
                 
                 # Check scanner lists for matches
-                scanner_matches = self._check_scanner_lists()
+                scanner_matches = self._check_scanner_lists(title, year, is_tv, is_anime)
                 
                 print(f"\nProcessing: {subfolder_name}")
                 print(f"  Title: {title}")
