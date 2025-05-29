@@ -632,11 +632,44 @@ class DirectoryProcessor:
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 
+                # Check scanner lists for matches
+                scanner_matches = self._check_scanner_lists()
+                
                 print(f"\nProcessing: {subfolder_name}")
                 print(f"  Title: {title}")
                 print(f"  Year: {year if year else 'Unknown'}")
                 print(f"  Type: {'TV Show' if is_tv else 'Movie'}")
-                # Genre display removed as requested
+                print(f"  Scanner Matches: {len(scanner_matches)}")
+                
+                # If multiple scanner matches found, ask user to select
+                selected_match = None
+                if len(scanner_matches) > 1:
+                    print("\nMultiple matches found in scanner lists:")
+                    for i, match in enumerate(scanner_matches):
+                        print(f"{i+1}. {match.get('title', 'Unknown')} ({match.get('year', 'Unknown')})")
+                    
+                    print("\nSelect the correct match:")
+                    print("0. None of these / Manual identification")
+                    
+                    match_choice = input("\nEnter choice: ").strip()
+                    try:
+                        match_idx = int(match_choice) - 1
+                        if 0 <= match_idx < len(scanner_matches):
+                            selected_match = scanner_matches[match_idx]
+                            title = selected_match.get('title', title)
+                            year = selected_match.get('year', year)
+                            print(f"\nSelected: {title} ({year if year else 'Unknown'})")
+                        elif match_idx == -1:  # User selected "None of these"
+                            print("\nProceeding with manual identification...")
+                    except ValueError:
+                        print("\nInvalid choice. Proceeding with extracted information.")
+                elif len(scanner_matches) == 1:
+                    selected_match = scanner_matches[0]
+                    print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')})")
+                    confirm = input("Use this match? (y/n): ").strip().lower()
+                    if confirm == 'y':
+                        title = selected_match.get('title', title)
+                        year = selected_match.get('year', year)
     
                 # Show options for this subfolder
                 while True:
