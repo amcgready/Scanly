@@ -790,9 +790,12 @@ class DirectoryProcessor:
                         print("\nInvalid choice. Proceeding with extracted information.")
                 elif len(scanner_matches) == 1:
                     selected_match = scanner_matches[0]
+                    tmdb_id = selected_match.get('tmdb_id', '')
+                    id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
                     print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')})")
                     confirm = input("Use this match? (y/n): ").strip().lower()
-                    if confirm == 'y':
+                    if confirm == '':
+                        confirm = 'y'  # Default to yes if Enter is pressed
                         title = selected_match.get('title', title)
                         year = selected_match.get('year', year)
     
