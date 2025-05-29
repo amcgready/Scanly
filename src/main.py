@@ -755,7 +755,11 @@ class DirectoryProcessor:
                 if len(scanner_matches) > 1:
                     print("\nMultiple matches found in scanner lists:")
                     for i, match in enumerate(scanner_matches):
-                        print(f"{i+1}. {match.get('title', 'Unknown')} ({match.get('year', 'Unknown')})")
+                        title = match.get('title', 'Unknown')
+                        year_str = f" ({match.get('year')})" if match.get('year') else ""
+                        tmdb_id = match.get('tmdb_id', '')
+                        id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                        print(f"{i+1}. {title}{year_str}{id_str}")
                     
                     print("\nSelect the correct match:")
                     print("0. None of these / Manual identification")
