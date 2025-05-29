@@ -762,14 +762,28 @@ class DirectoryProcessor:
                         print(f"{i+1}. {title}{year_str}{id_str}")
                     print("0. None of these / Manual identification")
                     
-                    match_choice = input("\nEnter choice: ").strip()
+                    match_choice = input("\nSelect correct match: ").strip()
+                    # Make Enter key select option 1 as default
+                    if match_choice == "":
+                        match_choice = "1"
+                        
                     try:
                         match_idx = int(match_choice) - 1
                         if 0 <= match_idx < len(scanner_matches):
                             selected_match = scanner_matches[match_idx]
                             title = selected_match.get('title', title)
                             year = selected_match.get('year', year)
-                            print(f"\nSelected: {title} ({year if year else 'Unknown'})")
+                            tmdb_id = selected_match.get('tmdb_id', '')
+                            
+                            # Display the selected match
+                            year_str = f" ({year})" if year else ""
+                            id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                            print(f"\nSelected: {title}{year_str}{id_str}")
+                            
+                            # Process the selected match directly and continue to next folder
+                            self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
+                            processed += 1
+                            continue  # Skip to the next folder in the main loop
                         elif match_idx == -1:  # User selected "None of these"
                             print("\nProceeding with manual identification...")
                     except ValueError:
