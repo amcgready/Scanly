@@ -1118,16 +1118,96 @@ class DirectoryProcessor:
         return is_tv, is_anime, is_wrestling
 
 def perform_multi_scan():
-    """Perform a multi-scan operation using ThreadedDirectoryProcessor."""
-    try:
-        # Import the threaded processor
-        from src.core.threaded_processor import perform_multi_scan as threaded_scan
-        threaded_scan()
-    except ImportError as e:
-        print(f"\nError importing threaded processor: {e}")
+    """Perform a multi-scan operation on multiple directories."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MULTI SCAN".center(84))
+    print("=" * 84)
+    
+    print("\nEnter directory paths to scan (one per line).")
+    print("Press Enter on an empty line when done.\n")
+    
+    directories = []
+    while True:
+        dir_input = input(f"Directory {len(directories) + 1}: ").strip()
+        if not dir_input:
+            if directories:  # Only break if we have at least one directory
+                break
+            else:
+                print("Please enter at least one directory.")
+                continue
+        
+        clean_path = _clean_directory_path(dir_input)
+        if os.path.isdir(clean_path):
+            directories.append(clean_path)
+        else:
+            print(f"Invalid directory path: {clean_path}")
+    
+    if not directories:
+        print("\nNo valid directories to scan.")
         input("\nPress Enter to continue...")
-        clear_screen()  # Clear screen after error
-        display_ascii_art()  # Show ASCII art
+        clear_screen()
+        display_ascii_art()
+        return
+    
+    # Confirm directories before scanning
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("CONFIRM DIRECTORIES".center(84))
+    print("=" * 84)
+    
+    print("\nYou've selected these directories to scan:")
+    for i, directory in enumerate(directories):
+        print(f"{i+1}. {directory}")
+    
+    confirm = input("\nProceed with scan? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print("\nScan cancelled.")
+        input("\nPress Enter to continue...")
+        clear_screen()
+        display_ascii_art()
+        return
+    
+    # Process each directory
+    total_processed = 0
+    for i, directory in enumerate(directories):
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print(f"PROCESSING DIRECTORY {i+1} OF {len(directories)}".center(84))
+        print("=" * 84)
+        print(f"\nDirectory: {directory}")
+        
+        # Create processor for this directory
+        processor = DirectoryProcessor(directory)
+        result = processor._process_media_files()
+        
+        # Check if user cancelled the scan
+        if result == -1:
+            print("\nMulti-scan cancelled.")
+            input("\nPress Enter to continue...")
+            clear_screen()
+            display_ascii_art()
+            return
+        
+        # Add to total processed count if successful
+        if result > 0:
+            total_processed += result
+    
+    # Show summary after all directories processed
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MULTI SCAN COMPLETE".center(84))
+    print("=" * 84)
+    print(f"\nProcessed {len(directories)} directories")
+    print(f"Total media processed: {total_processed} items")
+    
+    input("\nPress Enter to continue...")
+    clear_screen()
+    display_ascii_art()
 
 def main():
     """Main function to run the Scanly application."""
