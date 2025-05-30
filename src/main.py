@@ -792,6 +792,12 @@ class DirectoryProcessor:
                 
                 # Loop for processing the current folder with different options
                 while True:
+                    clear_screen()
+                    display_ascii_art()
+                    print("=" * 60)
+                    print("FOLDER PROCESSING")
+                    print("=" * 60)
+                    
                     print(f"\nProcessing: {subfolder_name}")
                     print(f"  Title: {title}")
                     print(f"  Year: {year if year else 'Unknown'}")
@@ -834,31 +840,101 @@ class DirectoryProcessor:
                                 id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
                                 print(f"\nSelected: {title}{year_str}{id_str}")
                                 
-                                # Process the selected match directly
-                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
-                                    processed += 1
-                                    break  # Exit the loop for this subfolder
+                                # Ask if the user wants to continue processing this folder
+                                print("\nOptions:")
+                                print("1. Accept and continue")
+                                print("2. Change search term")
+                                print("3. Change content type")
+                                print("4. Skip this folder")
+                                print("0. Quit scan")
+                                
+                                action_choice = input("\nSelect option: ").strip()
+                                if action_choice == "" or action_choice == "1":
+                                    # Process the selected match
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
+                                        processed += 1
+                                        break  # Exit the loop for this subfolder
+                                elif action_choice == "2":
+                                    # Change search term and continue loop
+                                    new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                                    if new_search:
+                                        search_term = new_search
+                                    continue
+                                elif action_choice == "3":
+                                    # Change content type and continue loop
+                                    self._prompt_for_content_type(is_tv, is_anime)
+                                    continue
+                                elif action_choice == "4":
+                                    # Skip this folder
+                                    skipped_items_registry.append({
+                                        'subfolder': subfolder_name,
+                                        'path': subfolder_path,
+                                        'skipped_date': datetime.datetime.now().isoformat()
+                                    })
+                                    save_skipped_items(skipped_items_registry)
+                                    break  # Exit loop for this subfolder
+                                elif action_choice == "0":
+                                    # Quit the scan
+                                    if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
+                                        print("Scan cancelled.")
+                                        return -1
+                                
                             elif match_idx == -1:  # User selected "None of these"
                                 print("\nProceeding with manual identification...")
                         except ValueError:
-                            print("\nInvalid choice. Proceeding with extracted information.")
+                            print("\nInvalid choice. Proceeding with manual options.")
                     elif len(scanner_matches) == 1:
                         selected_match = scanner_matches[0]
                         match_tmdb_id = selected_match.get('tmdb_id', '')
                         id_str = f" [tmdb-{match_tmdb_id}]" if match_tmdb_id else ""
                         print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')}){id_str}")
-                        confirm = input("Use this match? (y/n): ").strip().lower()
-                        if confirm == '' or confirm == 'y':
+                        
+                        # Instead of just confirming, show all options
+                        print("\nOptions:")
+                        print("1. Accept this match")
+                        print("2. Change search term")
+                        print("3. Change content type") 
+                        print("4. Skip this folder")
+                        print("0. Quit")
+                        
+                        action_choice = input("\nSelect option: ").strip()
+                        if action_choice == "" or action_choice == "1":
                             title = selected_match.get('title', title)
                             year = selected_match.get('year', year)
                             tmdb_id = selected_match.get('tmdb_id', '')
                             if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
                                 processed += 1
                                 break  # Exit the loop for this subfolder
+                        elif action_choice == "2":
+                            # Change search term
+                            new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                            if new_search:
+                                search_term = new_search
+                            # Loop continues with new search term
+                            continue
+                        elif action_choice == "3":
+                            # Change content type
+                            is_tv, is_anime = self._prompt_for_content_type(is_tv, is_anime)
+                            # Loop continues with new content type
+                            continue
+                        elif action_choice == "4":
+                            # Skip this folder
+                            skipped_items_registry.append({
+                                'subfolder': subfolder_name,
+                                'path': subfolder_path,
+                                'skipped_date': datetime.datetime.now().isoformat()
+                            })
+                            save_skipped_items(skipped_items_registry)
+                            break  # Exit loop for this subfolder
+                        elif action_choice == "0":
+                            # Quit the scan
+                            if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
+                                print("Scan cancelled.")
+                                return -1
     
                     # Show options for this subfolder
                     print("\nOptions:")
-                    print("1. Accept (default - press Enter)")
+                    print("1. Accept as is")
                     print("2. Change search term")
                     print("3. Change content type")
                     print("4. Manual TMDB ID")
@@ -885,19 +961,8 @@ class DirectoryProcessor:
                         # Loop continues with new search term
                         
                     elif choice == "3":
-                        # Change content type
-                        print("\nSelect content type:")
-                        print("1. Movie")
-                        print("2. TV Show")
-                        type_choice = input(f"Enter choice [{2 if is_tv else 1}]: ").strip()
-                        is_tv = type_choice == "2" if type_choice in ["1", "2"] else is_tv
-                        
-                        # Anime selection
-                        print("\nIs this anime?")
-                        print("1. No")
-                        print("2. Yes")
-                        anime_choice = input(f"Enter choice [{2 if is_anime else 1}]: ").strip()
-                        is_anime = anime_choice == "2" if anime_choice in ["1", "2"] else is_anime
+                        # Change content type using the helper method
+                        is_tv, is_anime = self._prompt_for_content_type(is_tv, is_anime)
                         # Loop continues with new content type settings
                     
                     elif choice == "4":
@@ -934,6 +999,28 @@ class DirectoryProcessor:
             self.logger.error(f"Error processing media files: {e}")
             print(f"Error: {e}")
             return -1
+
+    def _prompt_for_content_type(self, current_is_tv, current_is_anime):
+        """Helper method to prompt user for content type selection.
+        
+        Returns:
+            Tuple: (is_tv, is_anime) - Updated content type settings
+        """
+        # TV/Movie selection
+        print("\nSelect content type:")
+        print("1. Movie")
+        print("2. TV Show")
+        type_choice = input(f"Enter choice [{2 if current_is_tv else 1}]: ").strip()
+        is_tv = type_choice == "2" if type_choice in ["1", "2"] else current_is_tv
+        
+        # Anime selection
+        print("\nIs this anime?")
+        print("1. No")
+        print("2. Yes")
+        anime_choice = input(f"Enter choice [{2 if current_is_anime else 1}]: ").strip()
+        is_anime = anime_choice == "2" if anime_choice in ["1", "2"] else current_is_anime
+        
+        return is_tv, is_anime
 def perform_multi_scan():
     """Perform a multi-scan operation using ThreadedDirectoryProcessor."""
     try:
