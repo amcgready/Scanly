@@ -1226,6 +1226,535 @@ def perform_multi_scan():
     clear_screen()
     display_ascii_art()
 
+class SettingsMenu:
+    """Settings menu handler for the application."""
+    
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    
+    def display(self):
+        """Display the settings menu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("SETTINGS".center(84))
+            print("=" * 84)
+            
+            print("\nSettings Categories:")
+            print("1. Directory Settings")
+            print("2. TMDB API Settings")
+            print("3. File Management Settings")
+            print("4. Monitoring Settings")
+            print("5. Advanced Settings")
+            print("6. View Current Configuration")
+            print("q. Return to Main Menu")
+            
+            choice = input("\nSelect category (1-6, q): ").strip().lower()
+            
+            if choice == '1':
+                self._directory_settings()
+            elif choice == '2':
+                self._tmdb_settings()
+            elif choice == '3':
+                self._file_management_settings()
+            elif choice == '4':
+                self._monitoring_settings()
+            elif choice == '5':
+                self._advanced_settings()
+            elif choice == '6':
+                self._view_all_settings()
+            elif choice == 'q':
+                clear_screen()
+                display_ascii_art()
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+    
+    def _directory_settings(self):
+        """Directory settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("DIRECTORY SETTINGS".center(84))
+            print("=" * 84)
+            
+            destination_dir = os.environ.get('DESTINATION_DIRECTORY', 'Not set')
+            
+            print(f"\nCurrent Destination Directory: {destination_dir}")
+            print("\nOptions:")
+            print("1. Change Destination Directory")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nEnter choice: ").strip().lower()
+            
+            if choice == '1':
+                new_dir = input("\nEnter new destination directory: ").strip()
+                new_dir = _clean_directory_path(new_dir)
+                
+                if new_dir and os.path.isdir(new_dir):
+                    _update_env_var('DESTINATION_DIRECTORY', new_dir)
+                    print(f"\nDestination directory updated to: {new_dir}")
+                else:
+                    print("\nInvalid directory. Please enter a valid path.")
+                input("\nPress Enter to continue...")
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+    
+    def _tmdb_settings(self):
+        """TMDB API settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("TMDB API SETTINGS".center(84))
+            print("=" * 84)
+            
+            api_key = os.environ.get('TMDB_API_KEY', 'Not set')
+            include_id = os.environ.get('INCLUDE_TMDB_ID', 'true').lower() == 'true'
+            
+            # Mask API key for display
+            masked_key = "****" if api_key and api_key != 'Not set' else "Not set"
+            
+            print("\nCurrent TMDB Settings:")
+            print(f"1. API Key: {masked_key}")
+            print(f"2. Include TMDB ID in folder names: {'Enabled' if include_id else 'Disabled'}")
+            print("3. Test TMDB API Connection")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nSelect option: ").strip().lower()
+            
+            if choice == '1':
+                new_key = input("\nEnter new TMDB API key (leave empty to keep current): ").strip()
+                if new_key:
+                    _update_env_var('TMDB_API_KEY', new_key)
+                    print("\nTMDB API key updated.")
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                new_setting = input("\nInclude TMDB ID in folder names? (y/n): ").strip().lower()
+                if new_setting in ('y', 'n'):
+                    _update_env_var('INCLUDE_TMDB_ID', 'true' if new_setting == 'y' else 'false')
+                    print(f"\nInclude TMDB ID setting: {'Enabled' if new_setting == 'y' else 'Disabled'}")
+                input("\nPress Enter to continue...")
+            elif choice == '3':
+                self._test_tmdb_api()
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+    
+    def _test_tmdb_api(self):
+        """Test TMDB API connection."""
+        api_key = os.environ.get('TMDB_API_KEY', '')
+        
+        if not api_key:
+            print("\nTMDB API key not configured. Please set up your API key first.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print("\nTesting TMDB API connection...")
+        
+        try:
+            # Make a simple API request to test the connection
+            url = f"https://api.themoviedb.org/3/configuration?api_key={api_key}"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                print("\n✓ Connection successful! TMDB API is working correctly.")
+            elif response.status_code == 401:
+                print("\n✗ Authentication failed. Please check your API key.")
+            else:
+                print(f"\n✗ API request failed with status code: {response.status_code}")
+                print(f"Error: {response.json().get('status_message', 'Unknown error')}")
+        except requests.exceptions.RequestException as e:
+            print(f"\n✗ Connection error: {e}")
+        
+        input("\nPress Enter to continue...")
+    
+    def _file_management_settings(self):
+        """File management settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("FILE MANAGEMENT SETTINGS".center(84))
+            print("=" * 84)
+            
+            use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
+            refresh_plex = os.environ.get('REFRESH_PLEX', 'false').lower() == 'true'
+            
+            print("\nCurrent File Management Settings:")
+            print(f"1. Use Symlinks: {'Enabled' if use_symlinks else 'Disabled (Copy files)'}")
+            print(f"2. Refresh Plex after changes: {'Enabled' if refresh_plex else 'Disabled'}")
+            print("3. Configure Plex Connection Settings")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nSelect option: ").strip().lower()
+            
+            if choice == '1':
+                new_setting = input("\nUse symlinks instead of copying files? (y/n): ").strip().lower()
+                if new_setting in ('y', 'n'):
+                    _update_env_var('USE_SYMLINKS', 'true' if new_setting == 'y' else 'false')
+                    print(f"\nUse symlinks setting: {'Enabled' if new_setting == 'y' else 'Disabled'}")
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                new_setting = input("\nRefresh Plex after changes? (y/n): ").strip().lower()
+                if new_setting in ('y', 'n'):
+                    _update_env_var('REFRESH_PLEX', 'true' if new_setting == 'y' else 'false')
+                    print(f"\nRefresh Plex setting: {'Enabled' if new_setting == 'y' else 'Disabled'}")
+                input("\nPress Enter to continue...")
+            elif choice == '3':
+                self._configure_plex_settings()
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+
+    def _configure_plex_settings(self):
+        """Configure Plex connection settings."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("PLEX CONNECTION SETTINGS".center(84))
+        print("=" * 84)
+        
+        # Get current settings
+        current_url = os.environ.get('PLEX_URL', '')
+        current_token = os.environ.get('PLEX_TOKEN', '')
+        movies_section = os.environ.get('PLEX_MOVIES_SECTION', '1')
+        tv_section = os.environ.get('PLEX_TV_SECTION', '2')
+        anime_movies_section = os.environ.get('PLEX_ANIME_MOVIES_SECTION', '3')
+        anime_tv_section = os.environ.get('PLEX_ANIME_TV_SECTION', '4')
+        
+        # Mask token display for security
+        masked_token = "****" if current_token else ""
+        
+        print("\nCurrent Plex Settings:")
+        print(f"1. Plex Server URL: {current_url or 'Not Set'}")
+        print(f"2. Plex Token: {masked_token or 'Not Set'}")
+        print(f"3. Movies Library Section: {movies_section}")
+        print(f"4. TV Shows Library Section: {tv_section}")
+        print(f"5. Anime Movies Library Section: {anime_movies_section}")
+        print(f"6. Anime TV Library Section: {anime_tv_section}")
+        print("7. Test Plex Connection")
+        print("q. Return to File Management Settings")
+        
+        choice = input("\nSelect option (1-7, q): ").strip().lower()
+        
+        if choice == '1':
+            new_url = input("\nEnter Plex server URL (e.g., http://localhost:32400): ").strip()
+            if new_url:
+                _update_env_var('PLEX_URL', new_url)
+                print("\nPlex server URL updated.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == '2':
+            new_token = input("\nEnter Plex auth token: ").strip()
+            if new_token:
+                _update_env_var('PLEX_TOKEN', new_token)
+                print("\nPlex token updated.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == '3':
+            new_section = input("\nEnter Movies library section ID: ").strip()
+            if new_section.isdigit():
+                _update_env_var('PLEX_MOVIES_SECTION', new_section)
+                print("\nMovies section updated.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == '4':
+            new_section = input("\nEnter TV Shows library section ID: ").strip()
+            if new_section.isdigit():
+                _update_env_var('PLEX_TV_SECTION', new_section)
+                print("\nTV Shows section updated.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == '5':
+            new_section = input("\nEnter Anime Movies library section ID: ").strip()
+            if new_section.isdigit():
+                _update_env_var('PLEX_ANIME_MOVIES_SECTION', new_section)
+                print("\nAnime Movies section updated.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == '6':
+            new_section = input("\nEnter Anime TV library section ID: ").strip()
+            if new_section.isdigit():
+                _update_env_var('PLEX_ANIME_TV_SECTION', new_section)
+                print("\nAnime TV section updated.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == '7':
+            self._test_plex_connection()
+            
+        elif choice == 'q':
+            return
+            
+        else:
+            print("\nInvalid option.")
+            input("\nPress Enter to continue...")
+        
+        # Return to this same menu
+        self._configure_plex_settings()
+
+    def _test_plex_connection(self):
+        """Test connection to Plex server."""
+        print("\nTesting Plex connection...")
+        
+        # Get Plex configuration
+        plex_url = os.environ.get('PLEX_URL', '')
+        plex_token = os.environ.get('PLEX_TOKEN', '')
+        
+        # Check if Plex is configured
+        if not plex_url or not plex_token:
+            print("\nPlex server URL and token must be configured first.")
+            input("\nPress Enter to continue...")
+            return
+        
+        try:
+            # Remove trailing slash if present
+            if plex_url.endswith('/'):
+                plex_url = plex_url[:-1]
+            
+            # Make a simple API request to test the connection
+            url = f"{plex_url}/library/sections?X-Plex-Token={plex_token}"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                print("\n✓ Connection successful! Plex server is reachable.")
+                
+                # Show available sections
+                try:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(response.text)
+                    sections = root.findall(".//Directory")
+                    
+                    if sections:
+                        print("\nAvailable library sections:")
+                        for section in sections:
+                            section_id = section.get('key')
+                            section_title = section.get('title')
+                            section_type = section.get('type')
+                            print(f"  - ID: {section_id}, Title: {section_title}, Type: {section_type}")
+                    else:
+                        print("\nNo library sections found on this Plex server.")
+                except Exception as e:
+                    print(f"\nError parsing Plex server response: {e}")
+            else:
+                print(f"\n✗ Connection failed with status code: {response.status_code}")
+                print("Please check your Plex URL and token.")
+        
+        except requests.exceptions.ConnectionError:
+            print("\n✗ Connection error while connecting to Plex server.")
+            print("Please check the server URL and ensure it is running.")
+        except requests.exceptions.Timeout:
+            print("\n✗ Connection to Plex server timed out.")
+            print("Please check your network settings.")
+        except Exception as e:
+            print(f"\n✗ Error refreshing Plex library: {e}")
+        
+        input("\nPress Enter to continue...")
+
+    def _monitoring_settings(self):
+        """Directory monitoring settings."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("MONITORING SETTINGS".center(84))
+            print("=" * 84)
+            
+            interval_minutes = os.environ.get('MONITOR_INTERVAL_MINUTES', '60')
+            
+            print("\nCurrent Monitoring Settings:")
+            print(f"1. Monitoring Interval: {interval_minutes} minutes")
+            print("2. Check Monitor Status")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nSelect option: ").strip().lower()
+            
+            if choice == '1':
+                new_interval = input("\nEnter monitoring interval in minutes (10-1440): ").strip()
+                if new_interval.isdigit() and 10 <= int(new_interval) <= 1440:
+                    _update_env_var('MONITOR_INTERVAL_MINUTES', new_interval)
+                    print(f"\nMonitoring interval updated to {new_interval} minutes.")
+                else:
+                    print("\nInvalid interval. Please enter a number between 10 and 1440.")
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                _check_monitor_status()
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+    
+    def _advanced_settings(self):
+        """Advanced settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("ADVANCED SETTINGS".center(84))
+            print("=" * 84)
+            
+            debug_mode = os.environ.get('DEBUG_MODE', 'false').lower() == 'true'
+            
+            print("\nCurrent Advanced Settings:")
+            print(f"1. Debug Mode: {'Enabled' if debug_mode else 'Disabled'}")
+            print("2. Fix Scanner Files")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nSelect option: ").strip().lower()
+            
+            if choice == '1':
+                new_setting = input("\nEnable debug mode? (y/n): ").strip().lower()
+                if new_setting in ('y', 'n'):
+                    _update_env_var('DEBUG_MODE', 'true' if new_setting == 'y' else 'false')
+                    # Set the log level based on debug mode
+                    if new_setting == 'y':
+                        logging.getLogger().setLevel(logging.DEBUG)
+                    else:
+                        logging.getLogger().setLevel(logging.INFO)
+                    print(f"\nDebug mode: {'Enabled' if new_setting == 'y' else 'Disabled'}")
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                self._fix_scanner_files()
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+
+    def _fix_scanner_files(self):
+        """Run the scanner fix script to standardize ID formats."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("FIX SCANNER FILES".center(84))
+        print("=" * 84)
+        
+        print("\nThis will update all scanner files to use standardized TMDB ID format.")
+        print("All IDs will be converted to [tmdb-XXXXX] format.")
+        confirm = input("\nProceed? (y/n): ").strip().lower()
+        
+        if confirm == 'y':
+            print("\nProcessing scanner files...")
+            
+            # Get the scanners directory
+            scanner_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+            scanner_files = [
+                os.path.join(scanner_dir, 'movies.txt'),
+                os.path.join(scanner_dir, 'tv_series.txt'),
+                os.path.join(scanner_dir, 'anime_movies.txt'),
+                os.path.join(scanner_dir, 'anime_series.txt')
+            ]
+            
+            total_processed = 0
+            total_fixed = 0
+            
+            for scanner_file in scanner_files:
+                if os.path.exists(scanner_file):
+                    print(f"Processing {os.path.basename(scanner_file)}...")
+                    try:
+                        # Call the fix_scanner_ids function
+                        from src.main import fix_scanner_ids
+                        processed, fixed = fix_scanner_ids(scanner_file)
+                        total_processed += processed
+                        total_fixed += fixed
+                        print(f"  - Processed {processed} entries, fixed {fixed}")
+                    except Exception as e:
+                        print(f"  - Error: {e}")
+            
+            print(f"\nComplete! Processed {total_processed} total entries, fixed {total_fixed}")
+        
+        input("\nPress Enter to continue...")
+    
+    def _view_all_settings(self):
+        """View all current configuration settings."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("CURRENT CONFIGURATION".center(84))
+        print("=" * 84)
+        
+        # Read all environment variables from .env file
+        env_vars = {}
+        if os.path.exists(self.env_path):
+            try:
+                with open(self.env_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            key, value = line.split('=', 1)
+                            env_vars[key] = value
+            except Exception as e:
+                self.logger.error(f"Error reading .env file: {e}")
+        
+        # Display in categories
+        print("\nDirectory Settings:")
+        print(f"  Destination Directory: {os.environ.get('DESTINATION_DIRECTORY', 'Not set')}")
+        
+        print("\nTMDB API Settings:")
+        api_key = os.environ.get('TMDB_API_KEY', 'Not set')
+        print(f"  API Key: {self._mask_sensitive_info(api_key) if api_key != 'Not set' else 'Not set'}")
+        print(f"  Include TMDB ID: {'Enabled' if os.environ.get('INCLUDE_TMDB_ID', 'true').lower() == 'true' else 'Disabled'}")
+        
+        print("\nFile Management Settings:")
+        print(f"  Use Symlinks: {'Enabled' if os.environ.get('USE_SYMLINKS', 'true').lower() == 'true' else 'Disabled'}")
+        print(f"  Refresh Plex: {'Enabled' if os.environ.get('REFRESH_PLEX', 'false').lower() == 'true' else 'Disabled'}")
+        
+        print("\nPlex Settings:")
+        plex_url = os.environ.get('PLEX_URL', 'Not set')
+        plex_token = os.environ.get('PLEX_TOKEN', 'Not set')
+        print(f"  Plex URL: {plex_url}")
+        print(f"  Plex Token: {self._mask_sensitive_info(plex_token) if plex_token != 'Not set' else 'Not set'}")
+        print(f"  Movies Section: {os.environ.get('PLEX_MOVIES_SECTION', '1')}")
+        print(f"  TV Section: {os.environ.get('PLEX_TV_SECTION', '2')}")
+        print(f"  Anime Movies Section: {os.environ.get('PLEX_ANIME_MOVIES_SECTION', '3')}")
+        print(f"  Anime TV Section: {os.environ.get('PLEX_ANIME_TV_SECTION', '4')}")
+        
+        print("\nMonitoring Settings:")
+        print(f"  Monitoring Interval: {os.environ.get('MONITOR_INTERVAL_MINUTES', '60')} minutes")
+        
+        print("\nAdvanced Settings:")
+        print(f"  Debug Mode: {'Enabled' if os.environ.get('DEBUG_MODE', 'false').lower() == 'true' else 'Disabled'}")
+        
+        print("\nOther Settings:")
+        # Display any other environment variables that don't fit into the above categories
+        other_keys = set(env_vars.keys()) - {
+            'DESTINATION_DIRECTORY', 'TMDB_API_KEY', 'INCLUDE_TMDB_ID', 'USE_SYMLINKS',
+            'REFRESH_PLEX', 'PLEX_URL', 'PLEX_TOKEN', 'PLEX_MOVIES_SECTION', 
+            'PLEX_TV_SECTION', 'PLEX_ANIME_MOVIES_SECTION', 'PLEX_ANIME_TV_SECTION',
+            'MONITOR_INTERVAL_MINUTES', 'DEBUG_MODE'
+        }
+        for key in sorted(other_keys):
+            value = env_vars.get(key)
+            # Mask sensitive values that might contain tokens or keys
+            if 'key' in key.lower() or 'token' in key.lower() or 'password' in key.lower():
+                value = self._mask_sensitive_info(value)
+            print(f"  {key}: {value}")
+        
+        input("\nPress Enter to return to Settings Menu...")
+    
+    def _mask_sensitive_info(self, text):
+        """Mask sensitive information for display."""
+        if not text or text == 'Not set':
+            return 'Not set'
+        
+        # Show first 4 and last 4 characters, mask the rest
+        if len(text) <= 8:
+            return "****"
+        else:
+            return f"{text[:4]}****{text[-4:]}"
+
 def main():
     """Main function to run the Scanly application."""
     clear_screen()
@@ -1290,8 +1819,10 @@ def main():
             if os.path.isdir(directory):
                 processor = DirectoryProcessor(directory)
                 processor._process_media_files()
+                clear_screen()
+                display_ascii_art()
             else:
-                print("\nInvalid directory path.")
+                print("\nInvalid directory path. Please enter a valid path.")
                 input("\nPress Enter to continue...")
                 clear_screen()
                 display_ascii_art()  # Show ASCII art
@@ -1335,22 +1866,17 @@ def main():
             if confirm == 'y':
                 clear_all_history()
             else:
-                print("\nHistory clearing cancelled.")
+                print("\nOperation cancelled.")
                 input("\nPress Enter to continue...")
                 clear_screen()
-                display_ascii_art()  # Show ASCII art
+                display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Settings":
             # Settings
+            settings_menu = SettingsMenu()
+            settings_menu.display()
             clear_screen()
             display_ascii_art()
-            print("=" * 84)
-            print("SETTINGS".center(84))
-            print("=" * 84)
-            print("\nThis feature is not implemented yet.")
-            input("\nPress Enter to continue...")
-            clear_screen()
-            display_ascii_art()  # Show ASCII art
         
         elif choice in menu_options and menu_options[choice][0] == "Help":
             # Help
@@ -1396,6 +1922,10 @@ def fix_scanner_ids(scanner_file):
     if not os.path.exists(scanner_file):
         print(f"Scanner file not found: {scanner_file}")
         return 0, 0
+    
+   
+    
+   
     
     try:
         with open(scanner_file, 'r', encoding='utf-8') as f:
