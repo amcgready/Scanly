@@ -1131,6 +1131,8 @@ def perform_multi_scan():
     directories = []
     while True:
         dir_input = input(f"Directory {len(directories) + 1}: ").strip()
+        
+        # Handle empty input
         if not dir_input:
             if directories:  # Only break if we have at least one directory
                 break
@@ -1138,11 +1140,26 @@ def perform_multi_scan():
                 print("Please enter at least one directory.")
                 continue
         
+        # Check if user wants to return to main menu
+        if dir_input.lower() in ('exit', 'quit', 'back', 'return'):
+            return_to_menu = input("\nReturn to main menu? (y/n): ").strip().lower()
+            if return_to_menu == 'y':
+                clear_screen()
+                display_ascii_art()
+                return
+            continue
+        
+        # Validate directory path
         clean_path = _clean_directory_path(dir_input)
         if os.path.isdir(clean_path):
             directories.append(clean_path)
         else:
             print(f"Invalid directory path: {clean_path}")
+            return_to_menu = input("Return to main menu? (y/n): ").strip().lower()
+            if return_to_menu == 'y':
+                clear_screen()
+                display_ascii_art()
+                return
     
     if not directories:
         print("\nNo valid directories to scan.")
