@@ -226,7 +226,7 @@ def clear_scan_history():
         logger.error(f"Error clearing scan history: {e}")
         return False
 
-def history_exists():
+def has_scan_history():
     """Check if scan history exists."""
     history_path = os.path.join(os.path.dirname(__file__), 'scan_history.json')
     return os.path.exists(history_path)
@@ -262,6 +262,19 @@ def clear_skipped_items():
     save_skipped_items(skipped_items_registry)
     print("\nAll skipped items have been cleared.")
     input("\nPress Enter to continue...")
+
+def has_skipped_items():
+    """Check if there are skipped items."""
+    global skipped_items_registry
+    return len(skipped_items_registry) > 0
+
+def clear_all_history():
+    """Clear both scan history and skipped items."""
+    clear_scan_history()
+    clear_skipped_items()
+    print("\nAll history has been cleared.")
+    input("\nPress Enter to continue...")
+    clear_screen()
 
 # Global skipped items registry
 skipped_items_registry = load_skipped_items()
@@ -1007,7 +1020,6 @@ class DirectoryProcessor:
             print(f"Error: {e}")
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after error
-            return -1
 
     def _prompt_for_content_type(self, current_is_tv, current_is_anime):
         """Helper method to prompt user for content type selection.
@@ -1087,19 +1099,50 @@ def main():
     
     while True:
         print("\nMAIN MENU")
-        print("1. Individual Scan")
-        print("2. Multi Scan")
-        print("3. Resume Scan")
-        print("4. Review Skipped Items")
-        print("5. Settings")
-        print("6. Help")
-        print("0. Quit")
+        
+        # Always available options
+        menu_options = {
+            "1": ("Individual Scan", None),
+            "2": ("Multi Scan", None),
+        }
+        
+        # Conditionally available options
+        next_option = 3
+        
+        # Resume scan - only if scan history exists
+        if has_scan_history():
+            menu_options[str(next_option)] = ("Resume Scan", None)
+            next_option += 1
+        
+        # Review skipped items - only if skipped items exist
+        if has_skipped_items():
+            menu_options[str(next_option)] = ("Review Skipped Items", None)
+            next_option += 1
+            
+        # Clear history - only if scan history or skipped items exist
+        if has_scan_history() or has_skipped_items():
+            menu_options[str(next_option)] = ("Clear History", None)
+            next_option += 1
+        
+        # Standard options
+        menu_options[str(next_option)] = ("Settings", None)
+        next_option += 1
+        
+        menu_options[str(next_option)] = ("Help", None)
+        next_option += 1
+        
+        menu_options["0"] = ("Quit", None)
+        
+        # Display menu options
+        for key, (option_text, _) in menu_options.items():
+            print(f"{key}. {option_text}")
         
         choice = input("\nSelect option: ").strip()
         
+        # Process the selected option
         if choice == "1":
             # Individual scan
-            clear_screen()  # Clear screen before individual scan
+            clear_screen()
             display_ascii_art()
             print("=" * 60)
             print("INDIVIDUAL SCAN")
@@ -1113,55 +1156,70 @@ def main():
             else:
                 print("\nInvalid directory path.")
                 input("\nPress Enter to continue...")
-                clear_screen()  # Clear screen after error
+                clear_screen()
         
         elif choice == "2":
             # Multi scan
-            clear_screen()  # Clear screen before multi scan
+            clear_screen()
             perform_multi_scan()
-            clear_screen()  # Clear screen after multi scan
+            clear_screen()
         
-        elif choice == "3":
+        elif choice in menu_options and menu_options[choice][0] == "Resume Scan":
             # Resume scan
-            clear_screen()  # Clear screen before resume scan
+            clear_screen()
             display_ascii_art()
             print("=" * 60)
             print("RESUME SCAN")
             print("=" * 60)
             print("\nThis feature is not implemented yet.")
             input("\nPress Enter to continue...")
-            clear_screen()  # Clear screen after resume scan
+            clear_screen()
         
-        elif choice == "4":
+        elif choice in menu_options and menu_options[choice][0] == "Review Skipped Items":
             # Review skipped items
-            clear_screen()  # Clear screen before reviewing skipped items
+            clear_screen()
             review_skipped_items()
         
-        elif choice == "5":
+        elif choice in menu_options and menu_options[choice][0] == "Clear History":
+            # Clear history
+            clear_screen()
+            display_ascii_art()
+            print("=" * 60)
+            print("CLEAR HISTORY")
+            print("=" * 60)
+            confirm = input("\nAre you sure you want to clear all history? (y/n): ").strip().lower()
+            if confirm == 'y':
+                clear_all_history()
+            else:
+                print("\nHistory clearing cancelled.")
+                input("\nPress Enter to continue...")
+                clear_screen()
+        
+        elif choice in menu_options and menu_options[choice][0] == "Settings":
             # Settings
-            clear_screen()  # Clear screen before settings
+            clear_screen()
             display_ascii_art()
             print("=" * 60)
             print("SETTINGS")
             print("=" * 60)
             print("\nThis feature is not implemented yet.")
             input("\nPress Enter to continue...")
-            clear_screen()  # Clear screen after settings
+            clear_screen()
         
-        elif choice == "6":
+        elif choice in menu_options and menu_options[choice][0] == "Help":
             # Help
             display_help()
             
         elif choice == "0":
             # Quit
-            clear_screen()  # Clear screen before exit message
+            clear_screen()
             print("\nThank you for using Scanly!")
             break
             
         else:
             print("\nInvalid option. Please try again.")
             input("\nPress Enter to continue...")
-            clear_screen()  # Clear screen after invalid option
+            clear_screen()
 
 if __name__ == "__main__":
     main()
