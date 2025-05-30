@@ -855,47 +855,14 @@ class DirectoryProcessor:
                                 id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
                                 print(f"\nSelected: {title}{year_str}{id_str}")
                                 
-                                # Ask if the user wants to continue processing this folder
-                                print("\nOptions:")
-                                print("1. Accept and continue")
-                                print("2. Change search term")
-                                print("3. Change content type")
-                                print("4. Skip this folder")
-                                print("0. Quit scan")
-                                
-                                action_choice = input("\nSelect option: ").strip()
-                                if action_choice == "" or action_choice == "1":
-                                    # Process the selected match
-                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
-                                        processed += 1
-                                        break  # Exit the loop for this subfolder
-                                elif action_choice == "2":
-                                    # Change search term and continue loop
-                                    new_search = input(f"Enter new search term [{search_term}]: ").strip()
-                                    if new_search:
-                                        search_term = new_search
-                                    continue
-                                elif action_choice == "3":
-                                    # Change content type and continue loop
-                                    is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
-                                    continue
-                                elif action_choice == "4":
-                                    # Skip this folder
-                                    skipped_items_registry.append({
-                                        'subfolder': subfolder_name,
-                                        'path': subfolder_path,
-                                        'skipped_date': datetime.datetime.now().isoformat()
-                                    })
-                                    save_skipped_items(skipped_items_registry)
-                                    break  # Exit loop for this subfolder
-                                elif action_choice == "0":
-                                    # Quit the scan
-                                    if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
-                                        print("Scan cancelled.")
-                                        return -1
-                                
+                                # Process the file immediately with the selected match
+                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                    processed += 1
+                                    break  # Exit the loop for this subfolder
+
                             elif match_idx == -1:  # User selected "None of these"
                                 print("\nProceeding with manual identification...")
+                                # Continue to manual options (existing flow)
                         except ValueError:
                             print("\nInvalid choice. Proceeding with manual options.")
                     elif len(scanner_matches) == 1:
@@ -920,33 +887,6 @@ class DirectoryProcessor:
                             if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
                                 break  # Exit the loop for this subfolder
-                        elif action_choice == "2":
-                            # Change search term
-                            new_search = input(f"Enter new search term [{search_term}]: ").strip()
-                            if new_search:
-                                search_term = new_search
-                            # Loop continues with new search term
-                            continue
-                        elif action_choice == "3":
-                            # Change content type
-                            is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
-                            # Loop continues with new content type
-                            continue
-                        elif action_choice == "4":
-                            # Skip this folder
-                            skipped_items_registry.append({
-                                'subfolder': subfolder_name,
-                                'path': subfolder_path,
-                                'skipped_date': datetime.datetime.now().isoformat()
-                            })
-                            save_skipped_items(skipped_items_registry)
-                            break  # Exit loop for this subfolder
-                        elif action_choice == "0":
-                            # Quit the scan
-                            if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
-                                print("Scan cancelled.")
-                                return -1
-    
                     # Show options for this subfolder
                     print("\nOptions:")
                     print("1. Accept as is")
