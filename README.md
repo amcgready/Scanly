@@ -9,7 +9,7 @@
 # Scanly
 
 Version: 1.4.0
-Last Updated: 2025-05-22
+Last Updated: 2025-05-29
 
 # What is Scanly?
 
