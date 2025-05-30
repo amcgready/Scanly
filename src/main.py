@@ -672,7 +672,7 @@ class DirectoryProcessor:
         
         return False
 
-    def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False):
+    def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, tmdb_id=None):
         """Create symlinks from the source directory to the destination directory."""
         try:
             # Check if destination directory is configured
@@ -688,6 +688,10 @@ class DirectoryProcessor:
             base_name = title
             if year and not is_tv:
                 base_name = f"{title} ({year})"
+            
+            # Add TMDB ID if available
+            if tmdb_id:
+                base_name = f"{base_name} [tmdb-{tmdb_id}]"
             
             # Determine appropriate subdirectory based on content type
             if is_anime and is_tv:
@@ -772,8 +776,9 @@ class DirectoryProcessor:
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 
-                # Initialize search term (default to title)
+                # Initialize search term and TMDB ID
                 search_term = title
+                tmdb_id = None
                 
                 # Loop for processing the current folder with different options
                 while True:
@@ -782,6 +787,8 @@ class DirectoryProcessor:
                     print(f"  Year: {year if year else 'Unknown'}")
                     print(f"  Type: {'TV Show' if is_tv else 'Movie'} {'(Anime)' if is_anime else ''}")
                     print(f"  Search term: {search_term}")
+                    if tmdb_id:
+                        print(f"  TMDB ID: {tmdb_id}")
                     
                     # Check scanner lists for matches using current search term
                     scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
@@ -794,8 +801,8 @@ class DirectoryProcessor:
                         for i, match in enumerate(scanner_matches):
                             match_title = match.get('title', 'Unknown')
                             year_str = f" ({match.get('year')})" if match.get('year') else ""
-                            tmdb_id = match.get('tmdb_id', '')
-                            id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                            match_tmdb_id = match.get('tmdb_id', '')
+                            id_str = f" [tmdb-{match_tmdb_id}]" if match_tmdb_id else ""
                             print(f"{i+1}. {match_title}{year_str}{id_str}")
                         print("0. None of these / Manual identification")
                         
@@ -818,7 +825,7 @@ class DirectoryProcessor:
                                 print(f"\nSelected: {title}{year_str}{id_str}")
                                 
                                 # Process the selected match directly
-                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
+                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
                                     processed += 1
                                     break  # Exit the loop for this subfolder
                             elif match_idx == -1:  # User selected "None of these"
@@ -827,34 +834,36 @@ class DirectoryProcessor:
                             print("\nInvalid choice. Proceeding with extracted information.")
                     elif len(scanner_matches) == 1:
                         selected_match = scanner_matches[0]
-                        tmdb_id = selected_match.get('tmdb_id', '')
-                        id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                        match_tmdb_id = selected_match.get('tmdb_id', '')
+                        id_str = f" [tmdb-{match_tmdb_id}]" if match_tmdb_id else ""
                         print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')}){id_str}")
                         confirm = input("Use this match? (y/n): ").strip().lower()
                         if confirm == '' or confirm == 'y':
                             title = selected_match.get('title', title)
                             year = selected_match.get('year', year)
-                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
+                            tmdb_id = selected_match.get('tmdb_id', '')
+                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
                                 processed += 1
                                 break  # Exit the loop for this subfolder
-
+    
                     # Show options for this subfolder
                     print("\nOptions:")
                     print("1. Accept (default - press Enter)")
                     print("2. Change search term")
                     print("3. Change content type")
-                    print("4. Skip (save for later review)")
-                    print("5. Quit")
+                    print("4. Manual TMDB ID")
+                    print("5. Skip (save for later review)")
+                    print("0. Quit")
                     
                     choice = input("\nSelect option: ").strip()
                     
-                    # Make Enter key select option 1 as default
+                    # Make Enter key select option 1 as a default
                     if choice == "":
                         choice = "1"
                         
                     if choice == "1":
                         # Accept the extracted info
-                        if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
+                        if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
                             processed += 1
                         break  # Exit the loop for this subfolder
                         
@@ -880,8 +889,15 @@ class DirectoryProcessor:
                         anime_choice = input(f"Enter choice [{2 if is_anime else 1}]: ").strip()
                         is_anime = anime_choice == "2" if anime_choice in ["1", "2"] else is_anime
                         # Loop continues with new content type settings
-                        
+                    
                     elif choice == "4":
+                        # Manual TMDB ID entry
+                        new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
+                        if new_tmdb_id:
+                            tmdb_id = new_tmdb_id
+                        # Loop continues with new TMDB ID
+                        
+                    elif choice == "5":
                         # Skip this subfolder
                         print(f"Skipping subfolder: {subfolder_name}")
                         skipped_items_registry.append({
@@ -892,15 +908,15 @@ class DirectoryProcessor:
                         save_skipped_items(skipped_items_registry)
                         break  # Exit the loop for this subfolder
                         
-                    elif choice == "5":
+                    elif choice == "0":
                         # Quit the scan
                         if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                             print("Scan cancelled.")
                             return -1
-                            
+                        
                     else:
                         print("Invalid option. Please try again.")
-    
+        
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
             return processed
             
@@ -908,12 +924,6 @@ class DirectoryProcessor:
             self.logger.error(f"Error processing media files: {e}")
             print(f"Error: {e}")
             return -1
-            
-        except Exception as e:
-            self.logger.error(f"Error processing media files: {e}")
-            print(f"Error: {e}")
-            return -1
-
 def perform_multi_scan():
     """Perform a multi-scan operation using ThreadedDirectoryProcessor."""
     try:
@@ -977,6 +987,94 @@ def main():
         else:
             print("\nOption not implemented yet.")
             input("\nPress Enter to continue...")
+
+if __name__ == "__main__":
+    main()
+
+#!/usr/bin/env python3
+"""
+Fix movie IDs in scanner files.
+
+This script converts ID formats in scanner files to the standard [tmdb-ID] format.
+"""
+
+import os
+import re
+import sys
+from pathlib import Path
+
+def fix_scanner_ids(scanner_file):
+    """
+    Fix IDs in a scanner file to use [tmdb-ID] format.
+    
+    Args:
+        scanner_file: Path to the scanner file
+    
+    Returns:
+        Tuple of (number of entries processed, number of entries modified)
+    """
+    if not os.path.exists(scanner_file):
+        print(f"Scanner file not found: {scanner_file}")
+        return 0, 0
+    
+    try:
+        with open(scanner_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        total_entries = len(lines)
+        modified_count = 0
+        corrected_lines = []
+        
+        for line in lines:
+            # Skip empty lines
+            if not line.strip():
+                corrected_lines.append(line)
+                continue
+            
+            # Replace different ID formats with [tmdb-ID]
+            # Case 1: [movie:ID]
+            modified_line = re.sub(r'\[movie:(\d+)\]', r'[tmdb-\1]', line)
+            
+            # Case 2: [ID] (plain ID without prefix)
+            modified_line = re.sub(r'\[(\d+)\](?!\])', r'[tmdb-\1]', modified_line)
+            
+            if modified_line != line:
+                modified_count += 1
+                
+            corrected_lines.append(modified_line)
+        
+        # Write the modified content back to file
+        with open(scanner_file, 'w', encoding='utf-8') as f:
+            f.writelines(corrected_lines)
+        
+        return total_entries, modified_count
+    
+    except Exception as e:
+        print(f"Error fixing scanner IDs: {e}")
+        return 0, 0
+
+def main():
+    """Main entry point."""
+    script_dir = Path(__file__).parent
+    scanner_dir = script_dir / 'scanners'
+    
+    # Fix scanner files
+    scanner_files = [
+        'movies.txt',
+        'anime_movies.txt',
+        'tv_series.txt',
+        'anime_series.txt'
+    ]
+    
+    for scanner_file in scanner_files:
+        file_path = scanner_dir / scanner_file
+        if file_path.exists():
+            print(f"Processing {scanner_file}...")
+            total, fixed = fix_scanner_ids(str(file_path))
+            print(f"  - Total entries: {total}")
+            print(f"  - Fixed entries: {fixed}")
+        else:
+            print(f"Scanner file not found: {scanner_file}")
 
 if __name__ == "__main__":
     main()
