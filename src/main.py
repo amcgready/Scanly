@@ -553,18 +553,49 @@ class DirectoryProcessor:
         title = folder_name
         year = None
         
-        # Extract year using regex
-        year_match = re.search(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', folder_name)
-        if year_match:
-            year = year_match.group(1)
-        
+        # Check for explicit year pattern with parentheses like "Movie Title (2021)"
+        parentheses_year = re.search(r'\((\d{4})\)', folder_name)
+        if parentheses_year:
+            year = parentheses_year.group(1)
+            # Remove the (year) from the title
+            clean_title = re.sub(r'\s*\(\d{4}\)\s*', ' ', folder_name).strip()
+        else:
+            # Look for 4-digit sequences that could be years (between 1900 and current year + 5)
+            current_year = datetime.datetime.now().year
+            year_matches = re.findall(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', folder_name)
+            
+            clean_title = folder_name
+            
+            # If multiple 4-digit numbers found, determine which is likely the year
+            if year_matches:
+                for potential_year in year_matches:
+                    year_int = int(potential_year)
+                    # Valid years are between 1900 and current year + 5
+                    if 1900 <= year_int <= current_year + 5:
+                        # Treat the last valid year as the release year
+                        year = potential_year
+            
+                # Special case: If the title starts with a 4-digit number that could be a year
+                # (like "2001: A Space Odyssey"), keep it in the title
+                if year_matches[0] == year and re.match(r'^' + year + r'[^0-9]', folder_name):
+                    # This is likely a title that starts with a year, look for another year
+                    if len(year_matches) > 1:
+                        for potential_year in year_matches[1:]:
+                            year_int = int(potential_year)
+                            if 1900 <= year_int <= current_year + 5:
+                                year = potential_year
+                                break
+                    else:
+                        # Only one year found and it's at the start, consider it part of the title
+                        year = None
+    
         # First level of cleaning - remove common patterns
         clean_title = folder_name
-        
-        # Remove the year
-        if year:
+    
+        # Remove the year if found (but not if it's at the start of the title)
+        if year and not re.match(r'^' + year + r'[^0-9]', folder_name):
             clean_title = re.sub(r'\.?' + year + r'\.?', ' ', clean_title)
-        
+    
         # Remove common quality/format indicators
         patterns_to_remove = [
             # Resolution patterns
@@ -596,7 +627,7 @@ class DirectoryProcessor:
         # Replace dots, underscores, and dashes with spaces
         clean_title = re.sub(r'\.|\-|_', ' ', clean_title)
         
-        # Remove the FGT pattern explicitly (as seen in the example)
+        # Remove the FGT pattern explicitly
         clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
         
         # Replace multiple spaces with a single space and trim
@@ -605,7 +636,7 @@ class DirectoryProcessor:
         # If the title is empty after cleaning, use the original folder name
         if not clean_title:
             clean_title = folder_name
-        
+    
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year
 
