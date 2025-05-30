@@ -301,6 +301,7 @@ def display_help():
     print("  0. Quit           - Exit the application")
     print("\nPress Enter to continue...")
     input()
+    clear_screen()  # Clear screen after leaving help
 
 # Function to review skipped items
 def review_skipped_items():
@@ -310,6 +311,7 @@ def review_skipped_items():
     if not skipped_items_registry:
         print("No skipped items to review.")
         input("\nPress Enter to continue...")
+        clear_screen()  # Clear screen when returning to main menu
         return
     
     while True:
@@ -360,12 +362,15 @@ def review_skipped_items():
                     print(f"\nProcessing: {item.get('subfolder', 'Unknown')}")
                     # Implementation would go here
                     input("\nPress Enter to continue...")
+                    clear_screen()  # Clear screen after processing
                 else:
                     print("\nInvalid item number.")
                     input("\nPress Enter to continue...")
+                    clear_screen()  # Clear screen after error
             except ValueError:
                 print("\nInvalid input. Please enter a number.")
                 input("\nPress Enter to continue...")
+                clear_screen()  # Clear screen after error
         elif choice == "2":
             # Confirm before clearing
             confirm = input("\nAre you sure you want to clear all skipped items? (y/n): ").strip().lower()
@@ -376,15 +381,19 @@ def review_skipped_items():
             # Next page
             if current_page < total_pages:
                 current_page += 1
+            clear_screen()  # Clear screen when changing page
         elif choice == "4" and total_pages > 1:
             # Previous page
             if current_page > 1:
                 current_page -= 1
+            clear_screen()  # Clear screen when changing page
         elif choice == "0":
+            clear_screen()  # Clear screen when returning to main menu
             return
         else:
             print("\nInvalid option.")
             input("\nPress Enter to continue...")
+            clear_screen()  # Clear screen after error
 
 def _check_monitor_status():
     """Check and fix the monitor status if needed."""
@@ -417,12 +426,15 @@ def _check_monitor_status():
             print("Done.")
         
         input("\nPress Enter to continue...")
+        clear_screen()  # Clear screen after checking monitor status
     except ImportError:
         print("\nMonitor module not found. Please check your installation.")
         input("\nPress Enter to continue...")
+        clear_screen()  # Clear screen after error
     except Exception as e:
         print(f"\nError checking monitor status: {e}")
         input("\nPress Enter to continue...")
+        clear_screen()  # Clear screen after error
 
 class DirectoryProcessor:
     """Process a directory of media files."""
@@ -770,6 +782,7 @@ class DirectoryProcessor:
             if not subdirs:
                 print("\nNo subdirectories found to process.")
                 input("\nPress Enter to continue...")
+                clear_screen()  # Clear screen when returning to main menu
                 return 0
                 
             print(f"Found {len(subdirs)} subdirectories to process")
@@ -795,7 +808,7 @@ class DirectoryProcessor:
                 
                 # Loop for processing the current folder with different options
                 while True:
-                    clear_screen()
+                    clear_screen()  # Clear screen before displaying folder processing menu
                     display_ascii_art()
                     print("=" * 60)
                     print("FOLDER PROCESSING")
@@ -858,6 +871,8 @@ class DirectoryProcessor:
                                 # Process the file immediately with the selected match
                                 if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                     processed += 1
+                                    input("\nPress Enter to continue...")
+                                    clear_screen()  # Clear screen after successful processing
                                     break  # Exit the loop for this subfolder
 
                             elif match_idx == -1:  # User selected "None of these"
@@ -886,7 +901,30 @@ class DirectoryProcessor:
                             tmdb_id = selected_match.get('tmdb_id', '')
                             if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
+                                input("\nPress Enter to continue...")
+                                clear_screen()  # Clear screen after successful processing
                                 break  # Exit the loop for this subfolder
+                        elif action_choice == "4":
+                            # Skip this folder
+                            print(f"\nSkipping folder: {subfolder_name}")
+                            skipped_items_registry.append({
+                                'subfolder': subfolder_name,
+                                'path': subfolder_path,
+                                'skipped_date': datetime.datetime.now().isoformat()
+                            })
+                            save_skipped_items(skipped_items_registry)
+                            input("\nPress Enter to continue...")
+                            clear_screen()  # Clear screen after skipping
+                            break  # Exit loop for this subfolder
+                        elif action_choice == "0":
+                            # Quit
+                            if input("\nAre you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
+                                print("\nScan cancelled.")
+                                input("\nPress Enter to continue...")
+                                clear_screen()  # Clear screen after quitting
+                                return -1
+                        # If other options selected, continue with the loop
+                        
                     # Show options for this subfolder
                     print("\nOptions:")
                     print("1. Accept as is")
@@ -906,6 +944,8 @@ class DirectoryProcessor:
                         # Accept the extracted info
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                             processed += 1
+                            input("\nPress Enter to continue...")
+                            clear_screen()  # Clear screen after successful processing
                         break  # Exit the loop for this subfolder
                         
                     elif choice == "2":
@@ -914,11 +954,13 @@ class DirectoryProcessor:
                         if new_search:
                             search_term = new_search
                         # Loop continues with new search term
+                        clear_screen()  # Clear screen after changing search term
                         
                     elif choice == "3":
                         # Change content type using the helper method
                         is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
                         # Loop continues with new content type settings
+                        clear_screen()  # Clear screen after changing content type
                     
                     elif choice == "4":
                         # Manual TMDB ID entry
@@ -926,6 +968,7 @@ class DirectoryProcessor:
                         if new_tmdb_id:
                             tmdb_id = new_tmdb_id
                         # Loop continues with new TMDB ID
+                        clear_screen()  # Clear screen after changing TMDB ID
                         
                     elif choice == "5":
                         # Skip this subfolder
@@ -936,23 +979,34 @@ class DirectoryProcessor:
                             'skipped_date': datetime.datetime.now().isoformat()
                         })
                         save_skipped_items(skipped_items_registry)
+                        input("\nPress Enter to continue...")
+                        clear_screen()  # Clear screen after skipping
                         break  # Exit the loop for this subfolder
                         
                     elif choice == "0":
                         # Quit the scan
                         if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                             print("Scan cancelled.")
+                            input("\nPress Enter to continue...")
+                            clear_screen()  # Clear screen after quitting
                             return -1
+                        clear_screen()  # Clear screen if user decides not to quit
                         
                     else:
                         print("Invalid option. Please try again.")
+                        input("\nPress Enter to continue...")
+                        clear_screen()  # Clear screen after invalid option
         
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
+            input("\nPress Enter to continue...")
+            clear_screen()  # Clear screen after completing all processing
             return processed
             
         except Exception as e:
             self.logger.error(f"Error processing media files: {e}")
             print(f"Error: {e}")
+            input("\nPress Enter to continue...")
+            clear_screen()  # Clear screen after error
             return -1
 
     def _prompt_for_content_type(self, current_is_tv, current_is_anime):
@@ -961,6 +1015,8 @@ class DirectoryProcessor:
         Returns:
             Tuple: (is_tv, is_anime, is_wrestling) - Updated content type settings
         """
+        clear_screen()  # Clear screen before showing content type menu
+        
         # Current content type
         current_type = "Wrestling"
         if current_is_tv and current_is_anime:
@@ -1008,6 +1064,7 @@ class DirectoryProcessor:
             is_wrestling = True
         
         return is_tv, is_anime, is_wrestling
+
 def perform_multi_scan():
     """Perform a multi-scan operation using ThreadedDirectoryProcessor."""
     try:
@@ -1017,6 +1074,7 @@ def perform_multi_scan():
     except ImportError as e:
         print(f"\nError importing threaded processor: {e}")
         input("\nPress Enter to continue...")
+        clear_screen()  # Clear screen after error
 
 def main():
     """Main function to run the Scanly application."""
@@ -1041,6 +1099,11 @@ def main():
         
         if choice == "1":
             # Individual scan
+            clear_screen()  # Clear screen before individual scan
+            display_ascii_art()
+            print("=" * 60)
+            print("INDIVIDUAL SCAN")
+            print("=" * 60)
             directory = input("\nEnter directory path to scan: ").strip()
             directory = _clean_directory_path(directory)
             
@@ -1050,14 +1113,40 @@ def main():
             else:
                 print("\nInvalid directory path.")
                 input("\nPress Enter to continue...")
+                clear_screen()  # Clear screen after error
         
         elif choice == "2":
             # Multi scan
+            clear_screen()  # Clear screen before multi scan
             perform_multi_scan()
+            clear_screen()  # Clear screen after multi scan
+        
+        elif choice == "3":
+            # Resume scan
+            clear_screen()  # Clear screen before resume scan
+            display_ascii_art()
+            print("=" * 60)
+            print("RESUME SCAN")
+            print("=" * 60)
+            print("\nThis feature is not implemented yet.")
+            input("\nPress Enter to continue...")
+            clear_screen()  # Clear screen after resume scan
         
         elif choice == "4":
             # Review skipped items
+            clear_screen()  # Clear screen before reviewing skipped items
             review_skipped_items()
+        
+        elif choice == "5":
+            # Settings
+            clear_screen()  # Clear screen before settings
+            display_ascii_art()
+            print("=" * 60)
+            print("SETTINGS")
+            print("=" * 60)
+            print("\nThis feature is not implemented yet.")
+            input("\nPress Enter to continue...")
+            clear_screen()  # Clear screen after settings
         
         elif choice == "6":
             # Help
@@ -1065,12 +1154,14 @@ def main():
             
         elif choice == "0":
             # Quit
+            clear_screen()  # Clear screen before exit message
             print("\nThank you for using Scanly!")
             break
             
         else:
-            print("\nOption not implemented yet.")
+            print("\nInvalid option. Please try again.")
             input("\nPress Enter to continue...")
+            clear_screen()  # Clear screen after invalid option
 
 if __name__ == "__main__":
     main()
