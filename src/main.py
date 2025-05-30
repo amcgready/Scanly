@@ -1610,7 +1610,7 @@ class SettingsMenu:
             print("\nCurrent Advanced Settings:")
             print(f"1. Debug Mode: {'Enabled' if debug_mode else 'Disabled'}")
             print("2. Fix Scanner Files")
-            print("3. Configure Scanner Lists") # New option
+            print("3. Configure Scanner Lists")  # New option
             print("q. Return to Settings Menu")
             
             choice = input("\nSelect option: ").strip().lower()
@@ -1681,7 +1681,7 @@ class SettingsMenu:
         input("\nPress Enter to continue...")
     
     def _configure_scanner_lists(self):
-        """Configure scanner lists and their content types."""
+        """Configure scanner lists for different content types."""
         clear_screen()
         display_ascii_art()
         print("=" * 84)
@@ -1693,72 +1693,59 @@ class SettingsMenu:
         if not os.path.exists(scanner_dir):
             os.makedirs(scanner_dir, exist_ok=True)
         
-        # Default scanner files and their mappings
-        default_scanners = {
-            'movies.txt': 'movies',
-            'tv_series.txt': 'tv',
-            'anime_movies.txt': 'anime_movies',
-            'anime_series.txt': 'anime_tv'
+        # Define standard content types with their display names and environment variable names
+        content_types = {
+            "Movies": {
+                "env_var": "SCANNER_MOVIES",
+                "default_file": "movies.txt"
+            },
+            "TV Series": {
+                "env_var": "SCANNER_TV",
+                "default_file": "tv_series.txt"
+            },
+            "Anime Movies": {
+                "env_var": "SCANNER_ANIME_MOVIES",
+                "default_file": "anime_movies.txt"
+            },
+            "Anime Series": {
+                "env_var": "SCANNER_ANIME_TV",
+                "default_file": "anime_series.txt"
+            },
+            "Wrestling": {
+                "env_var": "SCANNER_WRESTLING",
+                "default_file": "wrestling.txt"
+            }
         }
         
-        # Load current mappings from environment variables
-        current_mappings = {}
-        for scanner_file, default_type in default_scanners.items():
-            env_var_name = f"SCANNER_{scanner_file.replace('.', '_').upper()}"
-            current_mappings[scanner_file] = os.environ.get(env_var_name, default_type)
+        # Get available scanner files in the directory
+        available_files = []
+        if os.path.exists(scanner_dir):
+            available_files = [f for f in os.listdir(scanner_dir) 
+                              if os.path.isfile(os.path.join(scanner_dir, f)) and f.endswith('.txt')]
         
-        # Show current scanner files and their settings
-        print("\nDetected Scanner Files:")
-        index = 1
-        scanner_files = []
+        # Show current scanner mappings
+        print("\nCurrent Scanner Mappings:")
+        print("-" * 84)
+        print(f"{'Content Type':<20} | {'Scanner File':<30} | {'Status':<15}")
+        print("-" * 84)
         
-        # First check the default scanner files
-        for scanner_file in default_scanners:
-            full_path = os.path.join(scanner_dir, scanner_file)
-            if os.path.exists(full_path):
-                content_type = current_mappings.get(scanner_file, default_scanners[scanner_file])
-                file_size = os.path.getsize(full_path)
-                line_count = 0
-                try:
-                    with open(full_path, 'r', encoding='utf-8') as f:
-                        line_count = sum(1 for line in f if line.strip())
-                except Exception:
-                    pass
+        for content_type, config in content_types.items():
+            # Get current scanner file for this content type
+            env_var = config["env_var"]
+            default_file = config["default_file"]
+            current_file = os.environ.get(env_var, default_file)
             
-            print(f"{index}. {scanner_file}")
-            print(f"   Type: {content_type}")
-            print(f"   Size: {file_size} bytes")
-            print(f"   Entries: {line_count}")
-            scanner_files.append((scanner_file, full_path))
-            index += 1
-    
-        # Then check for any additional scanner files in the directory
-        for file in os.listdir(scanner_dir):
-            if file.endswith('.txt') and file not in default_scanners:
-                full_path = os.path.join(scanner_dir, file)
-                content_type = os.environ.get(f"SCANNER_{file.replace('.', '_').upper()}", "unknown")
-                file_size = os.path.getsize(full_path)
-                line_count = 0
-                try:
-                    with open(full_path, 'r', encoding='utf-8') as f:
-                        line_count = sum(1 for line in f if line.strip())
-                except Exception:
-                    pass
+            # Check if the file exists
+            file_path = os.path.join(scanner_dir, current_file)
+            if os.path.exists(file_path):
+                status = "Available"
+            else:
+                status = "Missing"
             
-            print(f"{index}. {file}")
-            print(f"   Type: {content_type}")
-            print(f"   Size: {file_size} bytes")
-            print(f"   Entries: {line_count}")
-            scanner_files.append((file, full_path))
-            index += 1
-    
-        if not scanner_files:
-            print("\nNo scanner files found.")
-            input("\nPress Enter to continue...")
-            return
-    
+            print(f"{content_type:<20} | {current_file:<30} | {status:<15}")
+        
         print("\nOptions:")
-        print("1. Configure content type for a scanner file")
+        print("1. Change scanner file for a content type")
         print("2. Create a new scanner file")
         print("3. View scanner file contents")
         print("q. Return to Advanced Settings")
@@ -1766,90 +1753,95 @@ class SettingsMenu:
         choice = input("\nSelect option: ").strip().lower()
         
         if choice == '1':
-            self._set_scanner_content_type(scanner_files)
+            self._change_content_type_scanner(scanner_dir, content_types, available_files)
         elif choice == '2':
-            self._create_new_scanner_file(scanner_dir)
+            self._create_new_scanner_file(scanner_dir, content_types)
         elif choice == '3':
-            self._view_scanner_contents(scanner_files)
+            self._view_scanner_contents(scanner_dir, available_files)
         elif choice != 'q':
             print("\nInvalid option.")
             input("\nPress Enter to continue...")
 
-    def _set_scanner_content_type(self, scanner_files):
-        """Set the content type for a scanner file."""
+    def _change_content_type_scanner(self, scanner_dir, content_types, available_files):
+        """Change which scanner file is used for a content type."""
         clear_screen()
         display_ascii_art()
         print("=" * 84)
-        print("CONFIGURE SCANNER CONTENT TYPE".center(84))
+        print("CHANGE CONTENT TYPE SCANNER".center(84))
         print("=" * 84)
         
-        # Display scanner files
-        print("\nScanner Files:")
-        for i, (file, _) in enumerate(scanner_files):
-            print(f"{i+1}. {file}")
+        # Display content types to choose from
+        print("\nSelect content type to configure:")
+        content_list = list(content_types.keys())
+        for i, content_type in enumerate(content_list, 1):
+            config = content_types[content_type]
+            current_file = os.environ.get(config["env_var"], config["default_file"])
+            print(f"{i}. {content_type:<15} (Current: {current_file})")
         
-        # Get user selection
-        file_choice = input("\nSelect a scanner file (number) or 'q' to return: ").strip().lower()
+        # Get user selection for content type
+        type_choice = input("\nSelect content type (number) or 'q' to return: ").strip().lower()
         
-        if file_choice == 'q':
+        if type_choice == 'q':
             return
         
         try:
-            file_index = int(file_choice) - 1
-            if 0 <= file_index < len(scanner_files):
-                selected_file, _ = scanner_files[file_index]
+            type_index = int(type_choice) - 1
+            if 0 <= type_index < len(content_list):
+                selected_type = content_list[type_index]
+                config = content_types[selected_type]
+                current_file = os.environ.get(config["env_var"], config["default_file"])
                 
-                # Show available content types
-                print("\nAvailable Content Types:")
-                content_types = {
-                    "1": "movies",
-                    "2": "tv",
-                    "3": "anime_movies",
-                    "4": "anime_tv",
-                    "5": "wrestling",
-                    "6": "documentaries",
-                    "7": "music_videos",
-                    "8": "custom"
-                }
+                # Show available scanner files
+                print(f"\nSelect scanner file for {selected_type}:")
+                print(f"Current: {current_file}")
+                print("\nAvailable scanner files:")
                 
-                for num, content_type in content_types.items():
-                    print(f"{num}. {content_type}")
-                
-                # Get content type selection
-                type_choice = input("\nSelect content type (number) or 'q' to cancel: ").strip().lower()
-                
-                if type_choice == 'q':
+                if not available_files:
+                    print("No scanner files found.")
+                    print("\nCreating a new scanner file...")
+                    self._create_new_scanner_file(scanner_dir, content_types, selected_type)
                     return
                 
-                if type_choice in content_types:
-                    selected_type = content_types[type_choice]
+                # Display available files with indices
+                for i, file_name in enumerate(available_files, 1):
+                    print(f"{i}. {file_name}")
+                
+                # Option to create a new file
+                print(f"{len(available_files) + 1}. Create new scanner file")
+                
+                # Get user selection for scanner file
+                file_choice = input("\nSelect scanner file (number) or 'q' to cancel: ").strip().lower()
+                
+                if file_choice == 'q':
+                    return
+                
+                try:
+                    choice_num = int(file_choice)
                     
-                    # For custom type, get user input
-                    if selected_type == "custom":
-                        custom_type = input("\nEnter custom content type: ").strip().lower()
-                        if custom_type:
-                            selected_type = custom_type
-                        else:
-                            print("\nInvalid custom type.")
-                            input("\nPress Enter to continue...")
-                            return
+                    # Create new file option
+                    if choice_num == len(available_files) + 1:
+                        self._create_new_scanner_file(scanner_dir, content_types, selected_type)
+                        return
                     
-                    # Update environment variable
-                    env_var_name = f"SCANNER_{selected_file.replace('.', '_').upper()}"
-                    _update_env_var(env_var_name, selected_type)
-                    print(f"\nScanner file '{selected_file}' set to type '{selected_type}'.")
+                    # Select existing file option
+                    elif 1 <= choice_num <= len(available_files):
+                        selected_file = available_files[choice_num - 1]
+                        
+                        # Update environment variable
+                        _update_env_var(config["env_var"], selected_file)
+                        print(f"\nUpdated {selected_type} to use '{selected_file}'.")
+                        input("\nPress Enter to continue...")
+                    else:
+                        print("\nInvalid selection.")
+                        input("\nPress Enter to continue...")
+                except ValueError:
+                    print("\nInvalid input. Please enter a number.")
                     input("\nPress Enter to continue...")
-                else:
-                    print("\nInvalid content type selection.")
-                    input("\nPress Enter to continue...")
-            else:
-                print("\nInvalid file selection.")
-                input("\nPress Enter to continue...")
         except ValueError:
             print("\nInvalid input. Please enter a number.")
             input("\nPress Enter to continue...")
 
-    def _create_new_scanner_file(self, scanner_dir):
+    def _create_new_scanner_file(self, scanner_dir, content_types, preset_type=None):
         """Create a new scanner file."""
         clear_screen()
         display_ascii_art()
@@ -1858,80 +1850,84 @@ class SettingsMenu:
         print("=" * 84)
         
         # Get file name
-        file_name = input("\nEnter new scanner file name (must end with .txt): ").strip()
+        file_name = input("\nEnter new scanner file name (.txt will be added if missing): ").strip()
         
         if not file_name:
             print("\nOperation cancelled.")
             input("\nPress Enter to continue...")
             return
         
-        # Validate file name
+        # Add .txt extension if missing
         if not file_name.endswith('.txt'):
             file_name += '.txt'
         
-        # Check if file already exists
+        # Create the file path
         file_path = os.path.join(scanner_dir, file_name)
+        
+        # Check if file already exists
         if os.path.exists(file_path):
             print(f"\nFile '{file_name}' already exists.")
             input("\nPress Enter to continue...")
             return
         
-        # Show available content types
-        print("\nSelect content type for this scanner:")
-        content_types = {
-            "1": "movies",
-            "2": "tv",
-            "3": "anime_movies",
-            "4": "anime_tv",
-            "5": "wrestling",
-            "6": "documentaries",
-            "7": "music_videos",
-            "8": "custom"
-        }
+        # If content type is preset, use it, otherwise ask user
+        selected_type = preset_type
         
-        for num, content_type in content_types.items():
-            print(f"{num}. {content_type}")
-        
-        # Get content type selection
-        type_choice = input("\nSelect content type (number) or 'q' to cancel: ").strip().lower()
-        
-        if type_choice == 'q':
-            return
-        
-        if type_choice in content_types:
-            selected_type = content_types[type_choice]
+        if not selected_type:
+            # Show available content types
+            print("\nSelect content type for this scanner:")
+            content_list = list(content_types.keys())
             
-            # For custom type, get user input
-            if selected_type == "custom":
-                custom_type = input("\nEnter custom content type: ").strip().lower()
-                if custom_type:
-                    selected_type = custom_type
+            for i, content_type in enumerate(content_list, 1):
+                print(f"{i}. {content_type}")
+            
+            # Get content type selection
+            type_choice = input("\nSelect content type (number) or 'q' to cancel: ").strip().lower()
+            
+            if type_choice == 'q':
+                return
+            
+            try:
+                type_index = int(type_choice) - 1
+                if 0 <= type_index < len(content_list):
+                    selected_type = content_list[type_index]
                 else:
-                    print("\nInvalid custom type.")
+                    print("\nInvalid selection.")
                     input("\nPress Enter to continue...")
                     return
+            except ValueError:
+                print("\nInvalid input. Please enter a number.")
+                input("\nPress Enter to continue...")
+                return
+    
+        # Create the file
+        try:
+            # Make sure the directory exists
+            os.makedirs(scanner_dir, exist_ok=True)
             
-            # Create the file
-            try:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write("# Scanner file for " + selected_type + "\n")
-                    f.write("# Format: Title (Year) [tmdb-ID]\n")
-                    f.write("# Example: The Matrix (1999) [tmdb-603]\n\n")
-                
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(f"# Scanner file for {selected_type}\n")
+                f.write("# Format: Title (Year) [tmdb-ID]\n")
+                f.write("# Example: The Matrix (1999) [tmdb-603]\n\n")
+            
+            # Ask if this should be the default scanner for this content type
+            make_default = input(f"\nMake this the default scanner for {selected_type}? (y/n): ").strip().lower()
+            
+            if make_default == 'y':
                 # Update environment variable
-                env_var_name = f"SCANNER_{file_name.replace('.', '_').upper()}"
-                _update_env_var(env_var_name, selected_type)
-                
-                print(f"\nCreated new scanner file '{file_name}' with type '{selected_type}'.")
-                input("\nPress Enter to continue...")
-            except Exception as e:
-                print(f"\nError creating scanner file: {e}")
-                input("\nPress Enter to continue...")
-        else:
-            print("\nInvalid content type selection.")
+                config = content_types[selected_type]
+                env_var = config["env_var"]
+                _update_env_var(env_var, file_name)
+                print(f"\nCreated new scanner file '{file_name}' and set as default for {selected_type}.")
+            else:
+                print(f"\nCreated new scanner file '{file_name}'.")
+        
+            input("\nPress Enter to continue...")
+        except Exception as e:
+            print(f"\nError creating scanner file: {e}")
             input("\nPress Enter to continue...")
 
-    def _view_scanner_contents(self, scanner_files):
+    def _view_scanner_contents(self, scanner_dir, available_files):
         """View the contents of a scanner file."""
         clear_screen()
         display_ascii_art()
@@ -1939,10 +1935,20 @@ class SettingsMenu:
         print("VIEW SCANNER FILE CONTENTS".center(84))
         print("=" * 84)
         
+        # Get available scanner files if not provided
+        if not available_files and os.path.exists(scanner_dir):
+            available_files = [f for f in os.listdir(scanner_dir) 
+                              if os.path.isfile(os.path.join(scanner_dir, f)) and f.endswith('.txt')]
+        
         # Display scanner files
-        print("\nScanner Files:")
-        for i, (file, _) in enumerate(scanner_files):
-            print(f"{i+1}. {file}")
+        if not available_files:
+            print("\nNo scanner files found.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print("\nAvailable Scanner Files:")
+        for i, file_name in enumerate(available_files, 1):
+            print(f"{i}. {file_name}")
         
         # Get user selection
         file_choice = input("\nSelect a scanner file to view (number) or 'q' to return: ").strip().lower()
@@ -1952,10 +1958,11 @@ class SettingsMenu:
         
         try:
             file_index = int(file_choice) - 1
-            if 0 <= file_index < len(scanner_files):
-                _, file_path = scanner_files[file_index]
+            if 0 <= file_index < len(available_files):
+                selected_file = available_files[file_index]
+                file_path = os.path.join(scanner_dir, selected_file)
                 
-                # Count total lines
+                # Read file contents
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
@@ -1964,17 +1971,17 @@ class SettingsMenu:
                     print(f"\nError reading file: {e}")
                     input("\nPress Enter to continue...")
                     return
-                
+            
                 # Set up paging
                 page_size = 20
                 page = 0
                 total_pages = (total_lines + page_size - 1) // page_size if total_lines > 0 else 1
-                
+            
                 while True:
                     clear_screen()
                     display_ascii_art()
                     print("=" * 84)
-                    print(f"VIEWING {os.path.basename(file_path)}".center(84))
+                    print(f"VIEWING {selected_file}".center(84))
                     print("=" * 84)
                     
                     # Display content
