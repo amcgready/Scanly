@@ -725,7 +725,17 @@ class DirectoryProcessor:
                 for file in files:
                     if file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov')):
                         source_file = os.path.join(root, file)
-                        target_file = os.path.join(target_dir_path, file)
+                        
+                        # Get the file extension
+                        _, file_ext = os.path.splitext(file)
+                        
+                        # Create the proper file name: 'Media Title (Year).extension'
+                        if year:
+                            target_filename = f"{title} ({year}){file_ext}"
+                        else:
+                            target_filename = f"{title}{file_ext}"
+                            
+                        target_file = os.path.join(target_dir_path, target_filename)
                         
                         if use_symlinks:
                             if os.path.exists(target_file):
