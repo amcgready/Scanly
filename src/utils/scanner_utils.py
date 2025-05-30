@@ -1,147 +1,142 @@
+#!/usr/bin/env python3
 """
-Utility functions for scanner operations in Scanly.
+Utilities for managing scanner lists.
+
+This module provides functions for working with scanner lists in Scanly.
 """
 
-import logging
 import os
-import json
 import re
+import logging
+from pathlib import Path
+from typing import Optional, Dict, Any, List
 
-def get_logger():
-    """Get a logger for the scanner utils module."""
-    return logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-logger = get_logger()
-
-# Scanner lists cache
-scanner_lists = {}
-
-def load_scanner_lists():
-    """Load all scanner lists from data directory."""
-    global scanner_lists
+class ScannerUtils:
+    """Utilities for scanner list operations."""
     
-    # Reset scanner lists
-    scanner_lists = {
-        'movie': [],
-        'tv': []
-    }
-    
-    try:
-        # Get the directory containing scanner lists
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        data_dir = os.path.join(base_dir, 'data')
+    @staticmethod
+    def format_entry(title: str, year: Optional[str], tmdb_id: str) -> str:
+        """
+        Format an entry for a scanner list.
         
-        if not os.path.exists(data_dir):
-            logger.warning(f"Data directory not found: {data_dir}")
-            return
+        Args:
+            title: Title of the show or movie
+            year: Release year or None if unknown
+            tmdb_id: TMDB ID
+            
+        Returns:
+            Formatted entry for the scanner list
+        """
+        # Format with year if available and use the standard [tmdb-ID] format
+        if year:
+            return f"{title} ({year}) [tmdb-{tmdb_id}]"
+        else:
+            return f"{title} [tmdb-{tmdb_id}]"
+    
+    @staticmethod
+    def parse_entry(entry: str) -> Dict[str, Any]:
+        """
+        Parse a scanner list entry.
         
-        # Load movie scanner list
-        movie_path = os.path.join(data_dir, 'movie_scanner.json')
-        if os.path.exists(movie_path):
-            with open(movie_path, 'r') as f:
-                scanner_lists['movie'] = json.load(f)
-            logger.info(f"Loaded {len(scanner_lists['movie'])} movies from scanner list")
+        Args:
+            entry: A line from a scanner list file
+            
+        Returns:
+            Dictionary containing title, year (if any), and ID
+        """
+        result = {
+            "title": "",
+            "year": None,
+            "tmdb_id": None,
+            "error": False
+        }
         
-        # Load TV scanner list
-        tv_path = os.path.join(data_dir, 'tv_scanner.json')
-        if os.path.exists(tv_path):
-            with open(tv_path, 'r') as f:
-                scanner_lists['tv'] = json.load(f)
-            logger.info(f"Loaded {len(scanner_lists['tv'])} TV shows from scanner list")
-    
-    except Exception as e:
-        logger.error(f"Error loading scanner lists: {e}", exc_info=True)
-
-def normalize_title(title):
-    """Normalize a title for comparison."""
-    if not title:
-        return ""
-    
-    # Convert to lowercase
-    title = title.lower()
-    
-    # Remove special characters and extra spaces
-    title = re.sub(r'[^\w\s]', ' ', title)
-    title = re.sub(r'\s+', ' ', title).strip()
-    
-    return title
-
-def find_all_matches(title, content_type=None):
-    """Find all possible matches in scanner lists, optionally filtered by content type.
-    
-    Args:
-        title: The title to search for
-        content_type: Optional filter for content type ('movie', 'tv', or None for all)
-    
-    Returns:
-        List of tuples with matches: (content_type, is_anime, tmdb_id, title, year)
-    """
-    matches = []
-    
-    # Ensure scanner lists are loaded
-    if not scanner_lists:
-        load_scanner_lists()
-    
-    # Get all potential matches from all scanner lists or just the specified content type
-    normalized_search_title = normalize_title(title)
-    
-    # Define which list types to check
-    list_types_to_check = ['movie', 'tv']
-    if content_type == 'movie':
-        list_types_to_check = ['movie']
-    elif content_type == 'tv':
-        list_types_to_check = ['tv']
-    
-    logger.debug(f"Checking {', '.join(list_types_to_check)} scanner lists for '{title}'")
-    
-    # Check each list type
-    for list_type in list_types_to_check:
-        if list_type not in scanner_lists:
-            continue
+        # Check for error entries
+        if "[Error]" in entry:
+            title_part = entry.split("[Error]")[0].strip()
+            result["title"] = title_part
+            result["error"] = True
+            return result
             
-        for item in scanner_lists[list_type]:
-            scanner_title = item.get('title', '')
-            normalized_scanner_title = normalize_title(scanner_title)
+        # Extract ID - look for [tmdb-ID] pattern
+        id_match = re.search(r'\[tmdb-(\d+)\]', entry)
+        
+        # Fall back to other patterns if needed
+        if not id_match:
+            id_match = re.search(r'\[movie:(\d+)\]', entry)
+        if not id_match:
+            id_match = re.search(r'\[(\d+)\]', entry)
             
-            # Extract item metadata
-            year = item.get('year')
-            tmdb_id = item.get('tmdb_id')
-            is_anime = item.get('anime', False)
+        if id_match:
+            result["tmdb_id"] = id_match.group(1)
             
-            # Exact match (highest priority)
-            if normalized_scanner_title == normalized_search_title:
-                logger.debug(f"EXACT MATCH: '{title}' -> '{scanner_title}'")
-                matches.append((list_type, is_anime, tmdb_id, scanner_title, year))
-                
-            # Strong containment match (one title fully contains the other)
-            elif (len(normalized_scanner_title) > 4 and normalized_scanner_title in normalized_search_title) or \
-                 (len(normalized_search_title) > 4 and normalized_search_title in normalized_scanner_title):
-                logger.debug(f"STRONG CONTAINMENT: '{title}' -> '{scanner_title}'")
-                matches.append((list_type, is_anime, tmdb_id, scanner_title, year))
-                
-            # Check for direct substring match (with length requirements to avoid false positives)
-            elif len(normalized_scanner_title) > 6 and len(normalized_search_title) > 6:
-                # Split into words and check for significant word overlap
-                scanner_words = set(normalized_scanner_title.split())
-                search_words = set(normalized_search_title.split())
-                
-                # If titles share 2+ significant words (longer than 3 chars)
-                significant_scanner_words = {w for w in scanner_words if len(w) > 3}
-                significant_search_words = {w for w in search_words if len(w) > 3}
-                
-                common_words = significant_scanner_words.intersection(significant_search_words)
-                
-                if len(common_words) >= 2:
-                    logger.debug(f"STRONG SUBSTRING: '{title}' -> '{scanner_title}'")
-                    matches.append((list_type, is_anime, tmdb_id, scanner_title, year))
+            # Extract title and year
+            title_part = re.split(r'\[', entry)[0].strip()
+            year_match = re.search(r'\((\d{4})\)$', title_part)
+            
+            if year_match:
+                result["year"] = year_match.group(1)
+                result["title"] = title_part[:-7].strip()
+            else:
+                result["title"] = title_part
+        
+        return result
     
-    # Log the results
-    if matches:
-        logger.info(f"Found {len(matches)} matches for '{title}'")
-    else:
-        logger.debug(f"No matches found for '{title}'")
+    @staticmethod
+    def add_to_scanner(scanner_file: str, title: str, year: Optional[str], tmdb_id: str) -> bool:
+        """
+        Add an entry to a scanner file.
+        
+        Args:
+            scanner_file: Path to the scanner file
+            title: Title of the show or movie
+            year: Release year or None
+            tmdb_id: TMDB ID
+            
+        Returns:
+            True if added successfully, False otherwise
+        """
+        entry = ScannerUtils.format_entry(title, year, tmdb_id)
+        
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(scanner_file), exist_ok=True)
+            
+            # Append entry to file
+            with open(scanner_file, 'a', encoding='utf-8') as f:
+                f.write(f"{entry}\n")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add entry to scanner file: {e}")
+            return False
     
-    return matches
-
-# Load scanner lists when the module is imported
-load_scanner_lists()
+    @staticmethod
+    def get_all_entries(scanner_file: str) -> List[Dict[str, Any]]:
+        """
+        Get all entries from a scanner file.
+        
+        Args:
+            scanner_file: Path to the scanner file
+            
+        Returns:
+            List of parsed entries
+        """
+        entries = []
+        try:
+            if not os.path.exists(scanner_file):
+                return entries
+                
+            with open(scanner_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                
+            for line in lines:
+                if line.strip():
+                    entry = ScannerUtils.parse_entry(line.strip())
+                    entries.append(entry)
+                    
+            return entries
+        except Exception as e:
+            logger.error(f"Failed to read scanner file: {e}")
+            return entries
