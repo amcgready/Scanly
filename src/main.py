@@ -302,9 +302,9 @@ def display_help():
     """Display help information."""
     clear_screen()
     display_ascii_art()
-    print("=" * 60)
-    print("HELP INFORMATION")
-    print("=" * 60)
+    print("=" * 84)
+    print("HELP".center(84))
+    print("=" * 84)
     print("\nScanly is a media file scanner and organizer.")
     print("\nOptions:")
     print("  1. Individual Scan - Scan a single directory for media files")
@@ -1093,12 +1093,11 @@ def main():
     clear_screen()
     display_ascii_art()
     
-    print("=" * 60)
-    print("WELCOME TO SCANLY")
-    print("=" * 60)
+    print("=" * 84)
+    print("MAIN MENU".center(84))
+    print("=" * 84)
     
     while True:
-        print("\nMAIN MENU")
         
         # Always available options
         menu_options = {
@@ -1144,9 +1143,9 @@ def main():
             # Individual scan
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("INDIVIDUAL SCAN")
-            print("=" * 60)
+            print("=" * 84)
+            print("INDIVIDUAL SCAN".center(84))
+            print("=" * 84)
             directory = input("\nEnter directory path to scan: ").strip()
             directory = _clean_directory_path(directory)
             
@@ -1199,9 +1198,9 @@ def main():
             # Settings
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("SETTINGS")
-            print("=" * 60)
+            print("=" * 84)
+            print("SETTINGS".center(84))
+            print("=" * 84)
             print("\nThis feature is not implemented yet.")
             input("\nPress Enter to continue...")
             clear_screen()
