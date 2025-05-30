@@ -672,7 +672,7 @@ class DirectoryProcessor:
         
         return False
 
-    def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, tmdb_id=None):
+    def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None):
         """Create symlinks from the source directory to the destination directory."""
         try:
             # Check if destination directory is configured
@@ -686,7 +686,7 @@ class DirectoryProcessor:
             
             # Format the base name with year for both folder and files
             base_name = title
-            if year and not is_tv:
+            if year and not is_tv and not is_wrestling:
                 base_name = f"{title} ({year})"
             
             # Add TMDB ID if available
@@ -694,7 +694,9 @@ class DirectoryProcessor:
                 base_name = f"{base_name} [tmdb-{tmdb_id}]"
             
             # Determine appropriate subdirectory based on content type
-            if is_anime and is_tv:
+            if is_wrestling:
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
+            elif is_anime and is_tv:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
             elif is_anime and not is_tv:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
@@ -730,7 +732,7 @@ class DirectoryProcessor:
                         _, file_ext = os.path.splitext(file)
                         
                         # Create the proper file name: 'Media Title (Year).extension'
-                        if year:
+                        if year and not is_tv and not is_wrestling:
                             target_filename = f"{title} ({year}){file_ext}"
                         else:
                             target_filename = f"{title}{file_ext}"
@@ -785,6 +787,7 @@ class DirectoryProcessor:
                 # Detect if this is a TV show or anime
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
+                is_wrestling = False
                 
                 # Initialize search term and TMDB ID
                 search_term = title
@@ -801,7 +804,19 @@ class DirectoryProcessor:
                     print(f"\nProcessing: {subfolder_name}")
                     print(f"  Title: {title}")
                     print(f"  Year: {year if year else 'Unknown'}")
-                    print(f"  Type: {'TV Show' if is_tv else 'Movie'} {'(Anime)' if is_anime else ''}")
+                    
+                    # Display content type
+                    content_type = "Movie"
+                    if is_wrestling:
+                        content_type = "Wrestling"
+                    elif is_tv and is_anime:
+                        content_type = "Anime Series"
+                    elif not is_tv and is_anime:
+                        content_type = "Anime Movie"
+                    elif is_tv and not is_anime:
+                        content_type = "TV Series"
+                        
+                    print(f"  Type: {content_type}")
                     print(f"  Search term: {search_term}")
                     if tmdb_id:
                         print(f"  TMDB ID: {tmdb_id}")
@@ -851,7 +866,7 @@ class DirectoryProcessor:
                                 action_choice = input("\nSelect option: ").strip()
                                 if action_choice == "" or action_choice == "1":
                                     # Process the selected match
-                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                         processed += 1
                                         break  # Exit the loop for this subfolder
                                 elif action_choice == "2":
@@ -862,7 +877,7 @@ class DirectoryProcessor:
                                     continue
                                 elif action_choice == "3":
                                     # Change content type and continue loop
-                                    self._prompt_for_content_type(is_tv, is_anime)
+                                    is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
                                     continue
                                 elif action_choice == "4":
                                     # Skip this folder
@@ -902,7 +917,7 @@ class DirectoryProcessor:
                             title = selected_match.get('title', title)
                             year = selected_match.get('year', year)
                             tmdb_id = selected_match.get('tmdb_id', '')
-                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
+                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
                                 break  # Exit the loop for this subfolder
                         elif action_choice == "2":
@@ -914,7 +929,7 @@ class DirectoryProcessor:
                             continue
                         elif action_choice == "3":
                             # Change content type
-                            is_tv, is_anime = self._prompt_for_content_type(is_tv, is_anime)
+                            is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
                             # Loop continues with new content type
                             continue
                         elif action_choice == "4":
@@ -949,7 +964,7 @@ class DirectoryProcessor:
                         
                     if choice == "1":
                         # Accept the extracted info
-                        if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, tmdb_id):
+                        if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                             processed += 1
                         break  # Exit the loop for this subfolder
                         
@@ -962,7 +977,7 @@ class DirectoryProcessor:
                         
                     elif choice == "3":
                         # Change content type using the helper method
-                        is_tv, is_anime = self._prompt_for_content_type(is_tv, is_anime)
+                        is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
                         # Loop continues with new content type settings
                     
                     elif choice == "4":
@@ -1004,23 +1019,55 @@ class DirectoryProcessor:
         """Helper method to prompt user for content type selection.
         
         Returns:
-            Tuple: (is_tv, is_anime) - Updated content type settings
+            Tuple: (is_tv, is_anime, is_wrestling) - Updated content type settings
         """
-        # TV/Movie selection
+        # Current content type
+        current_type = "Wrestling"
+        if current_is_tv and current_is_anime:
+            current_type = "Anime Series"
+        elif not current_is_tv and current_is_anime:
+            current_type = "Anime Movies"
+        elif current_is_tv and not current_is_anime:
+            current_type = "TV Series"
+        elif not current_is_tv and not current_is_anime:
+            current_type = "Movies"
+        
+        # Display options with current selection highlighted
         print("\nSelect content type:")
-        print("1. Movie")
-        print("2. TV Show")
-        type_choice = input(f"Enter choice [{2 if current_is_tv else 1}]: ").strip()
-        is_tv = type_choice == "2" if type_choice in ["1", "2"] else current_is_tv
+        print(f"1. Movies{' (current)' if current_type == 'Movies' else ''}")
+        print(f"2. TV Series{' (current)' if current_type == 'TV Series' else ''}")
+        print(f"3. Anime Movies{' (current)' if current_type == 'Anime Movies' else ''}")
+        print(f"4. Anime Series{' (current)' if current_type == 'Anime Series' else ''}")
+        print(f"5. Wrestling{' (current)' if current_type == 'Wrestling' else ''}")
         
-        # Anime selection
-        print("\nIs this anime?")
-        print("1. No")
-        print("2. Yes")
-        anime_choice = input(f"Enter choice [{2 if current_is_anime else 1}]: ").strip()
-        is_anime = anime_choice == "2" if anime_choice in ["1", "2"] else current_is_anime
+        # Get user selection
+        choice = input("\nEnter choice [1-5]: ").strip()
         
-        return is_tv, is_anime
+        # Default to current selection if empty input
+        if not choice:
+            return current_is_tv, current_is_anime, current_type == "Wrestling"
+        
+        # Process choice
+        is_tv = False
+        is_anime = False
+        is_wrestling = False
+        
+        if choice == "1":  # Movies
+            is_tv = False
+            is_anime = False
+        elif choice == "2":  # TV Series
+            is_tv = True
+            is_anime = False
+        elif choice == "3":  # Anime Movies
+            is_tv = False
+            is_anime = True
+        elif choice == "4":  # Anime Series
+            is_tv = True
+            is_anime = True
+        elif choice == "5":  # Wrestling
+            is_wrestling = True
+        
+        return is_tv, is_anime, is_wrestling
 def perform_multi_scan():
     """Perform a multi-scan operation using ThreadedDirectoryProcessor."""
     try:
