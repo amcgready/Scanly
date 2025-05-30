@@ -275,6 +275,7 @@ def clear_all_history():
     print("\nAll history has been cleared.")
     input("\nPress Enter to continue...")
     clear_screen()
+    display_ascii_art()
 
 # Global skipped items registry
 skipped_items_registry = load_skipped_items()
@@ -315,6 +316,7 @@ def display_help():
     print("\nPress Enter to continue...")
     input()
     clear_screen()  # Clear screen after leaving help
+    display_ascii_art()  # Show ASCII art when returning to main menu
 
 # Function to review skipped items
 def review_skipped_items():
@@ -325,14 +327,15 @@ def review_skipped_items():
         print("No skipped items to review.")
         input("\nPress Enter to continue...")
         clear_screen()  # Clear screen when returning to main menu
+        display_ascii_art()  # Show ASCII art
         return
     
     while True:
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
-        print("SKIPPED ITEMS")
-        print("=" * 60)
+        print("=" * 84)
+        print("SKIPPED ITEMS".center(84))
+        print("=" * 84)
         print(f"\nFound {len(skipped_items_registry)} skipped items:")
         
         # Show a paginated list of skipped items if there are many
@@ -376,40 +379,55 @@ def review_skipped_items():
                     # Implementation would go here
                     input("\nPress Enter to continue...")
                     clear_screen()  # Clear screen after processing
+                    display_ascii_art()  # Show ASCII art
                 else:
                     print("\nInvalid item number.")
                     input("\nPress Enter to continue...")
                     clear_screen()  # Clear screen after error
+                    display_ascii_art()  # Show ASCII art
             except ValueError:
                 print("\nInvalid input. Please enter a number.")
                 input("\nPress Enter to continue...")
                 clear_screen()  # Clear screen after error
+                display_ascii_art()  # Show ASCII art
         elif choice == "2":
             # Confirm before clearing
             confirm = input("\nAre you sure you want to clear all skipped items? (y/n): ").strip().lower()
             if confirm == 'y':
                 clear_skipped_items()
+                clear_screen()  # Clear screen after clearing items
+                display_ascii_art()  # Show ASCII art
                 break
         elif choice == "3" and total_pages > 1:
             # Next page
             if current_page < total_pages:
                 current_page += 1
             clear_screen()  # Clear screen when changing page
+            display_ascii_art()  # Show ASCII art
         elif choice == "4" and total_pages > 1:
             # Previous page
             if current_page > 1:
                 current_page -= 1
             clear_screen()  # Clear screen when changing page
+            display_ascii_art()  # Show ASCII art
         elif choice == "0":
             clear_screen()  # Clear screen when returning to main menu
+            display_ascii_art()  # Show ASCII art
             return
         else:
             print("\nInvalid option.")
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after error
+            display_ascii_art()  # Show ASCII art
 
 def _check_monitor_status():
     """Check and fix the monitor status if needed."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MONITOR STATUS".center(84))
+    print("=" * 84)
+    
     try:
         from src.core.monitor import MonitorManager
         
@@ -440,14 +458,17 @@ def _check_monitor_status():
         
         input("\nPress Enter to continue...")
         clear_screen()  # Clear screen after checking monitor status
+        display_ascii_art()  # Show ASCII art
     except ImportError:
         print("\nMonitor module not found. Please check your installation.")
         input("\nPress Enter to continue...")
         clear_screen()  # Clear screen after error
+        display_ascii_art()  # Show ASCII art
     except Exception as e:
         print(f"\nError checking monitor status: {e}")
         input("\nPress Enter to continue...")
         clear_screen()  # Clear screen after error
+        display_ascii_art()  # Show ASCII art
 
 class DirectoryProcessor:
     """Process a directory of media files."""
@@ -796,6 +817,7 @@ class DirectoryProcessor:
                 print("\nNo subdirectories found to process.")
                 input("\nPress Enter to continue...")
                 clear_screen()  # Clear screen when returning to main menu
+                display_ascii_art()  # Show ASCII art
                 return 0
                 
             print(f"Found {len(subdirs)} subdirectories to process")
@@ -822,10 +844,10 @@ class DirectoryProcessor:
                 # Loop for processing the current folder with different options
                 while True:
                     clear_screen()  # Clear screen before displaying folder processing menu
-                    display_ascii_art()
-                    print("=" * 60)
-                    print("FOLDER PROCESSING")
-                    print("=" * 60)
+                    display_ascii_art()  # Show ASCII art
+                    print("=" * 84)
+                    print("FOLDER PROCESSING".center(84))
+                    print("=" * 84)
                     
                     print(f"\nProcessing: {subfolder_name}")
                     print(f"  Title: {title}")
@@ -861,7 +883,7 @@ class DirectoryProcessor:
                             match_tmdb_id = match.get('tmdb_id', '')
                             id_str = f" [tmdb-{match_tmdb_id}]" if match_tmdb_id else ""
                             print(f"{i+1}. {match_title}{year_str}{id_str}")
-                        print("0. None of these / Manual identification")
+                        print("0. Additional options")
                         
                         match_choice = input("\nSelect correct match: ").strip()
                         # Make Enter key select option 1 as default
@@ -886,9 +908,10 @@ class DirectoryProcessor:
                                     processed += 1
                                     input("\nPress Enter to continue...")
                                     clear_screen()  # Clear screen after successful processing
+                                    display_ascii_art()  # Show ASCII art
                                     break  # Exit the loop for this subfolder
 
-                            elif match_idx == -1:  # User selected "None of these"
+                            elif match_idx == -1:  # User selected "Additional options"
                                 print("\nProceeding with manual identification...")
                                 # Continue to manual options (existing flow)
                         except ValueError:
@@ -916,6 +939,7 @@ class DirectoryProcessor:
                                 processed += 1
                                 input("\nPress Enter to continue...")
                                 clear_screen()  # Clear screen after successful processing
+                                display_ascii_art()  # Show ASCII art
                                 break  # Exit the loop for this subfolder
                         elif action_choice == "4":
                             # Skip this folder
@@ -928,6 +952,7 @@ class DirectoryProcessor:
                             save_skipped_items(skipped_items_registry)
                             input("\nPress Enter to continue...")
                             clear_screen()  # Clear screen after skipping
+                            display_ascii_art()  # Show ASCII art
                             break  # Exit loop for this subfolder
                         elif action_choice == "0":
                             # Quit
@@ -935,6 +960,7 @@ class DirectoryProcessor:
                                 print("\nScan cancelled.")
                                 input("\nPress Enter to continue...")
                                 clear_screen()  # Clear screen after quitting
+                                display_ascii_art()  # Show ASCII art
                                 return -1
                         # If other options selected, continue with the loop
                         
@@ -959,6 +985,7 @@ class DirectoryProcessor:
                             processed += 1
                             input("\nPress Enter to continue...")
                             clear_screen()  # Clear screen after successful processing
+                            display_ascii_art()  # Show ASCII art
                         break  # Exit the loop for this subfolder
                         
                     elif choice == "2":
@@ -968,12 +995,14 @@ class DirectoryProcessor:
                             search_term = new_search
                         # Loop continues with new search term
                         clear_screen()  # Clear screen after changing search term
+                        display_ascii_art()  # Show ASCII art
                         
                     elif choice == "3":
                         # Change content type using the helper method
                         is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
                         # Loop continues with new content type settings
                         clear_screen()  # Clear screen after changing content type
+                        display_ascii_art()  # Show ASCII art
                     
                     elif choice == "4":
                         # Manual TMDB ID entry
@@ -982,6 +1011,7 @@ class DirectoryProcessor:
                             tmdb_id = new_tmdb_id
                         # Loop continues with new TMDB ID
                         clear_screen()  # Clear screen after changing TMDB ID
+                        display_ascii_art()  # Show ASCII art
                         
                     elif choice == "5":
                         # Skip this subfolder
@@ -994,6 +1024,7 @@ class DirectoryProcessor:
                         save_skipped_items(skipped_items_registry)
                         input("\nPress Enter to continue...")
                         clear_screen()  # Clear screen after skipping
+                        display_ascii_art()  # Show ASCII art
                         break  # Exit the loop for this subfolder
                         
                     elif choice == "0":
@@ -1002,17 +1033,21 @@ class DirectoryProcessor:
                             print("Scan cancelled.")
                             input("\nPress Enter to continue...")
                             clear_screen()  # Clear screen after quitting
+                            display_ascii_art()  # Show ASCII art
                             return -1
                         clear_screen()  # Clear screen if user decides not to quit
+                        display_ascii_art()  # Show ASCII art
                         
                     else:
                         print("Invalid option. Please try again.")
                         input("\nPress Enter to continue...")
                         clear_screen()  # Clear screen after invalid option
+                        display_ascii_art()  # Show ASCII art
         
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after completing all processing
+            display_ascii_art()  # Show ASCII art
             return processed
             
         except Exception as e:
@@ -1020,6 +1055,7 @@ class DirectoryProcessor:
             print(f"Error: {e}")
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after error
+            display_ascii_art()  # Show ASCII art
 
     def _prompt_for_content_type(self, current_is_tv, current_is_anime):
         """Helper method to prompt user for content type selection.
@@ -1028,6 +1064,10 @@ class DirectoryProcessor:
             Tuple: (is_tv, is_anime, is_wrestling) - Updated content type settings
         """
         clear_screen()  # Clear screen before showing content type menu
+        display_ascii_art()  # Show ASCII art
+        print("=" * 84)
+        print("SELECT CONTENT TYPE".center(84))
+        print("=" * 84)
         
         # Current content type
         current_type = "Wrestling"
@@ -1087,6 +1127,7 @@ def perform_multi_scan():
         print(f"\nError importing threaded processor: {e}")
         input("\nPress Enter to continue...")
         clear_screen()  # Clear screen after error
+        display_ascii_art()  # Show ASCII art
 
 def main():
     """Main function to run the Scanly application."""
@@ -1156,23 +1197,30 @@ def main():
                 print("\nInvalid directory path.")
                 input("\nPress Enter to continue...")
                 clear_screen()
+                display_ascii_art()  # Show ASCII art
         
         elif choice == "2":
             # Multi scan
             clear_screen()
+            display_ascii_art()  # Show ASCII art
+            print("=" * 84)
+            print("MULTI SCAN".center(84))
+            print("=" * 84)
             perform_multi_scan()
             clear_screen()
+            display_ascii_art()  # Show ASCII art
         
         elif choice in menu_options and menu_options[choice][0] == "Resume Scan":
             # Resume scan
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("RESUME SCAN")
-            print("=" * 60)
+            print("=" * 84)
+            print("RESUME SCAN".center(84))
+            print("=" * 84)
             print("\nThis feature is not implemented yet.")
             input("\nPress Enter to continue...")
             clear_screen()
+            display_ascii_art()  # Show ASCII art
         
         elif choice in menu_options and menu_options[choice][0] == "Review Skipped Items":
             # Review skipped items
@@ -1183,9 +1231,9 @@ def main():
             # Clear history
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("CLEAR HISTORY")
-            print("=" * 60)
+            print("=" * 84)
+            print("CLEAR HISTORY".center(84))
+            print("=" * 84)
             confirm = input("\nAre you sure you want to clear all history? (y/n): ").strip().lower()
             if confirm == 'y':
                 clear_all_history()
@@ -1193,6 +1241,7 @@ def main():
                 print("\nHistory clearing cancelled.")
                 input("\nPress Enter to continue...")
                 clear_screen()
+                display_ascii_art()  # Show ASCII art
         
         elif choice in menu_options and menu_options[choice][0] == "Settings":
             # Settings
@@ -1204,6 +1253,7 @@ def main():
             print("\nThis feature is not implemented yet.")
             input("\nPress Enter to continue...")
             clear_screen()
+            display_ascii_art()  # Show ASCII art
         
         elif choice in menu_options and menu_options[choice][0] == "Help":
             # Help
@@ -1219,6 +1269,7 @@ def main():
             print("\nInvalid option. Please try again.")
             input("\nPress Enter to continue...")
             clear_screen()
+            display_ascii_art()  # Show ASCII art
 
 if __name__ == "__main__":
     main()
