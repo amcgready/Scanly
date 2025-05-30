@@ -1610,6 +1610,7 @@ class SettingsMenu:
             print("\nCurrent Advanced Settings:")
             print(f"1. Debug Mode: {'Enabled' if debug_mode else 'Disabled'}")
             print("2. Fix Scanner Files")
+            print("3. Configure Scanner Lists") # New option
             print("q. Return to Settings Menu")
             
             choice = input("\nSelect option: ").strip().lower()
@@ -1627,6 +1628,8 @@ class SettingsMenu:
                 input("\nPress Enter to continue...")
             elif choice == '2':
                 self._fix_scanner_files()
+            elif choice == '3':
+                self._configure_scanner_lists()
             elif choice == 'q':
                 return
             else:
@@ -1677,83 +1680,338 @@ class SettingsMenu:
         
         input("\nPress Enter to continue...")
     
-    def _view_all_settings(self):
-        """View all current configuration settings."""
+    def _configure_scanner_lists(self):
+        """Configure scanner lists and their content types."""
         clear_screen()
         display_ascii_art()
         print("=" * 84)
-        print("CURRENT CONFIGURATION".center(84))
+        print("SCANNER LISTS CONFIGURATION".center(84))
         print("=" * 84)
         
-        # Read all environment variables from .env file
-        env_vars = {}
-        if os.path.exists(self.env_path):
-            try:
-                with open(self.env_path, 'r') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith('#') and '=' in line:
-                            key, value = line.split('=', 1)
-                            env_vars[key] = value
-            except Exception as e:
-                self.logger.error(f"Error reading .env file: {e}")
+        # Get the scanners directory
+        scanner_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+        if not os.path.exists(scanner_dir):
+            os.makedirs(scanner_dir, exist_ok=True)
         
-        # Display in categories
-        print("\nDirectory Settings:")
-        print(f"  Destination Directory: {os.environ.get('DESTINATION_DIRECTORY', 'Not set')}")
-        
-        print("\nTMDB API Settings:")
-        api_key = os.environ.get('TMDB_API_KEY', 'Not set')
-        print(f"  API Key: {self._mask_sensitive_info(api_key) if api_key != 'Not set' else 'Not set'}")
-        print(f"  Include TMDB ID: {'Enabled' if os.environ.get('INCLUDE_TMDB_ID', 'true').lower() == 'true' else 'Disabled'}")
-        
-        print("\nFile Management Settings:")
-        print(f"  Use Symlinks: {'Enabled' if os.environ.get('USE_SYMLINKS', 'true').lower() == 'true' else 'Disabled'}")
-        print(f"  Refresh Plex: {'Enabled' if os.environ.get('REFRESH_PLEX', 'false').lower() == 'true' else 'Disabled'}")
-        
-        print("\nPlex Settings:")
-        plex_url = os.environ.get('PLEX_URL', 'Not set')
-        plex_token = os.environ.get('PLEX_TOKEN', 'Not set')
-        print(f"  Plex URL: {plex_url}")
-        print(f"  Plex Token: {self._mask_sensitive_info(plex_token) if plex_token != 'Not set' else 'Not set'}")
-        print(f"  Movies Section: {os.environ.get('PLEX_MOVIES_SECTION', '1')}")
-        print(f"  TV Section: {os.environ.get('PLEX_TV_SECTION', '2')}")
-        print(f"  Anime Movies Section: {os.environ.get('PLEX_ANIME_MOVIES_SECTION', '3')}")
-        print(f"  Anime TV Section: {os.environ.get('PLEX_ANIME_TV_SECTION', '4')}")
-        
-        print("\nMonitoring Settings:")
-        print(f"  Monitoring Interval: {os.environ.get('MONITOR_INTERVAL_MINUTES', '60')} minutes")
-        
-        print("\nAdvanced Settings:")
-        print(f"  Debug Mode: {'Enabled' if os.environ.get('DEBUG_MODE', 'false').lower() == 'true' else 'Disabled'}")
-        
-        print("\nOther Settings:")
-        # Display any other environment variables that don't fit into the above categories
-        other_keys = set(env_vars.keys()) - {
-            'DESTINATION_DIRECTORY', 'TMDB_API_KEY', 'INCLUDE_TMDB_ID', 'USE_SYMLINKS',
-            'REFRESH_PLEX', 'PLEX_URL', 'PLEX_TOKEN', 'PLEX_MOVIES_SECTION', 
-            'PLEX_TV_SECTION', 'PLEX_ANIME_MOVIES_SECTION', 'PLEX_ANIME_TV_SECTION',
-            'MONITOR_INTERVAL_MINUTES', 'DEBUG_MODE'
+        # Default scanner files and their mappings
+        default_scanners = {
+            'movies.txt': 'movies',
+            'tv_series.txt': 'tv',
+            'anime_movies.txt': 'anime_movies',
+            'anime_series.txt': 'anime_tv'
         }
-        for key in sorted(other_keys):
-            value = env_vars.get(key)
-            # Mask sensitive values that might contain tokens or keys
-            if 'key' in key.lower() or 'token' in key.lower() or 'password' in key.lower():
-                value = self._mask_sensitive_info(value)
-            print(f"  {key}: {value}")
         
-        input("\nPress Enter to return to Settings Menu...")
+        # Load current mappings from environment variables
+        current_mappings = {}
+        for scanner_file, default_type in default_scanners.items():
+            env_var_name = f"SCANNER_{scanner_file.replace('.', '_').upper()}"
+            current_mappings[scanner_file] = os.environ.get(env_var_name, default_type)
+        
+        # Show current scanner files and their settings
+        print("\nDetected Scanner Files:")
+        index = 1
+        scanner_files = []
+        
+        # First check the default scanner files
+        for scanner_file in default_scanners:
+            full_path = os.path.join(scanner_dir, scanner_file)
+            if os.path.exists(full_path):
+                content_type = current_mappings.get(scanner_file, default_scanners[scanner_file])
+                file_size = os.path.getsize(full_path)
+                line_count = 0
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        line_count = sum(1 for line in f if line.strip())
+                except Exception:
+                    pass
+            
+            print(f"{index}. {scanner_file}")
+            print(f"   Type: {content_type}")
+            print(f"   Size: {file_size} bytes")
+            print(f"   Entries: {line_count}")
+            scanner_files.append((scanner_file, full_path))
+            index += 1
     
-    def _mask_sensitive_info(self, text):
-        """Mask sensitive information for display."""
-        if not text or text == 'Not set':
-            return 'Not set'
+        # Then check for any additional scanner files in the directory
+        for file in os.listdir(scanner_dir):
+            if file.endswith('.txt') and file not in default_scanners:
+                full_path = os.path.join(scanner_dir, file)
+                content_type = os.environ.get(f"SCANNER_{file.replace('.', '_').upper()}", "unknown")
+                file_size = os.path.getsize(full_path)
+                line_count = 0
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        line_count = sum(1 for line in f if line.strip())
+                except Exception:
+                    pass
+            
+            print(f"{index}. {file}")
+            print(f"   Type: {content_type}")
+            print(f"   Size: {file_size} bytes")
+            print(f"   Entries: {line_count}")
+            scanner_files.append((file, full_path))
+            index += 1
+    
+        if not scanner_files:
+            print("\nNo scanner files found.")
+            input("\nPress Enter to continue...")
+            return
+    
+        print("\nOptions:")
+        print("1. Configure content type for a scanner file")
+        print("2. Create a new scanner file")
+        print("3. View scanner file contents")
+        print("q. Return to Advanced Settings")
         
-        # Show first 4 and last 4 characters, mask the rest
-        if len(text) <= 8:
-            return "****"
+        choice = input("\nSelect option: ").strip().lower()
+        
+        if choice == '1':
+            self._set_scanner_content_type(scanner_files)
+        elif choice == '2':
+            self._create_new_scanner_file(scanner_dir)
+        elif choice == '3':
+            self._view_scanner_contents(scanner_files)
+        elif choice != 'q':
+            print("\nInvalid option.")
+            input("\nPress Enter to continue...")
+
+    def _set_scanner_content_type(self, scanner_files):
+        """Set the content type for a scanner file."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("CONFIGURE SCANNER CONTENT TYPE".center(84))
+        print("=" * 84)
+        
+        # Display scanner files
+        print("\nScanner Files:")
+        for i, (file, _) in enumerate(scanner_files):
+            print(f"{i+1}. {file}")
+        
+        # Get user selection
+        file_choice = input("\nSelect a scanner file (number) or 'q' to return: ").strip().lower()
+        
+        if file_choice == 'q':
+            return
+        
+        try:
+            file_index = int(file_choice) - 1
+            if 0 <= file_index < len(scanner_files):
+                selected_file, _ = scanner_files[file_index]
+                
+                # Show available content types
+                print("\nAvailable Content Types:")
+                content_types = {
+                    "1": "movies",
+                    "2": "tv",
+                    "3": "anime_movies",
+                    "4": "anime_tv",
+                    "5": "wrestling",
+                    "6": "documentaries",
+                    "7": "music_videos",
+                    "8": "custom"
+                }
+                
+                for num, content_type in content_types.items():
+                    print(f"{num}. {content_type}")
+                
+                # Get content type selection
+                type_choice = input("\nSelect content type (number) or 'q' to cancel: ").strip().lower()
+                
+                if type_choice == 'q':
+                    return
+                
+                if type_choice in content_types:
+                    selected_type = content_types[type_choice]
+                    
+                    # For custom type, get user input
+                    if selected_type == "custom":
+                        custom_type = input("\nEnter custom content type: ").strip().lower()
+                        if custom_type:
+                            selected_type = custom_type
+                        else:
+                            print("\nInvalid custom type.")
+                            input("\nPress Enter to continue...")
+                            return
+                    
+                    # Update environment variable
+                    env_var_name = f"SCANNER_{selected_file.replace('.', '_').upper()}"
+                    _update_env_var(env_var_name, selected_type)
+                    print(f"\nScanner file '{selected_file}' set to type '{selected_type}'.")
+                    input("\nPress Enter to continue...")
+                else:
+                    print("\nInvalid content type selection.")
+                    input("\nPress Enter to continue...")
+            else:
+                print("\nInvalid file selection.")
+                input("\nPress Enter to continue...")
+        except ValueError:
+            print("\nInvalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
+
+    def _create_new_scanner_file(self, scanner_dir):
+        """Create a new scanner file."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("CREATE NEW SCANNER FILE".center(84))
+        print("=" * 84)
+        
+        # Get file name
+        file_name = input("\nEnter new scanner file name (must end with .txt): ").strip()
+        
+        if not file_name:
+            print("\nOperation cancelled.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Validate file name
+        if not file_name.endswith('.txt'):
+            file_name += '.txt'
+        
+        # Check if file already exists
+        file_path = os.path.join(scanner_dir, file_name)
+        if os.path.exists(file_path):
+            print(f"\nFile '{file_name}' already exists.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Show available content types
+        print("\nSelect content type for this scanner:")
+        content_types = {
+            "1": "movies",
+            "2": "tv",
+            "3": "anime_movies",
+            "4": "anime_tv",
+            "5": "wrestling",
+            "6": "documentaries",
+            "7": "music_videos",
+            "8": "custom"
+        }
+        
+        for num, content_type in content_types.items():
+            print(f"{num}. {content_type}")
+        
+        # Get content type selection
+        type_choice = input("\nSelect content type (number) or 'q' to cancel: ").strip().lower()
+        
+        if type_choice == 'q':
+            return
+        
+        if type_choice in content_types:
+            selected_type = content_types[type_choice]
+            
+            # For custom type, get user input
+            if selected_type == "custom":
+                custom_type = input("\nEnter custom content type: ").strip().lower()
+                if custom_type:
+                    selected_type = custom_type
+                else:
+                    print("\nInvalid custom type.")
+                    input("\nPress Enter to continue...")
+                    return
+            
+            # Create the file
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write("# Scanner file for " + selected_type + "\n")
+                    f.write("# Format: Title (Year) [tmdb-ID]\n")
+                    f.write("# Example: The Matrix (1999) [tmdb-603]\n\n")
+                
+                # Update environment variable
+                env_var_name = f"SCANNER_{file_name.replace('.', '_').upper()}"
+                _update_env_var(env_var_name, selected_type)
+                
+                print(f"\nCreated new scanner file '{file_name}' with type '{selected_type}'.")
+                input("\nPress Enter to continue...")
+            except Exception as e:
+                print(f"\nError creating scanner file: {e}")
+                input("\nPress Enter to continue...")
         else:
-            return f"{text[:4]}****{text[-4:]}"
+            print("\nInvalid content type selection.")
+            input("\nPress Enter to continue...")
+
+    def _view_scanner_contents(self, scanner_files):
+        """View the contents of a scanner file."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("VIEW SCANNER FILE CONTENTS".center(84))
+        print("=" * 84)
+        
+        # Display scanner files
+        print("\nScanner Files:")
+        for i, (file, _) in enumerate(scanner_files):
+            print(f"{i+1}. {file}")
+        
+        # Get user selection
+        file_choice = input("\nSelect a scanner file to view (number) or 'q' to return: ").strip().lower()
+        
+        if file_choice == 'q':
+            return
+        
+        try:
+            file_index = int(file_choice) - 1
+            if 0 <= file_index < len(scanner_files):
+                _, file_path = scanner_files[file_index]
+                
+                # Count total lines
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
+                        total_lines = len(lines)
+                except Exception as e:
+                    print(f"\nError reading file: {e}")
+                    input("\nPress Enter to continue...")
+                    return
+                
+                # Set up paging
+                page_size = 20
+                page = 0
+                total_pages = (total_lines + page_size - 1) // page_size if total_lines > 0 else 1
+                
+                while True:
+                    clear_screen()
+                    display_ascii_art()
+                    print("=" * 84)
+                    print(f"VIEWING {os.path.basename(file_path)}".center(84))
+                    print("=" * 84)
+                    
+                    # Display content
+                    if total_lines == 0:
+                        print("\nFile is empty or contains only comments.")
+                    else:
+                        start_idx = page * page_size
+                        end_idx = min(start_idx + page_size, total_lines)
+                        
+                        print(f"\nShowing entries {start_idx+1}-{end_idx} of {total_lines}")
+                        print("-" * 84)
+                        
+                        for i in range(start_idx, end_idx):
+                            print(f"{i+1}. {lines[i].strip()}")
+                
+                    # Navigation options
+                    print("\nNavigation:")
+                    if page > 0:
+                        print("p - Previous page")
+                    if page < total_pages - 1:
+                        print("n - Next page")
+                    print("q - Return to scanner configuration")
+                    
+                    nav_choice = input("\nEnter choice: ").strip().lower()
+                    
+                    if nav_choice == 'p' and page > 0:
+                        page -= 1
+                    elif nav_choice == 'n' and page < total_pages - 1:
+                        page += 1
+                    elif nav_choice == 'q':
+                        break
+            else:
+                print("\nInvalid file selection.")
+                input("\nPress Enter to continue...")
+        except ValueError:
+            print("\nInvalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
 
 def main():
     """Main function to run the Scanly application."""
