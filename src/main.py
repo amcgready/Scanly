@@ -772,69 +772,76 @@ class DirectoryProcessor:
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 
-                # Check scanner lists for matches
-                scanner_matches = self._check_scanner_lists(title, year, is_tv, is_anime)
+                # Initialize search term (default to title)
+                search_term = title
                 
-                print(f"\nProcessing: {subfolder_name}")
-                print(f"  Title: {title}")
-                print(f"  Year: {year if year else 'Unknown'}")
-                print(f"  Type: {'TV Show' if is_tv else 'Movie'}")
-                print(f"  Scanner Matches: {len(scanner_matches)}")
-                
-                # If multiple scanner matches found, ask user to select
-                selected_match = None
-                if len(scanner_matches) > 1:
-                    print("\nSelect the correct match:")
-                    for i, match in enumerate(scanner_matches):
-                        title = match.get('title', 'Unknown')
-                        year_str = f" ({match.get('year')})" if match.get('year') else ""
-                        tmdb_id = match.get('tmdb_id', '')
-                        id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
-                        print(f"{i+1}. {title}{year_str}{id_str}")
-                    print("0. None of these / Manual identification")
+                # Loop for processing the current folder with different options
+                while True:
+                    print(f"\nProcessing: {subfolder_name}")
+                    print(f"  Title: {title}")
+                    print(f"  Year: {year if year else 'Unknown'}")
+                    print(f"  Type: {'TV Show' if is_tv else 'Movie'} {'(Anime)' if is_anime else ''}")
+                    print(f"  Search term: {search_term}")
                     
-                    match_choice = input("\nSelect correct match: ").strip()
-                    # Make Enter key select option 1 as default
-                    if match_choice == "":
-                        match_choice = "1"
+                    # Check scanner lists for matches using current search term
+                    scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
+                    print(f"  Scanner Matches: {len(scanner_matches)}")
+                    
+                    # If multiple scanner matches found, ask user to select
+                    selected_match = None
+                    if len(scanner_matches) > 1:
+                        print("\nSelect the correct match:")
+                        for i, match in enumerate(scanner_matches):
+                            match_title = match.get('title', 'Unknown')
+                            year_str = f" ({match.get('year')})" if match.get('year') else ""
+                            tmdb_id = match.get('tmdb_id', '')
+                            id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                            print(f"{i+1}. {match_title}{year_str}{id_str}")
+                        print("0. None of these / Manual identification")
                         
-                    try:
-                        match_idx = int(match_choice) - 1
-                        if 0 <= match_idx < len(scanner_matches):
-                            selected_match = scanner_matches[match_idx]
+                        match_choice = input("\nSelect correct match: ").strip()
+                        # Make Enter key select option 1 as default
+                        if match_choice == "":
+                            match_choice = "1"
+                            
+                        try:
+                            match_idx = int(match_choice) - 1
+                            if 0 <= match_idx < len(scanner_matches):
+                                selected_match = scanner_matches[match_idx]
+                                title = selected_match.get('title', title)
+                                year = selected_match.get('year', year)
+                                tmdb_id = selected_match.get('tmdb_id', '')
+                                
+                                # Display the selected match
+                                year_str = f" ({year})" if year else ""
+                                id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                                print(f"\nSelected: {title}{year_str}{id_str}")
+                                
+                                # Process the selected match directly
+                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
+                                    processed += 1
+                                    break  # Exit the loop for this subfolder
+                            elif match_idx == -1:  # User selected "None of these"
+                                print("\nProceeding with manual identification...")
+                        except ValueError:
+                            print("\nInvalid choice. Proceeding with extracted information.")
+                    elif len(scanner_matches) == 1:
+                        selected_match = scanner_matches[0]
+                        tmdb_id = selected_match.get('tmdb_id', '')
+                        id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
+                        print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')}){id_str}")
+                        confirm = input("Use this match? (y/n): ").strip().lower()
+                        if confirm == '' or confirm == 'y':
                             title = selected_match.get('title', title)
                             year = selected_match.get('year', year)
-                            tmdb_id = selected_match.get('tmdb_id', '')
-                            
-                            # Display the selected match
-                            year_str = f" ({year})" if year else ""
-                            id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
-                            print(f"\nSelected: {title}{year_str}{id_str}")
-                            
-                            # Process the selected match directly and continue to next folder
-                            self._create_symlinks(subfolder_path, title, year, is_tv, is_anime)
-                            processed += 1
-                            continue  # Skip to the next folder in the main loop
-                        elif match_idx == -1:  # User selected "None of these"
-                            print("\nProceeding with manual identification...")
-                    except ValueError:
-                        print("\nInvalid choice. Proceeding with extracted information.")
-                elif len(scanner_matches) == 1:
-                    selected_match = scanner_matches[0]
-                    tmdb_id = selected_match.get('tmdb_id', '')
-                    id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
-                    print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')})")
-                    confirm = input("Use this match? (y/n): ").strip().lower()
-                    if confirm == '':
-                        confirm = 'y'  # Default to yes if Enter is pressed
-                        title = selected_match.get('title', title)
-                        year = selected_match.get('year', year)
-    
-                # Show options for this subfolder
-                while True:
+                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
+                                processed += 1
+                                break  # Exit the loop for this subfolder
+
+                    # Show options for this subfolder
                     print("\nOptions:")
                     print("1. Accept (default - press Enter)")
-                    print("2. New Search")
+                    print("2. Change search term")
                     print("3. Change content type")
                     print("4. Skip (save for later review)")
                     print("5. Quit")
@@ -849,27 +856,15 @@ class DirectoryProcessor:
                         # Accept the extracted info
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
                             processed += 1
-                        break
-                    elif choice == "2":
-                        # New Search (edit title/year)
-                        new_title = input(f"Enter title [{title}]: ").strip()
-                        if new_title:
-                            title = new_title
-                    
-                        new_year = input(f"Enter year [{year if year else 'Unknown'}]: ").strip()
-                        if new_year and re.match(r'^(19|20)\d{2}$', new_year):
-                            year = new_year
-                    
-                        print(f"\nUpdated info:")
-                        print(f"  Title: {title}")
-                        print(f"  Year: {year if year else 'Unknown'}")
-                        print(f"  Type: {'TV Show' if is_tv else 'Movie'}")
+                        break  # Exit the loop for this subfolder
                         
-                        confirm = input("\nUse this info? (y/n): ").strip().lower()
-                        if confirm == 'y':
-                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
-                                processed += 1
-                            break
+                    elif choice == "2":
+                        # Change search term
+                        new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                        if new_search:
+                            search_term = new_search
+                        # Loop continues with new search term
+                        
                     elif choice == "3":
                         # Change content type
                         print("\nSelect content type:")
@@ -884,17 +879,8 @@ class DirectoryProcessor:
                         print("2. Yes")
                         anime_choice = input(f"Enter choice [{2 if is_anime else 1}]: ").strip()
                         is_anime = anime_choice == "2" if anime_choice in ["1", "2"] else is_anime
+                        # Loop continues with new content type settings
                         
-                        print(f"\nUpdated info:")
-                        print(f"  Title: {title}")
-                        print(f"  Year: {year if year else 'Unknown'}")
-                        print(f"  Type: {'TV Show' if is_tv else 'Movie'}")
-                        
-                        confirm = input("\nUse this info? (y/n): ").strip().lower()
-                        if confirm == 'y':
-                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime):
-                                processed += 1
-                            break
                     elif choice == "4":
                         # Skip this subfolder
                         print(f"Skipping subfolder: {subfolder_name}")
@@ -904,17 +890,24 @@ class DirectoryProcessor:
                             'skipped_date': datetime.datetime.now().isoformat()
                         })
                         save_skipped_items(skipped_items_registry)
-                        break
+                        break  # Exit the loop for this subfolder
+                        
                     elif choice == "5":
                         # Quit the scan
                         if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                             print("Scan cancelled.")
                             return -1
+                            
                     else:
                         print("Invalid option. Please try again.")
-        
+    
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
             return processed
+            
+        except Exception as e:
+            self.logger.error(f"Error processing media files: {e}")
+            print(f"Error: {e}")
+            return -1
             
         except Exception as e:
             self.logger.error(f"Error processing media files: {e}")
