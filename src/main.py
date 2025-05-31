@@ -1229,6 +1229,147 @@ def perform_multi_scan():
 class SettingsMenu:
     """Settings menu handler for the application."""
     
+    def _create_custom_content_type(self, scanner_dir, all_content_types, custom_content_types):
+        """Create a new custom content type."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("CREATE CUSTOM CONTENT TYPE".center(84))
+        print("=" * 84)
+        
+        # Get the name for the new content type
+        content_type = input("\nEnter name for the new content type: ").strip()
+        
+        if not content_type:
+            print("\nOperation cancelled.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Check if content type already exists
+        if content_type in all_content_types:
+            print(f"\nContent type '{content_type}' already exists.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # Generate a slug for environment variable
+        env_slug = content_type.upper().replace(' ', '_')
+        env_var = f"SCANNER_{env_slug}"
+        
+        # Suggest a default file name
+        default_file = content_type.lower().replace(' ', '_') + '.txt'
+        
+        # Ask if user wants to create the scanner file now
+        create_file = input(f"\nCreate scanner file '{default_file}' now? (y/n): ").strip().lower()
+        
+        if create_file == 'y':
+            file_path = os.path.join(scanner_dir, default_file)
+            
+            if os.path.exists(file_path):
+                # File already exists, ask to use it
+                use_existing = input(f"\nFile '{default_file}' already exists. Use it? (y/n): ").strip().lower()
+                if use_existing != 'y':
+                    # User doesn't want to use existing file, ask for new name
+                    default_file = input("\nEnter new scanner file name (.txt will be added if missing): ").strip()
+                    if not default_file:
+                        print("\nOperation cancelled.")
+                        input("\nPress Enter to continue...")
+                        return
+                    
+                    # Add .txt extension if missing
+                    if not default_file.endswith('.txt'):
+                        default_file += '.txt'
+                    
+                    file_path = os.path.join(scanner_dir, default_file)
+                    
+                    # Check again if file exists
+                    if os.path.exists(file_path):
+                        print(f"\nFile '{default_file}' already exists.")
+                        input("\nPress Enter to continue...")
+                        return
+            
+            # Create the scanner file
+            try:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(f"# Scanner file for {content_type}\n")
+                    f.write("# Format: Title (Year) [tmdb-ID]\n")
+                    f.write("# Example: The Matrix (1999) [tmdb-603]\n\n")
+                print(f"\nCreated scanner file '{default_file}'.")
+            except Exception as e:
+                print(f"\nError creating scanner file: {e}")
+                input("\nPress Enter to continue...")
+                return
+        
+        # Add the new content type to custom types
+        custom_content_types[content_type] = {
+            "env_var": env_var,
+            "default_file": default_file
+        }
+        
+        # Save custom content types to environment
+        _update_env_var('SCANNER_CUSTOM_TYPES', json.dumps(custom_content_types))
+        
+        # Set the scanner file for this content type
+        _update_env_var(env_var, default_file)
+        
+        print(f"\nCreated new content type '{content_type}' with scanner file '{default_file}'.")
+        input("\nPress Enter to continue...")
+    
+    def _delete_custom_content_type(self, all_content_types, custom_content_types):
+        """Delete a custom content type."""
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("DELETE CUSTOM CONTENT TYPE".center(84))
+        print("=" * 84)
+        
+        # Check if there are any custom content types
+        if not custom_content_types:
+            print("\nNo custom content types found.")
+            input("\nPress Enter to continue...")
+            return
+        
+        # List custom content types
+        print("\nAvailable custom content types:")
+        custom_types = list(custom_content_types.keys())
+        for i, content_type in enumerate(custom_types, 1):
+            print(f"{i}. {content_type}")
+        
+        # Get user selection
+        choice = input("\nSelect content type to delete (number) or 'q' to cancel: ").strip().lower()
+        
+        if choice == 'q':
+            return
+        
+        try:
+            index = int(choice) - 1
+            if 0 <= index < len(custom_types):
+                content_type = custom_types[index]
+                
+                # Confirm deletion
+                confirm = input(f"\nAre you sure you want to delete '{content_type}'? (y/n): ").strip().lower()
+                if confirm == 'y':
+                    # Remove from environment
+                    env_var = custom_content_types[content_type]["env_var"]
+                    
+                    # Remove the content type from custom types
+                    del custom_content_types[content_type]
+                    
+                    # Update environment variable
+                    _update_env_var('SCANNER_CUSTOM_TYPES', json.dumps(custom_content_types))
+                    
+                    print(f"\nDeleted content type '{content_type}'.")
+                    
+                    # Note: We deliberately don't delete the scanner file, just the mapping
+                    print(f"Note: The scanner file was not deleted, only the content type mapping.")
+                else:
+                    print("\nDeletion cancelled.")
+            else:
+                print("\nInvalid selection.")
+            input("\nPress Enter to continue...")
+        except ValueError:
+            print("\nInvalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
     def __init__(self):
         self.logger = get_logger(__name__)
         self.env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
@@ -1694,7 +1835,7 @@ class SettingsMenu:
             os.makedirs(scanner_dir, exist_ok=True)
         
         # Define standard content types with their display names and environment variable names
-        content_types = {
+        standard_content_types = {
             "Movies": {
                 "env_var": "SCANNER_MOVIES",
                 "default_file": "movies.txt"
@@ -1717,6 +1858,16 @@ class SettingsMenu:
             }
         }
         
+        # Load custom content types from environment
+        custom_types_json = os.environ.get('SCANNER_CUSTOM_TYPES', '{}')
+        try:
+            custom_content_types = json.loads(custom_types_json)
+        except json.JSONDecodeError:
+            custom_content_types = {}
+        
+        # Combine standard and custom content types
+        all_content_types = {**standard_content_types, **custom_content_types}
+        
         # Get available scanner files in the directory
         available_files = []
         if os.path.exists(scanner_dir):
@@ -1729,7 +1880,7 @@ class SettingsMenu:
         print(f"{'Content Type':<20} | {'Scanner File':<30} | {'Status':<15}")
         print("-" * 84)
         
-        for content_type, config in content_types.items():
+        for content_type, config in all_content_types.items():
             # Get current scanner file for this content type
             env_var = config["env_var"]
             default_file = config["default_file"]
@@ -1748,16 +1899,22 @@ class SettingsMenu:
         print("1. Change scanner file for a content type")
         print("2. Create a new scanner file")
         print("3. View scanner file contents")
+        print("4. Create new content type") # New option for custom content types
+        print("5. Delete custom content type") # Option to remove custom types
         print("q. Return to Advanced Settings")
         
         choice = input("\nSelect option: ").strip().lower()
         
         if choice == '1':
-            self._change_content_type_scanner(scanner_dir, content_types, available_files)
+            self._change_content_type_scanner(scanner_dir, all_content_types, available_files)
         elif choice == '2':
-            self._create_new_scanner_file(scanner_dir, content_types)
+            self._create_new_scanner_file(scanner_dir, all_content_types)
         elif choice == '3':
             self._view_scanner_contents(scanner_dir, available_files)
+        elif choice == '4':
+            self._create_custom_content_type(scanner_dir, all_content_types, custom_content_types)
+        elif choice == '5':
+            self._delete_custom_content_type(all_content_types, custom_content_types)
         elif choice != 'q':
             print("\nInvalid option.")
             input("\nPress Enter to continue...")
@@ -1818,6 +1975,7 @@ class SettingsMenu:
                 try:
                     choice_num = int(file_choice)
                     
+                   
                     # Create new file option
                     if choice_num == len(available_files) + 1:
                         self._create_new_scanner_file(scanner_dir, content_types, selected_type)
@@ -1902,9 +2060,7 @@ class SettingsMenu:
     
         # Create the file
         try:
-            # Make sure the directory exists
-            os.makedirs(scanner_dir, exist_ok=True)
-            
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(f"# Scanner file for {selected_type}\n")
                 f.write("# Format: Title (Year) [tmdb-ID]\n")
