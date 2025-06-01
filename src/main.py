@@ -723,19 +723,21 @@ class DirectoryProcessor:
         try:
             # Check if destination directory is configured
             if not DESTINATION_DIRECTORY:
-                print("\nDestination directory not set. Please configure in Settings.")
+                self.logger.error("Destination directory not configured.")
+                print("\nError: Destination directory not configured.")
                 return False
             
             # Make sure destination directory exists
             if not os.path.exists(DESTINATION_DIRECTORY):
                 os.makedirs(DESTINATION_DIRECTORY, exist_ok=True)
+                self.logger.info(f"Created destination directory: {DESTINATION_DIRECTORY}")
             
             # Format the base name with year for both folder and files
             base_name = title
-            if year and not is_tv and not is_wrestling:
+            if year and not is_wrestling:
                 base_name = f"{title} ({year})"
             
-            # Add TMDB ID if available
+            # Add TMDB ID if available - same format for all media types: [tmdb-ID]
             if tmdb_id:
                 base_name = f"{base_name} [tmdb-{tmdb_id}]"
             
@@ -747,55 +749,98 @@ class DirectoryProcessor:
             elif is_anime and not is_tv:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
             elif not is_anime and is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Shows")
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
             else:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
             
             # Create content type subdirectory if it doesn't exist
             if not os.path.exists(dest_subdir):
                 os.makedirs(dest_subdir, exist_ok=True)
-            
-            # Format the folder name
-            folder_name = base_name
+                self.logger.info(f"Created content subdirectory: {dest_subdir}")
             
             # Create full path for the target directory
-            target_dir_path = os.path.join(dest_subdir, folder_name)
+            target_dir_path = os.path.join(dest_subdir, base_name)
             
             # Create the target directory if it doesn't exist
             if not os.path.exists(target_dir_path):
                 os.makedirs(target_dir_path, exist_ok=True)
+                self.logger.info(f"Created target directory: {target_dir_path}")
             
             # Check if using symlinks or copies
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
             
             # Process files in subfolder
             for root, dirs, files in os.walk(subfolder_path):
-                for file in files:
-                    if file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov')):
-                        source_file = os.path.join(root, file)
-                        
-                        # Get the file extension
-                        _, file_ext = os.path.splitext(file)
-                        
-                        # Create the proper file name: 'Media Title (Year).extension'
-                        if year and not is_tv and not is_wrestling:
-                            target_filename = f"{title} ({year}){file_ext}"
-                        else:
-                            target_filename = f"{title}{file_ext}"
+                rel_path = os.path.relpath(root, subfolder_path)
+                
+                # For TV shows (both regular and anime), organize into season folders
+                if is_tv:
+                    for file in files:
+                        # Filter for media file extensions
+                        if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.flv')):
+                            # Try to detect season number from file name or path
+                            season_match = re.search(r'[sS](\d+)', file)
+                            season_num = None
                             
-                        target_file = os.path.join(target_dir_path, target_filename)
-                        
-                        if use_symlinks:
-                            if os.path.exists(target_file):
-                                os.remove(target_file)
-                            os.symlink(source_file, target_file)
-                        else:
-                            import shutil
-                            shutil.copy2(source_file, target_file)
+                            if season_match:
+                                season_num = int(season_match.group(1))
+                            else:
+                                # Look for season directory in path
+                                season_dir_match = re.search(r'[sS]eason\s*(\d+)', rel_path, re.IGNORECASE)
+                                if season_dir_match:
+                                    season_num = int(season_dir_match.group(1))
+                                else:
+                                    # Default to season 1 if no season info found
+                                    season_num = 1
+                            
+                            # Create season folder
+                            season_folder = f"Season {season_num}"
+                            season_path = os.path.join(target_dir_path, season_folder)
+                            if not os.path.exists(season_path):
+                                os.makedirs(season_path, exist_ok=True)
+                            
+                            # Create symlink or copy the file
+                            src_file_path = os.path.join(root, file)
+                            dest_file_path = os.path.join(season_path, file)
+                            
+                            # Remove existing file/link if it exists
+                            if os.path.exists(dest_file_path):
+                                os.remove(dest_file_path)
+                            
+                            # Create symlink or copy
+                            if use_symlinks:
+                                os.symlink(src_file_path, dest_file_path)
+                                self.logger.debug(f"Created symlink: {dest_file_path} -> {src_file_path}")
+                            else:
+                                shutil.copy2(src_file_path, dest_file_path)
+                                self.logger.debug(f"Copied file: {src_file_path} -> {dest_file_path}")
+                else:
+                    # For movies (both regular and anime), simply link/copy files to the target directory
+                    target_subdir = os.path.join(target_dir_path, rel_path) if rel_path != '.' else target_dir_path
+                    
+                    if not os.path.exists(target_subdir):
+                        os.makedirs(target_subdir, exist_ok=True)
+                    
+                    for file in files:
+                        # Only process media files
+                        if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.flv')):
+                            src_file_path = os.path.join(root, file)
+                            dest_file_path = os.path.join(target_subdir, file)
+                            
+                            # Remove existing file/link if it exists
+                            if os.path.exists(dest_file_path):
+                                os.remove(dest_file_path)
+                            
+                            # Create symlink or copy
+                            if use_symlinks:
+                                os.symlink(src_file_path, dest_file_path)
+                                self.logger.debug(f"Created symlink: {dest_file_path} -> {src_file_path}")
+                            else:
+                                shutil.copy2(src_file_path, dest_file_path)
+                                self.logger.debug(f"Copied file: {src_file_path} -> {dest_file_path}")
             
             self.logger.info(f"Successfully created links in: {target_dir_path}")
             print(f"\nSuccessfully created links in: {target_dir_path}")
-            
             return True
             
         except Exception as e:
