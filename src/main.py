@@ -13,6 +13,8 @@ import requests
 import datetime
 from pathlib import Path
 import difflib
+import argparse
+import shutil
 
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
@@ -483,7 +485,7 @@ class DirectoryProcessor:
         self._detected_tmdb_id = None
     
     def _check_scanner_lists(self, title, year=None, is_tv=False, is_anime=False):
-        """Check appropriate scanner lists for matches based on content type.
+        """Check appropriate scanner lists for matches based on content type
         
         Args:
             title (str): Title to check
@@ -724,7 +726,7 @@ class DirectoryProcessor:
             # Check if destination directory is configured
             if not DESTINATION_DIRECTORY:
                 self.logger.error("Destination directory not configured.")
-                print("\nError: Destination directory not configured.")
+                print("\nError: Destination directory not configured. Please set this in Settings.")
                 return False
             
             # Make sure destination directory exists
@@ -738,111 +740,119 @@ class DirectoryProcessor:
                 base_name = f"{title} ({year})"
             
             # Add TMDB ID if available - same format for all media types: [tmdb-ID]
+            folder_name = base_name
             if tmdb_id:
-                base_name = f"{base_name} [tmdb-{tmdb_id}]"
+                folder_name = f"{base_name} [tmdb-{tmdb_id}]"
             
             # Determine appropriate subdirectory based on content type
             if is_wrestling:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Wrestling')
             elif is_anime and is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Anime Series')
             elif is_anime and not is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Anime Movies')
             elif not is_anime and is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'TV Series')
             else:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
-            
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Movies')
+        
             # Create content type subdirectory if it doesn't exist
             if not os.path.exists(dest_subdir):
                 os.makedirs(dest_subdir, exist_ok=True)
-                self.logger.info(f"Created content subdirectory: {dest_subdir}")
-            
+                self.logger.info(f"Created subdirectory: {dest_subdir}")
+        
             # Create full path for the target directory
-            target_dir_path = os.path.join(dest_subdir, base_name)
-            
+            target_dir_path = os.path.join(dest_subdir, folder_name)
+        
             # Create the target directory if it doesn't exist
             if not os.path.exists(target_dir_path):
                 os.makedirs(target_dir_path, exist_ok=True)
                 self.logger.info(f"Created target directory: {target_dir_path}")
-            
+        
             # Check if using symlinks or copies
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-            
+        
             # Process files in subfolder
             for root, dirs, files in os.walk(subfolder_path):
+                # Calculate relative path from subfolder_path
                 rel_path = os.path.relpath(root, subfolder_path)
                 
-                # For TV shows (both regular and anime), organize into season folders
+                # Create season folders for TV shows
                 if is_tv:
-                    for file in files:
-                        # Filter for media file extensions
-                        if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.flv')):
-                            # Try to detect season number from file name or path
-                            season_match = re.search(r'[sS](\d+)', file)
-                            season_num = None
-                            
-                            if season_match:
-                                season_num = int(season_match.group(1))
-                            else:
-                                # Look for season directory in path
-                                season_dir_match = re.search(r'[sS]eason\s*(\d+)', rel_path, re.IGNORECASE)
-                                if season_dir_match:
-                                    season_num = int(season_dir_match.group(1))
-                                else:
-                                    # Default to season 1 if no season info found
-                                    season_num = 1
-                            
-                            # Create season folder
-                            season_folder = f"Season {season_num}"
-                            season_path = os.path.join(target_dir_path, season_folder)
-                            if not os.path.exists(season_path):
-                                os.makedirs(season_path, exist_ok=True)
-                            
-                            # Create symlink or copy the file
-                            src_file_path = os.path.join(root, file)
-                            dest_file_path = os.path.join(season_path, file)
-                            
-                            # Remove existing file/link if it exists
-                            if os.path.exists(dest_file_path):
-                                os.remove(dest_file_path)
-                            
-                            # Create symlink or copy
-                            if use_symlinks:
-                                os.symlink(src_file_path, dest_file_path)
-                                self.logger.debug(f"Created symlink: {dest_file_path} -> {src_file_path}")
-                            else:
-                                shutil.copy2(src_file_path, dest_file_path)
-                                self.logger.debug(f"Copied file: {src_file_path} -> {dest_file_path}")
-                else:
-                    # For movies (both regular and anime), simply link/copy files to the target directory
-                    target_subdir = os.path.join(target_dir_path, rel_path) if rel_path != '.' else target_dir_path
-                    
-                    if not os.path.exists(target_subdir):
-                        os.makedirs(target_subdir, exist_ok=True)
-                    
-                    for file in files:
-                        # Only process media files
-                        if file.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.flv')):
-                            src_file_path = os.path.join(root, file)
-                            dest_file_path = os.path.join(target_subdir, file)
-                            
-                            # Remove existing file/link if it exists
-                            if os.path.exists(dest_file_path):
-                                os.remove(dest_file_path)
-                            
-                            # Create symlink or copy
-                            if use_symlinks:
-                                os.symlink(src_file_path, dest_file_path)
-                                self.logger.debug(f"Created symlink: {dest_file_path} -> {src_file_path}")
-                            else:
-                                shutil.copy2(src_file_path, dest_file_path)
-                                self.logger.debug(f"Copied file: {src_file_path} -> {dest_file_path}")
+                    # Check if this is a season directory
+                    season_match = re.search(r'season\s*(\d+)', rel_path, re.IGNORECASE)
+                    if season_match:
+                        season_num = int(season_match.group(1))
+                        season_dir_name = f"Season {season_num:02d}"
+                        season_dir_path = os.path.join(target_dir_path, season_dir_name)
+                        
+                        if not os.path.exists(season_dir_path):
+                            os.makedirs(season_dir_path, exist_ok=True)
+                            self.logger.debug(f"Created season directory: {season_dir_path}")
             
+                # Process each file
+                for file_name in files:
+                    # Skip non-media files
+                    if not file_name.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.m4v', '.flv')):
+                        continue
+                    
+                    source_file = os.path.join(root, file_name)
+                    
+                    # Determine target file based on content type
+                    if is_tv:
+                        # Extract season and episode numbers from filename
+                        season_ep_match = re.search(r's(\d{1,2})e(\d{1,2})|season\s*(\d+).*?episode\s*(\d+)', 
+                                                  file_name, re.IGNORECASE)
+                        
+                        if season_ep_match:
+                            # Extract season/episode from standard pattern
+                            if season_ep_match.group(1) and season_ep_match.group(2):
+                                season_num = int(season_ep_match.group(1))
+                                episode_num = int(season_ep_match.group(2))
+                            # Extract from textual pattern
+                            else:
+                                season_num = int(season_ep_match.group(3))
+                                episode_num = int(season_ep_match.group(4))
+                        
+                            # Format the episode filename according to spec
+                            _, extension = os.path.splitext(file_name)
+                            extension = extension[1:]  # Remove the dot
+                            formatted_filename = f"{title} ({year}) - S{season_num:02d}E{episode_num:02d}.{extension}"
+                            
+                            # Create season folder if doesn't exist
+                            season_dir_name = f"Season {season_num:02d}"
+                            season_dir_path = os.path.join(target_dir_path, season_dir_name)
+                            if not os.path.exists(season_dir_path):
+                                os.makedirs(season_dir_path, exist_ok=True)
+                                
+                            # Set target path for the episode
+                            target_file = os.path.join(season_dir_path, formatted_filename)
+                        else:
+                            # If no season/episode found, place in main folder with original name
+                            target_file = os.path.join(target_dir_path, file_name)
+                    else:  # Movies and other non-TV content
+                        # For movies, format the filename as: "Title (Year).extension"
+                        _, extension = os.path.splitext(file_name)
+                        extension = extension[1:]  # Remove the dot
+                        formatted_filename = f"{title} ({year}).{extension}"
+                        target_file = os.path.join(target_dir_path, formatted_filename)
+                
+                    # Create the link or copy the file
+                    if use_symlinks:
+                        if os.path.exists(target_file) and not os.path.islink(target_file):
+                            os.unlink(target_file)
+                        if not os.path.exists(target_file):
+                            os.symlink(source_file, target_file)
+                            self.logger.debug(f"Created symlink: {target_file} -> {source_file}")
+                    else:
+                        if not os.path.exists(target_file):
+                            shutil.copy2(source_file, target_file)
+                            self.logger.debug(f"Copied file: {source_file} -> {target_file}")
+        
             self.logger.info(f"Successfully created links in: {target_dir_path}")
             print(f"\nSuccessfully created links in: {target_dir_path}")
             return True
-            
+        
         except Exception as e:
             self.logger.error(f"Error creating symlinks: {e}")
             print(f"\nError creating links: {e}")
@@ -941,7 +951,7 @@ class DirectoryProcessor:
                                 selected_match = scanner_matches[match_idx]
                                 title = selected_match.get('title', title)
                                 year = selected_match.get('year', year)
-                                tmdb_id = selected_match.get('tmdb_id', '')
+                                tmdb_id = selected_match.get('tmdb_id')
                                 
                                 # Display the selected match
                                 year_str = f" ({year})" if year else ""
@@ -1161,6 +1171,33 @@ class DirectoryProcessor:
             is_wrestling = True
         
         return is_tv, is_anime, is_wrestling
+
+    def _display_scanner_matches(self, matches, title, year):
+        """Display scanner matches with proper formatting."""
+        print("\n  Scanner Matches:", len(matches))
+        print()
+        
+        for i, match in enumerate(matches, 1):
+            # Extract the relevant fields from the match
+            match_title = match.get('title', 'Unknown')
+            match_year = match.get('year', 'Unknown')
+            match_tmdb_id = match.get('tmdb_id', 'Unknown')
+            
+            # Format the match display string correctly - without the None at the end
+            match_display = f"{match_title} ({match_year}) [tmdb-{match_tmdb_id}]"
+            
+            # Print the match
+            print(f"Scanner match: {match_display}")
+            print()
+        
+        # Display options after matches
+        print("Options:")
+        print("1. Accept this match")
+        print("2. Change search term")
+        print("3. Change content type")
+        print("4. Skip this folder")
+        print("0. Quit")
+        print()
 
 def perform_multi_scan():
     """Perform a multi-scan operation on multiple directories."""
@@ -1406,7 +1443,6 @@ class SettingsMenu:
                     print(f"\nDeleted content type '{content_type}'.")
                     
                     # Note: We deliberately don't delete the scanner file, just the mapping
-                    print(f"Note: The scanner file was not deleted, only the content type mapping.")
                 else:
                     print("\nDeletion cancelled.")
             else:
@@ -1886,7 +1922,7 @@ class SettingsMenu:
                 "default_file": "movies.txt"
             },
             "TV Series": {
-                "env_var": "SCANNER_TV",
+                               "env_var": "SCANNER_TV",
                 "default_file": "tv_series.txt"
             },
             "Anime Movies": {
@@ -2364,93 +2400,198 @@ if __name__ == "__main__":
     main()
 
 #!/usr/bin/env python3
-"""
-Fix movie IDs in scanner files.
-
-This script converts ID formats in scanner files to the standard [tmdb-ID] format.
-"""
+# filepath: media_organizer.py
 
 import os
 import re
-import sys
+import argparse
+import shutil
 from pathlib import Path
 
-def fix_scanner_ids(scanner_file):
-    """
-    Fix IDs in a scanner file to use [tmdb-ID] format.
-    
-    Args:
-        scanner_file: Path to the scanner file
-    
-    Returns:
-        Tuple of (number of entries processed, number of entries modified)
-    """
-    if not os.path.exists(scanner_file):
-        print(f"Scanner file not found: {scanner_file}")
-        return 0, 0
-    
-   
-    
-   
-    
-    try:
-        with open(scanner_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        
-        total_entries = len(lines)
-        modified_count = 0
-        corrected_lines = []
-        
-        for line in lines:
-            # Skip empty lines
-            if not line.strip():
-                corrected_lines.append(line)
-                continue
-            
-            # Replace different ID formats with [tmdb-ID]
-            # Case 1: [movie:ID]
-            modified_line = re.sub(r'\[movie:(\d+)\]', r'[tmdb-\1]', line)
-            
-            # Case 2: [ID] (plain ID without prefix)
-            modified_line = re.sub(r'\[(\d+)\](?!\])', r'[tmdb-\1]', modified_line)
-            
-            if modified_line != line:
-                modified_count += 1
-                
-            corrected_lines.append(modified_line)
-        
-        # Write the modified content back to file
-        with open(scanner_file, 'w', encoding='utf-8') as f:
-            f.writelines(corrected_lines)
-        
-        return total_entries, modified_count
-    
-    except Exception as e:
-        print(f"Error fixing scanner IDs: {e}")
-        return 0, 0
-
-def main():
-    """Main entry point."""
-    script_dir = Path(__file__).parent
-    scanner_dir = script_dir / 'scanners'
-    
-    # Fix scanner files
-    scanner_files = [
-        'movies.txt',
-        'anime_movies.txt',
-        'tv_series.txt',
-        'anime_series.txt'
+def extract_info_from_filename(filename):
+    """Extract title, year, season, and episode from filename."""
+    # Try to match movie pattern: could be various formats
+    movie_patterns = [
+        r'(.+?)[\.\s]\((\d{4})\)\.([a-zA-Z0-9]+)$',  # Title (Year).ext
+        r'(.+?)\.(\d{4})\..*\.([a-zA-Z0-9]+)$',      # Title.Year.anything.ext
+        r'(.+?)\.(\d{4})\.([a-zA-Z0-9]+)$',          # Title.Year.ext
     ]
     
-    for scanner_file in scanner_files:
-        file_path = scanner_dir / scanner_file
-        if file_path.exists():
-            print(f"Processing {scanner_file}...")
-            total, fixed = fix_scanner_ids(str(file_path))
-            print(f"  - Total entries: {total}")
-            print(f"  - Fixed entries: {fixed}")
+    for pattern in movie_patterns:
+        movie_match = re.search(pattern, filename)
+        if movie_match:
+            title = movie_match.group(1).replace('.', ' ').strip()
+            year = movie_match.group(2)
+            extension = movie_match.group(3)
+            return {
+                'type': 'movie',
+                'title': title,
+                'year': year,
+                'extension': extension
+            }
+    
+    # Try to match TV show pattern: Title.S01E01.ext or similar
+    tv_pattern = r'(.+?)[\.\s]S(\d{1,2})E(\d{1,2})(?:\.|\s).*\.([a-zA-Z0-9]+)$'
+    tv_match = re.search(tv_pattern, filename, re.IGNORECASE)
+    
+    if tv_match:
+        title = tv_match.group(1).replace('.', ' ').strip()
+        season = tv_match.group(2).zfill(2)
+        episode = tv_match.group(3).zfill(2)
+        extension = tv_match.group(4)
+        
+        # Try to extract year from title if present
+        year_pattern = r'(.+?)[\.\s]\((\d{4})\)'
+        year_match = re.search(year_pattern, title)
+        if year_match:
+            title = year_match.group(1).strip()
+            year = year_match.group(2)
         else:
-            print(f"Scanner file not found: {scanner_file}")
+            year = "YEAR"  # Placeholder
+            
+        return {
+            'type': 'tv',
+            'title': title,
+            'year': year,
+            'season': season,
+            'episode': episode,
+            'extension': extension
+        }
+    
+    return None
+
+def format_movie(info, tmdb_id=None):
+    """Format movie according to 'MEDIA TITLE (YEAR).extension' in 'MEDIA TITLE (YEAR) [tmdb-TMDB ID]'"""
+    if not tmdb_id:
+        tmdb_id = "TMDBID"  # Placeholder
+        
+    folder_name = f"{info['title']} ({info['year']}) [tmdb-{tmdb_id}]"
+    file_name = f"{info['title']} ({info['year']}).{info['extension']}"
+    
+    return {
+        'folder': folder_name,
+        'file': file_name
+    }
+
+def format_tv_show(info, tmdb_id=None):
+    """Format TV show according to specified pattern"""
+    if not tmdb_id:
+        tmdb_id = "TMDBID"  # Placeholder
+        
+    folder_name = f"{info['title']} ({info['year']}) [tmdb-{tmdb_id}]"
+    season_folder = f"Season {info['season']}"
+    file_name = f"{info['title']} ({info['year']}) - S{info['season']}E{info['episode']}.{info['extension']}"
+    
+    return {
+        'folder': folder_name,
+        'season_folder': season_folder,
+        'file': file_name
+    }
+
+def organize_file(source_path, dest_base_path, tmdb_id=None, dry_run=True):
+    """Organize a single file according to naming schema"""
+    filename = os.path.basename(source_path)
+    info = extract_info_from_filename(filename)
+    
+    if not info:
+        print(f"Could not parse information from {filename}")
+        return False
+    
+    if info['type'] == 'movie':
+        output = format_movie(info, tmdb_id)
+        dest_folder = os.path.join(dest_base_path, output['folder'])
+        dest_file = os.path.join(dest_folder, output['file'])
+        
+        if dry_run:
+            print(f"Would create folder: {dest_folder}")
+            print(f"Would save file as: {os.path.basename(dest_file)}")
+            print(f"Would move {source_path} to {dest_file}")
+        else:
+            os.makedirs(dest_folder, exist_ok=True)
+            shutil.copy2(source_path, dest_file)
+            print(f"Moved {source_path} to {dest_file}")
+            
+    elif info['type'] == 'tv':
+        output = format_tv_show(info, tmdb_id)
+        dest_folder = os.path.join(dest_base_path, output['folder'], output['season_folder'])
+        dest_file = os.path.join(dest_folder, output['file'])
+        
+        if dry_run:
+            print(f"Would create folder: {dest_folder}")
+            print(f"Would save file as: {os.path.basename(dest_file)}")
+            print(f"Would move {source_path} to {dest_file}")
+        else:
+            os.makedirs(dest_folder, exist_ok=True)
+            shutil.copy2(source_path, dest_file)
+            print(f"Moved {source_path} to {dest_file}")
+    
+    return True
+
+def validate_output_format():
+    """Test function to validate output formats"""
+    print("=== Testing Movie Format ===")
+    movie_info = {
+        'title': '12 Angry Men',
+        'year': '1957',
+        'extension': 'mkv'
+    }
+    output = format_movie(movie_info, '389')
+    print(f"Folder: {output['folder']}")
+    print(f"File: {output['file']}")
+    
+    print("\n=== Testing TV Show Format ===")
+    tv_info = {
+        'title': 'Breaking Bad',
+        'year': '2008',
+        'season': '01',
+        'episode': '05',
+        'extension': 'mp4'
+    }
+    output = format_tv_show(tv_info, '1396')
+    print(f"Folder: {output['folder']}")
+    print(f"Season: {output['season_folder']}")
+    print(f"File: {output['file']}")
+
+def main():
+    parser = argparse.ArgumentParser(description='Organize media files according to naming schema')
+    parser.add_argument('source', help='Source file or directory')
+    parser.add_argument('destination', help='Destination directory')
+    parser.add_argument('--tmdb', help='TMDB ID (optional)')
+    parser.add_argument('--recursive', action='store_true', help='Process directories recursively')
+    parser.add_argument('--dry-run', action='store_true', help='Show what would be done without making changes')
+    parser.add_argument('--test', action='store_true', help='Test output format')
+    
+    args = parser.parse_args()
+    
+    if args.test:
+        validate_output_format()
+        return
+    
+    source_path = os.path.abspath(args.source)
+    dest_path = os.path.abspath(args.destination)
+    
+    if not os.path.exists(source_path):
+        print(f"Source path {source_path} does not exist")
+        return
+    
+    if not os.path.exists(dest_path):
+        if args.dry_run:
+            print(f"Would create destination directory: {dest_path}")
+        else:
+            os.makedirs(dest_path, exist_ok=True)
+            
+    if os.path.isfile(source_path):
+        organize_file(source_path, dest_path, args.tmdb, args.dry_run)
+    elif os.path.isdir(source_path) and args.recursive:
+        for root, _, files in os.walk(source_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                organize_file(file_path, dest_path, args.tmdb, args.dry_run)
+    elif os.path.isdir(source_path):
+        for item in os.listdir(source_path):
+            item_path = os.path.join(source_path, item)
+            if os.path.isfile(item_path):
+                organize_file(item_path, dest_path, args.tmdb, args.dry_run)
 
 if __name__ == "__main__":
     main()
