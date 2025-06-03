@@ -725,8 +725,8 @@ class DirectoryProcessor:
         try:
             # Check if destination directory is configured
             if not DESTINATION_DIRECTORY:
-                self.logger.error("Destination directory not configured.")
-                print("\nError: Destination directory not configured. Please set this in Settings.")
+                self.logger.error("Destination directory not configured")
+                print("\nError: Destination directory not configured. Please configure in settings.")
                 return False
             
             # Make sure destination directory exists
@@ -746,113 +746,67 @@ class DirectoryProcessor:
             
             # Determine appropriate subdirectory based on content type
             if is_wrestling:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Wrestling')
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
             elif is_anime and is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Anime Series')
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
             elif is_anime and not is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Anime Movies')
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
             elif not is_anime and is_tv:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'TV Series')
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
             else:
-                dest_subdir = os.path.join(DESTINATION_DIRECTORY, 'Movies')
-        
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
+            
             # Create content type subdirectory if it doesn't exist
             if not os.path.exists(dest_subdir):
                 os.makedirs(dest_subdir, exist_ok=True)
-                self.logger.info(f"Created subdirectory: {dest_subdir}")
-        
+                self.logger.info(f"Created content subdirectory: {dest_subdir}")
+            
             # Create full path for the target directory
             target_dir_path = os.path.join(dest_subdir, folder_name)
-        
+            
             # Create the target directory if it doesn't exist
             if not os.path.exists(target_dir_path):
                 os.makedirs(target_dir_path, exist_ok=True)
                 self.logger.info(f"Created target directory: {target_dir_path}")
-        
+            
             # Check if using symlinks or copies
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-        
+            
             # Process files in subfolder
             for root, dirs, files in os.walk(subfolder_path):
-                # Calculate relative path from subfolder_path
-                rel_path = os.path.relpath(root, subfolder_path)
-                
-                # Create season folders for TV shows
-                if is_tv:
-                    # Check if this is a season directory
-                    season_match = re.search(r'season\s*(\d+)', rel_path, re.IGNORECASE)
-                    if season_match:
-                        season_num = int(season_match.group(1))
-                        season_dir_name = f"Season {season_num:02d}"
-                        season_dir_path = os.path.join(target_dir_path, season_dir_name)
-                        
-                        if not os.path.exists(season_dir_path):
-                            os.makedirs(season_dir_path, exist_ok=True)
-                            self.logger.debug(f"Created season directory: {season_dir_path}")
-            
-                # Process each file
-                for file_name in files:
-                    # Skip non-media files
-                    if not file_name.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.m4v', '.flv')):
-                        continue
+                for file in files:
+                    # Get the source file path
+                    source_file_path = os.path.join(root, file)
                     
-                    source_file = os.path.join(root, file_name)
-                    
-                    # Determine target file based on content type
-                    if is_tv:
-                        # Extract season and episode numbers from filename
-                        season_ep_match = re.search(r's(\d{1,2})e(\d{1,2})|season\s*(\d+).*?episode\s*(\d+)', 
-                                                  file_name, re.IGNORECASE)
-                        
-                        if season_ep_match:
-                            # Extract season/episode from standard pattern
-                            if season_ep_match.group(1) and season_ep_match.group(2):
-                                season_num = int(season_ep_match.group(1))
-                                episode_num = int(season_ep_match.group(2))
-                            # Extract from textual pattern
-                            else:
-                                season_num = int(season_ep_match.group(3))
-                                episode_num = int(season_ep_match.group(4))
-                        
-                            # Format the episode filename according to spec
-                            _, extension = os.path.splitext(file_name)
-                            extension = extension[1:]  # Remove the dot
-                            formatted_filename = f"{title} ({year}) - S{season_num:02d}E{episode_num:02d}.{extension}"
-                            
-                            # Create season folder if doesn't exist
-                            season_dir_name = f"Season {season_num:02d}"
-                            season_dir_path = os.path.join(target_dir_path, season_dir_name)
-                            if not os.path.exists(season_dir_path):
-                                os.makedirs(season_dir_path, exist_ok=True)
-                                
-                            # Set target path for the episode
-                            target_file = os.path.join(season_dir_path, formatted_filename)
-                        else:
-                            # If no season/episode found, place in main folder with original name
-                            target_file = os.path.join(target_dir_path, file_name)
-                    else:  # Movies and other non-TV content
-                        # For movies, format the filename as: "Title (Year).extension"
-                        _, extension = os.path.splitext(file_name)
-                        extension = extension[1:]  # Remove the dot
-                        formatted_filename = f"{title} ({year}).{extension}"
-                        target_file = os.path.join(target_dir_path, formatted_filename)
-                
-                    # Create the link or copy the file
-                    if use_symlinks:
-                        if os.path.exists(target_file) and not os.path.islink(target_file):
-                            os.unlink(target_file)
-                        if not os.path.exists(target_file):
-                            os.symlink(source_file, target_file)
-                            self.logger.debug(f"Created symlink: {target_file} -> {source_file}")
+                    # Create the destination file path - use base_name without the (None) suffix
+                    # Just use the original file extension instead of copying the entire filename
+                    file_ext = os.path.splitext(file)[1]
+                    if tmdb_id:
+                        dest_file_name = f"{base_name}{file_ext}"
                     else:
-                        if not os.path.exists(target_file):
-                            shutil.copy2(source_file, target_file)
-                            self.logger.debug(f"Copied file: {source_file} -> {target_file}")
-        
+                        dest_file_name = f"{base_name}{file_ext}"
+                    
+                    dest_file_path = os.path.join(target_dir_path, dest_file_name)
+                    
+                    # Create symlink or copy file
+                    if use_symlinks:
+                        # Remove existing symlink if it exists
+                        if os.path.exists(dest_file_path):
+                            os.remove(dest_file_path)
+                        
+                        # Create new symlink
+                        os.symlink(source_file_path, dest_file_path)
+                        self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
+                    else:
+                        # Copy file if it doesn't exist
+                        if not os.path.exists(dest_file_path):
+                            shutil.copy2(source_file_path, dest_file_path)
+                            self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
+            
             self.logger.info(f"Successfully created links in: {target_dir_path}")
             print(f"\nSuccessfully created links in: {target_dir_path}")
             return True
-        
+            
         except Exception as e:
             self.logger.error(f"Error creating symlinks: {e}")
             print(f"\nError creating links: {e}")
@@ -1178,20 +1132,21 @@ class DirectoryProcessor:
         print()
         
         for i, match in enumerate(matches, 1):
-            # Extract the relevant fields from the match
-            match_title = match.get('title', 'Unknown')
-            match_year = match.get('year', 'Unknown')
-            match_tmdb_id = match.get('tmdb_id', 'Unknown')
+            # Clone the match to avoid modifying the original
+            match_data = dict(match)
             
-            # Format the match display string correctly - without the None at the end
+            # Extract the relevant fields from the match
+            match_title = match_data.get('title', 'Unknown')
+            match_year = match_data.get('year', 'Unknown')
+            match_tmdb_id = match_data.get('tmdb_id', 'Unknown')
+            
+            # Format the match display string explicitly with only the required fields
             match_display = f"{match_title} ({match_year}) [tmdb-{match_tmdb_id}]"
             
-            # Print the match
-            print(f"Scanner match: {match_display}")
-            print()
+            # Print the match number and the explicitly formatted string
+            print(f"  {i}. {match_display}")
         
-        # Display options after matches
-        print("Options:")
+        print("\nOptions:")
         print("1. Accept this match")
         print("2. Change search term")
         print("3. Change content type")
