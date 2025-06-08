@@ -2211,6 +2211,71 @@ class SettingsMenu:
         except ValueError:
             print("\nInvalid input. Please enter a number.")
             input("\nPress Enter to continue...")
+    
+    def _discord_bot_settings(self):
+        """Discord bot settings submenu."""
+        while True:
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("DISCORD BOT SETTINGS".center(84))
+            print("=" * 84)
+            
+            enabled = os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true'
+            token = os.environ.get('DISCORD_BOT_TOKEN', '')
+            channel_id = os.environ.get('DISCORD_CHANNEL_ID', '')
+            webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+            
+            # Mask token for display
+            masked_token = "****" if token else "Not set"
+            
+            print("\nCurrent Discord Bot Settings:")
+            print(f"1. Bot Enabled: {'Yes' if enabled else 'No'}")
+            print(f"2. Bot Token: {masked_token}")
+            print(f"3. Channel ID: {channel_id or 'Not set'}")
+            print(f"4. Webhook URL: {'Set' if webhook_url else 'Not set'}")
+            print("5. Test Discord Connection")
+            print("q. Return to Settings Menu")
+            
+            choice = input("\nSelect option: ").strip().lower()
+            
+            if choice == '1':
+                new_setting = input("\nEnable Discord bot? (y/n): ").strip().lower()
+                if new_setting in ('y', 'n'):
+                    _update_env_var('DISCORD_BOT_ENABLED', 'true' if new_setting == 'y' else 'false')
+                    print(f"\nDiscord bot {'enabled' if new_setting == 'y' else 'disabled'}.")
+                input("\nPress Enter to continue...")
+            elif choice == '2':
+                new_token = input("\nEnter Discord bot token: ").strip()
+                if new_token:
+                    _update_env_var('DISCORD_BOT_TOKEN', new_token)
+                    print("\nDiscord bot token updated.")
+                input("\nPress Enter to continue...")
+            elif choice == '3':
+                new_channel = input("\nEnter Discord channel ID: ").strip()
+                if new_channel:
+                    _update_env_var('DISCORD_CHANNEL_ID', new_channel)
+                    print("\nDiscord channel ID updated.")
+                input("\nPress Enter to continue...")
+            elif choice == '4':
+                new_webhook = input("\nEnter Discord webhook URL: ").strip()
+                if new_webhook:
+                    _update_env_var('DISCORD_WEBHOOK_URL', new_webhook)
+                    print("\nDiscord webhook URL updated.")
+                input("\nPress Enter to continue...")
+            elif choice == '5':
+                self._test_discord_connection()
+            elif choice == 'q':
+                return
+            else:
+                print("\nInvalid option.")
+                input("\nPress Enter to continue...")
+    
+    def _test_discord_connection(self):
+        """Test Discord bot connection."""
+        # This is a placeholder for the actual test implementation
+        print("\nTesting Discord bot connection...")
+        input("\nPress Enter to continue...")
 
 def main():
     """Main function to run the Scanly application."""
