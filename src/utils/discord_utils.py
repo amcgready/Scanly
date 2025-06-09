@@ -1,100 +1,78 @@
 """
-Discord notification utilities for Scanly.
+Discord utilities for Scanly.
 
 This module handles sending notifications to Discord via webhooks.
 """
 
+import os
 import json
 import requests
-import os
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.utils.logger import get_logger
+from src.main import get_logger
 
 logger = get_logger(__name__)
 
-def send_discord_notification(
-    webhook_url: str, 
-    title: str, 
-    message: str, 
-    files: Optional[List[str]] = None,
-    directory: Optional[str] = None
+def send_discord_webhook_notification(
+    webhook_url: str,
+    title: str,
+    message: str,
+    fields: Optional[List[Dict[str, Any]]] = None,
+    thumbnail_url: Optional[str] = None
 ) -> bool:
     """
-    Send a notification to Discord via webhook.
+    Send notification to Discord via webhook.
     
     Args:
         webhook_url: Discord webhook URL
-        title: Title of the notification
-        message: Message content
-        files: List of files found (optional)
-        directory: Directory being monitored (optional)
+        title: Notification title
+        message: Notification message
+        fields: Optional list of fields
+        thumbnail_url: Optional URL for thumbnail image
         
     Returns:
-        True if the notification was sent successfully, False otherwise
+        bool: Whether notification was sent successfully
     """
-    if not webhook_url:
-        logger.warning("Discord webhook URL not provided, notification not sent")
-        return False
-    
     try:
-        # Create embed with more detailed information
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Create embed
         embed = {
             "title": title,
             "description": message,
-            "color": 3447003,  # Blue color
+            "color": 3447003,  # Blue
             "timestamp": datetime.utcnow().isoformat(),
             "footer": {
                 "text": "Scanly Media Monitor"
-            },
-            "fields": []
+            }
         }
         
-        # Add directory field if provided
-        if directory:
-            embed["fields"].append({
-                "name": "Directory",
-                "value": directory,
-                "inline": False
-            })
-        
-        # Add files if provided
-        if files and len(files) > 0:
-            # List up to 10 files, then summarize if there are more
-            file_list = files[:10]
-            file_text = "\n".join([f"• `{os.path.basename(f)}`" for f in file_list])
+        # Add thumbnail if provided
+        if thumbnail_url:
+            embed["thumbnail"] = {"url": thumbnail_url}
             
-            if len(files) > 10:
-                file_text += f"\n\n*...and {len(files) - 10} more files*"
-                
-            embed["fields"].append({
-                "name": f"Files Found ({len(files)} total)",
-                "value": file_text,
-                "inline": False
-            })
+        # Add fields if provided
+        if fields:
+            embed["fields"] = fields
             
-        # Prepare payload
+        # Create payload with embed
         payload = {
-            "username": "Scanly Monitor",
             "embeds": [embed]
         }
         
-        # Send notification
+        # Send webhook request
         response = requests.post(
             webhook_url,
             data=json.dumps(payload),
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
         
         if response.status_code == 204:
-            logger.info(f"Discord notification sent successfully")
+            logger.info(f"Discord webhook notification sent successfully")
             return True
         else:
-            logger.error(f"Failed to send Discord notification: {response.status_code} - {response.text}")
+            logger.error(f"Failed to send Discord webhook notification: {response.status_code} - {response.text}")
             return False
-            
     except Exception as e:
-        logger.error(f"Error sending Discord notification: {e}")
+        logger.error(f"Error sending Discord webhook notification: {e}")
         return False

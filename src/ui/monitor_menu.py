@@ -2,17 +2,16 @@
 """Monitor menu for Scanly application."""
 
 import os
+import sys
 import time
 from pathlib import Path
-import sys
 
-# Ensure parent directory is in path for imports
+# Add parent directory to path for imports
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from src.main import get_logger, clear_screen, display_ascii_art
-from src.core.monitor_processor import MonitorProcessor
+from src.main import get_logger, clear_screen, display_ascii_art, _clean_directory_path, _update_env_var
 from src.core.monitor_manager import MonitorManager
 
 class MonitorMenu:
@@ -24,15 +23,14 @@ class MonitorMenu:
         
         # Initialize the MonitorManager
         try:
-            from src.core.monitor_manager import MonitorManager
             self.monitor_manager = MonitorManager()
-        except ImportError as e:
-            self.logger.error(f"Error importing MonitorManager: {e}")
+        except Exception as e:
+            self.logger.error(f"Error initializing MonitorManager: {e}")
             raise
         
-        # Fix invalid entries in monitored directories
+        # Fix any invalid entries
         self._fix_invalid_entries()
-    
+        
     def _fix_invalid_entries(self):
         """Fix invalid entries in monitored directories."""
         monitored_dirs = self.monitor_manager.get_monitored_directories()
@@ -40,7 +38,7 @@ class MonitorMenu:
         # Check for invalid entries
         invalid_entries = []
         for dir_id, info in monitored_dirs.items():
-            if not info.get('path') or info.get('path') == 'Unknown' or not os.path.isdir(info.get('path', '')):
+            if not info.get('path') or not os.path.isdir(info.get('path', '')):
                 invalid_entries.append(dir_id)
         
         # Remove invalid entries
@@ -49,7 +47,7 @@ class MonitorMenu:
             for dir_id in invalid_entries:
                 self.monitor_manager.remove_directory(dir_id)
             self.monitor_manager._save_monitored_directories()
-    
+            
     def show(self):
         """Show the monitor menu."""
         while True:
@@ -61,12 +59,12 @@ class MonitorMenu:
             
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("MONITORED DIRECTORIES")
-            print("=" * 60)
+            print("=" * 84)
+            print("MONITORED DIRECTORIES".center(84))
+            print("=" * 84)
             
             # Display all monitored directories
-            print("\nCurrently monitoring:")
+            print("\nCurrently monitored directories:")
             
             if not monitored_dirs:
                 print("\nNo directories are currently being monitored.")
@@ -101,12 +99,12 @@ class MonitorMenu:
             print("1. Process pending files")
             print("2. Add new directory to monitor")
             print("3. Remove directory from monitoring")
-            print("4. Pause/Resume monitoring")
+            print("4. Pause/Resume monitoring of a directory")
             print(f"5. {'Stop' if is_monitoring else 'Start'} Monitoring Process")
             print("6. Configure monitoring settings")
             print("0. Back to main menu")
             
-            choice = input("\nEnter your choice: ").strip()
+            choice = input("\nSelect option: ").strip()
             
             if choice == '0':
                 break
@@ -123,29 +121,9 @@ class MonitorMenu:
             elif choice == '6':
                 self.configure_monitoring()
             else:
-                print("Invalid choice.")
+                print("\nInvalid choice.")
                 input("\nPress Enter to continue...")
-    
-    def toggle_monitoring_process(self, is_active):
-        """Start or stop the monitoring process."""
-        if is_active:
-            # Stop monitoring
-            if self.monitor_manager.stop_monitoring():
-                print("\nMonitoring process stopped.")
-            else:
-                print("\nFailed to stop monitoring process.")
-        else:
-            # Start monitoring
-            from src.config import get_settings
-            settings = get_settings()
-            interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
-            if self.monitor_manager.start_monitoring(interval):
-                print(f"\nMonitoring started with {interval} second interval.")
-            else:
-                print("\nFailed to start monitoring process.")
                 
-        input("\nPress Enter to continue...")
-    
     def process_pending_files(self):
         """Process pending files in monitored directories."""
         # Get directories with pending files
@@ -168,9 +146,9 @@ class MonitorMenu:
         # Display directories with pending files
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
-        print("PROCESS PENDING FILES")
-        print("=" * 60)
+        print("=" * 84)
+        print("PROCESS PENDING FILES".center(84))
+        print("=" * 84)
         
         print("\nDirectories with pending files:")
         options = []
@@ -197,9 +175,9 @@ class MonitorMenu:
             # Ask for processing mode
             clear_screen()
             display_ascii_art()
-            print("=" * 60)
-            print("PROCESS PENDING FILES")
-            print("=" * 60)
+            print("=" * 84)
+            print("PROCESS PENDING FILES".center(84))
+            print("=" * 84)
             
             print(f"\nDirectory: {directory_info['description']}")
             print(f"Path: {directory_info['path']}")
@@ -248,7 +226,7 @@ class MonitorMenu:
                 print(f"- Errors: {errors} files")
                 
             except Exception as e:
-                self.logger.error(f"Error processing files: {e}", exc_info=True)
+                self.logger.error(f"Error processing files: {e}")
                 print(f"\nError processing files: {e}")
             
             input("\nPress Enter to continue...")
@@ -261,9 +239,9 @@ class MonitorMenu:
         """Add a new directory to monitoring."""
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
-        print("ADD MONITORED DIRECTORY")
-        print("=" * 60)
+        print("=" * 84)
+        print("ADD MONITORED DIRECTORY".center(84))
+        print("=" * 84)
         
         print("\nEnter the path of the directory to monitor (or 'q' to cancel):")
         dir_path = input("> ").strip()
@@ -271,8 +249,8 @@ class MonitorMenu:
         if dir_path.lower() == 'q':
             return
         
-        # Strip quotes that might be added when dragging paths into terminal
-        dir_path = dir_path.strip("'\"")
+        # Clean path
+        dir_path = _clean_directory_path(dir_path)
         
         # Validate directory exists
         if not os.path.isdir(dir_path):
@@ -284,21 +262,21 @@ class MonitorMenu:
         print("\nEnter a description for this directory (optional):")
         description = input("> ").strip() or os.path.basename(dir_path)
         
-        # Ask for processing mode for existing files
-        print("\nHow should existing files in this directory be processed?")
+        # Ask for processing mode
+        print("\nHow should files in this directory be processed?")
         print("1. Automatically (process files without user interaction)")
         print("2. Manually (require manual review before processing)")
-        processing_choice = input("\nEnter choice (1-2): ").strip()
+        processing_choice = input("\nSelect mode (1-2): ").strip()
         
         auto_process = (processing_choice == "1")
         
-        # Add to monitored directories with auto_process flag
+        # Add to monitored directories
         if self.monitor_manager.add_directory(dir_path, description, auto_process=auto_process):
             print(f"\nDirectory added to monitoring: {dir_path}")
             if auto_process:
-                print("Existing files will be processed automatically.")
+                print("Files will be processed automatically.")
             else:
-                print("Existing files queued for manual processing.")
+                print("Files will be queued for manual processing.")
             
             # Ask if user wants to start monitoring now
             print("\nDo you want to start monitoring now? (y/n)")
@@ -326,9 +304,9 @@ class MonitorMenu:
         
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
-        print("REMOVE MONITORED DIRECTORY")
-        print("=" * 60)
+        print("=" * 84)
+        print("REMOVE MONITORED DIRECTORY".center(84))
+        print("=" * 84)
         
         print("\nSelect a directory to remove from monitoring:")
         options = []
@@ -340,7 +318,7 @@ class MonitorMenu:
         
         print("\n0. Cancel")
         
-        choice = input("\nEnter choice (0 to cancel): ").strip()
+        choice = input("\nSelect directory (0 to cancel): ").strip()
         
         if choice == '0':
             return
@@ -381,9 +359,9 @@ class MonitorMenu:
         
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
-        print("TOGGLE MONITORING STATUS")
-        print("=" * 60)
+        print("=" * 84)
+        print("TOGGLE MONITORING STATUS".center(84))
+        print("=" * 84)
         
         print("\nSelect a directory to toggle monitoring status:")
         options = []
@@ -396,7 +374,7 @@ class MonitorMenu:
         
         print("\n0. Cancel")
         
-        choice = input("\nEnter choice (0 to cancel): ").strip()
+        choice = input("\nSelect directory (0 to cancel): ").strip()
         
         if choice == '0':
             return
@@ -422,22 +400,35 @@ class MonitorMenu:
             
         input("\nPress Enter to continue...")
     
+    def toggle_monitoring_process(self, is_active):
+        """Start or stop the monitoring process."""
+        if is_active:
+            # Stop monitoring
+            if self.monitor_manager.stop_monitoring():
+                print("\nMonitoring process stopped.")
+            else:
+                print("\nFailed to stop monitoring process.")
+        else:
+            # Start monitoring
+            interval = int(os.environ.get('MONITOR_SCAN_INTERVAL', '60'))
+            if self.monitor_manager.start_monitoring(interval):
+                print(f"\nMonitoring started with {interval} second interval.")
+            else:
+                print("\nFailed to start monitoring process.")
+                
+        input("\nPress Enter to continue...")
+        
     def configure_monitoring(self):
         """Configure monitoring settings."""
-        from src.config import get_settings, get_monitor_settings
-        
         clear_screen()
         display_ascii_art()
-        print("=" * 60)
-        print("MONITORING SETTINGS")
-        print("=" * 60)
+        print("=" * 84)
+        print("MONITORING SETTINGS".center(84))
+        print("=" * 84)
         
         # Get current settings
-        settings = get_settings()
-        monitor_settings = get_monitor_settings()
-        
-        auto_process = monitor_settings.get('MONITOR_AUTO_PROCESS', 'false').lower() == 'true'
-        scan_interval = int(monitor_settings.get('MONITOR_SCAN_INTERVAL', '60'))
+        auto_process = os.environ.get('MONITOR_AUTO_PROCESS', 'false').lower() == 'true'
+        scan_interval = int(os.environ.get('MONITOR_SCAN_INTERVAL', '60'))
         
         print("\nCurrent settings:")
         print(f"1. Auto-process new files: {'Enabled' if auto_process else 'Disabled'}")
@@ -477,7 +468,7 @@ class MonitorMenu:
             print("Invalid choice.")
         
         input("\nPress Enter to continue...")
-    
+        
     def _update_monitor_setting(self, name, value):
         """Update a monitor setting."""
         from src.main import _update_env_var

@@ -1424,11 +1424,12 @@ class SettingsMenu:
             print("2. TMDB API Settings")
             print("3. File Management Settings")
             print("4. Monitoring Settings")
-            print("5. Advanced Settings")
-            print("6. View Current Configuration")
+            print("5. Discord Bot Settings")  # Add this line
+            print("6. Advanced Settings")
+            print("7. View Current Configuration")
             print("q. Return to Main Menu")
             
-            choice = input("\nSelect category (1-6, q): ").strip().lower()
+            choice = input("\nSelect category (1-7, q): ").strip().lower()
             
             if choice == '1':
                 self._directory_settings()
@@ -1438,10 +1439,12 @@ class SettingsMenu:
                 self._file_management_settings()
             elif choice == '4':
                 self._monitoring_settings()
-            elif choice == '5':
-                self._advanced_settings()
+            elif choice == '5':  # Add this block
+                self._discord_bot_settings()
             elif choice == '6':
-                self._view_all_settings()
+                self._advanced_settings()
+            elif choice == '7':
+                self._view_current_configuration()
             elif choice == 'q':
                 clear_screen()
                 display_ascii_art()
@@ -2211,7 +2214,6 @@ class SettingsMenu:
         except ValueError:
             print("\nInvalid input. Please enter a number.")
             input("\nPress Enter to continue...")
-    
     def _discord_bot_settings(self):
         """Discord bot settings submenu."""
         while True:
@@ -2271,10 +2273,54 @@ class SettingsMenu:
                 print("\nInvalid option.")
                 input("\nPress Enter to continue...")
     
+    # Add this method to test Discord connection
     def _test_discord_connection(self):
         """Test Discord bot connection."""
-        # This is a placeholder for the actual test implementation
-        print("\nTesting Discord bot connection...")
+        print("\nTesting Discord connection...")
+        
+        token = os.environ.get('DISCORD_BOT_TOKEN', '')
+        webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+        enabled = os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true'
+        
+        if not enabled:
+            print("\nDiscord bot is currently disabled. Enable it in settings first.")
+            input("\nPress Enter to continue...")
+            return
+        
+        if not token and not webhook_url:
+            print("\nEither Discord bot token or webhook URL must be set.")
+            input("\nPress Enter to continue...")
+            return
+        
+        try:
+            # Test webhook if configured
+            if webhook_url:
+                from src.utils.discord_utils import send_discord_webhook_notification
+                success = send_discord_webhook_notification(
+                    webhook_url=webhook_url,
+                    title="Test Connection",
+                    message="This is a test message from Scanly.",
+                    fields=[{"name": "Status", "value": "Working"}]
+                )
+                if success:
+                    print("\n✓ Webhook connection successful!")
+                else:
+                    print("\n✗ Webhook connection failed.")
+            
+            # Test bot connection if configured
+            if token:
+                from src.discord.bot import test_bot_connection
+                result = test_bot_connection()
+                if result:
+                    print("\n✓ Bot connection successful!")
+                else:
+                    print("\n✗ Bot connection failed. Check your token and permissions.")
+        except ImportError as e:
+            print(f"\n✗ Could not import required Discord modules: {e}")
+            print("Make sure discord.py is installed: pip install discord.py")
+        except Exception as e:
+            print(f"\n✗ Error testing Discord connection: {e}")
+        
         input("\nPress Enter to continue...")
 
 def main():
@@ -2292,10 +2338,11 @@ def main():
         menu_options = {
             "1": ("Individual Scan", None),
             "2": ("Multi Scan", None),
+            "3": ("Monitor Scan", None),  # Add Monitor Scan option
         }
         
         # Conditionally available options
-        next_option = 3
+        next_option = 4  # Changed to 4 since we added Monitor Scan as option 3
         
         # Resume scan - only if scan history exists
         if has_scan_history():
@@ -2360,6 +2407,20 @@ def main():
             clear_screen()
             display_ascii_art()  # Show ASCII art
         
+        elif choice == "3":
+            # Monitor scan - add this new option
+            try:
+                from src.ui.monitor_menu import MonitorMenu
+                monitor_menu = MonitorMenu()
+                monitor_menu.show()
+                clear_screen()
+                display_ascii_art()
+            except Exception as e:
+                print(f"\nError in monitor menu: {e}")
+                input("\nPress Enter to continue...")
+                clear_screen()
+                display_ascii_art()
+                
         elif choice in menu_options and menu_options[choice][0] == "Resume Scan":
             # Resume scan
             clear_screen()

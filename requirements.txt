@@ -13,3 +13,4 @@ isort>=5.10.1
 flake8>=4.0.1
 
 sphinx>=4.5.0
+discord.py>=2.0.0

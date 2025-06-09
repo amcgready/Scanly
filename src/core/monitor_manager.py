@@ -257,6 +257,15 @@ class MonitorManager:
             self.logger.warning("Already monitoring")
             return False
         
+        # Initialize Discord handler if bot is enabled
+        if os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true':
+            try:
+                from src.discord.monitor_handler import initialize_handler
+                initialize_handler()
+                self.logger.info("Discord monitor handler initialized")
+            except Exception as e:
+                self.logger.error(f"Error initializing Discord handler: {e}")
+        
         self.stop_event.clear()
         self.monitoring_thread = threading.Thread(
             target=self._monitor_loop, 
@@ -277,6 +286,15 @@ class MonitorManager:
         if not self.monitoring_thread or not self.monitoring_thread.is_alive():
             self.logger.warning("Not currently monitoring")
             return False
+        
+        # Shutdown Discord handler if bot is enabled
+        if os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true':
+            try:
+                from src.discord.monitor_handler import shutdown_handler
+                shutdown_handler()
+                self.logger.info("Discord monitor handler shut down")
+            except Exception as e:
+                self.logger.error(f"Error shutting down Discord handler: {e}")
         
         self.logger.info("Stopping monitoring...")
         self.stop_event.set()
@@ -446,6 +464,72 @@ class MonitorManager:
         # Save the updated information
         self._save_monitored_directories()
 
+    def _notify_discord(self, directory_path, new_files, directory_id):
+        """
+        Send Discord notification for new files if enabled.
+        
+        Args:
+            directory_path: Path to the monitored directory
+            new_files: List of new file paths
+            directory_id: ID of the monitored directory
+        """
+        # Check if Discord is enabled
+        if os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() != 'true':
+            return False
+            
+        try:
+            # Group files by subfolder
+            subfolder_files = {}
+            for file_path in new_files:
+                subfolder = os.path.dirname(file_path)
+                subfolder_name = os.path.basename(subfolder)
+                if subfolder not in subfolder_files:
+                    subfolder_files[subfolder] = []
+                subfolder_files[subfolder].append(file_path)
+                
+            # Send webhook notification first (simple notification)
+            webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+            if webhook_url:
+                fields = []
+                for subfolder, files in subfolder_files.items():
+                    subfolder_name = os.path.basename(subfolder)
+                    fields.append({
+                        "name": subfolder_name,
+                        "value": f"{len(files)} new file(s)",
+                        "inline": True
+                    })
+                    
+                send_discord_webhook_notification(
+                    webhook_url=webhook_url,
+                    title="New Media Detected",
+                    message=f"New media files detected in {directory_path}",
+                    fields=fields
+                )
+                
+            # Send detailed bot notifications for each subfolder
+            for subfolder, files in subfolder_files.items():
+                subfolder_name = os.path.basename(subfolder)
+                
+                # Use the Discord monitor handler to send interactive notification
+                try:
+                    from src.discord.monitor_handler import notify_new_media
+                    session_id = notify_new_media(
+                        directory_path=directory_path,
+                        subfolder_name=subfolder_name,
+                        file_paths=files
+                    )
+                    
+                    if session_id:
+                        self.logger.info(f"Interactive Discord notification sent for {subfolder_name}")
+                        
+                except ImportError:
+                    self.logger.warning("Discord monitor handler not available")
+                    
+            return True
+        except Exception as e:
+            self.logger.error(f"Error sending Discord notification: {e}")
+            return False
+
     def detect_changes(self, directory_id):
         """
         Check for new files in a monitored directory.
@@ -493,6 +577,9 @@ class MonitorManager:
             # Save changes
             self._save_monitored_directories()
             
+            # Send Discord notification if enabled
+            self._notify_discord(directory_path, new_files, directory_id)
+        
         return new_files
 
     def monitor_directories(self):
