@@ -2277,9 +2277,9 @@ class SettingsMenu:
         # Import required modules explicitly at method level
         import os
         import sys
-        import importlib
-        import tempfile
         import subprocess
+        import importlib
+        import importlib.util
         import traceback
         
         clear_screen()
@@ -2288,145 +2288,227 @@ class SettingsMenu:
         print("DISCORD BOT CONTROL".center(84))
         print("=" * 84)
         
-        # Remove the existing src directory from sys.path to avoid conflicts
-        src_dir = os.path.dirname(os.path.dirname(__file__))
-        if src_dir in sys.path:
-            sys.path.remove(src_dir)
+        # Check if the bot is enabled in the environment
+        enabled = os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true'
+        print(f"Bot status in settings: {'Enabled' if enabled else 'Disabled'}")
         
-        # Show Python environment information
-        print("\nPython Environment Information:")
-        print(f"Python version: {sys.version}")
-        print(f"Python executable: {sys.executable}")
-        
-        # Check if real discord.py is installed
+        # Start by checking if we can import discord.py properly
         try:
-            import subprocess
-            result = subprocess.run([sys.executable, "-m", "pip", "list"], capture_output=True, text=True)
-            discord_installed = any("discord" in line for line in result.stdout.splitlines())
-            print(f"\nDiscord.py installed according to pip: {'Yes' if discord_installed else 'No'}")
-        except Exception as e:
-            print(f"Error checking pip packages: {e}")
-        
-        # Try importing discord.py directly using a temp file outside the project structure
-        try:
-            # Create a temporary file to test discord.py import
-            with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as tmp:
-                tmp.write(b"try:\n    import discord\n    print('Discord.py version found')\nexcept ImportError as e:\n    print(f'Import error: {e}')\n")
-                tmp_path = tmp.name
+            # Create a temporary Python file to test discord imports properly
+            import tempfile
             
-            # Run the temp file with the current Python interpreter
-            result = subprocess.run([sys.executable, tmp_path], capture_output=True, text=True)
+            # Get a temporary file path
+            with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as temp_file:
+                temp_path = temp_file.name
+                
+                # Write a simple script that checks if discord.py is installed
+                # and runs outside of the project's import path to avoid conflicts
+                test_script = """
+import sys
+import os
+import subprocess
+
+# Get the sys.path before we modify it
+original_path = sys.path.copy()
+
+# Remove any path that ends with 'src' to avoid project conflicts
+sys.path = [p for p in sys.path if not p.endswith('src')]
+
+try:
+    import discord
+    from discord.ext import commands
+    print(f"Discord.py version: {discord.__version__}")
+    print(f"Discord.py location: {discord.__file__}")
+    print("Discord.py successfully imported")
+except ImportError as e:
+    print(f"Error importing discord.py: {e}")
+    print("Please install discord.py with: pip install -U discord.py")
+    sys.exit(1)
+
+# Restore original path
+sys.path = original_path
+sys.exit(0)
+"""
+                temp_file.write(test_script.encode())
+
+            # Run the temporary script to check discord import
+            result = subprocess.run([sys.executable, temp_path], capture_output=True, text=True)
             
-            # Delete the temp file
+            # Clean up the temp file
             try:
-                os.unlink(tmp_path)
+                os.unlink(temp_path)
             except:
                 pass
                 
-            if result.returncode == 0:
-                print(result.stdout.strip())
-            else:
-                print("Error importing discord.py:")
-                print(result.stderr.strip())
-                print("\nYou may need to install discord.py with: pip install discord.py")
+            if result.returncode != 0:
+                print("\nError checking discord.py installation:")
+                print(result.stderr)
                 input("\nPress Enter to continue...")
                 return
                 
-        except Exception as e:
-            print(f"\nError verifying discord.py: {e}")
-            input("\nPress Enter to continue...")
-            return
+            # Show discord.py information
+            print("\n" + result.stdout.strip())
             
-        # Check bot status and control it
-        try:
-            # Check if bot is running - based on environment variable
-            is_running = os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true'
+            # Now check current bot status and provide start/stop options
+            print("\nWhat would you like to do?")
+            print("1. Start Discord bot")
+            print("2. Stop Discord bot")
+            print("3. Return to Discord settings")
             
-            if is_running:
-                print("\nDiscord bot appears to be running. Stopping bot...")
+            action = input("\nEnter choice (1-3): ").strip()
+            
+            if action == '1':
+                # User wants to start the bot
+                print("\nStarting Discord bot...")
                 
-                # Use subprocess to run a script to stop the bot
-                stop_script = (
-                    "import os, sys\n"
-                    "# Remove the src directory from sys.path\n"
-                    "for path in sys.path:\n"
-                    "    if path.endswith('src'):\n"
-                    "        sys.path.remove(path)\n"
-                    "# Now import the real discord.py\n"
-                    "try:\n"
-                    "    import discord\n"
-                    "    print('Discord module imported successfully')\n"
-                    "except ImportError as e:\n"
-                    "    print(f'Failed to import discord: {e}')\n"
-                    "    sys.exit(1)\n"
-                    "# Set bot as stopped\n"
-                    "print('Discord bot stopped')\n"
-                )
-                
-                with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as tmp:
-                    tmp.write(stop_script.encode())
-                    tmp_path = tmp.name
-                
-                result = subprocess.run([sys.executable, tmp_path], capture_output=True, text=True)
-                
-                try:
-                    os.unlink(tmp_path)
-                except:
-                    pass
-                
-                if result.returncode == 0:
-                    print("Discord bot stopped successfully.")
-                    _update_env_var('DISCORD_BOT_ENABLED', 'false')
-                else:
-                    print("Error stopping Discord bot:")
-                    print(result.stderr.strip())
-            else:
-                print("\nDiscord bot is not running. Starting bot...")
-                
-                # Check if token is configured
+                # Get the token
                 token = os.environ.get('DISCORD_BOT_TOKEN', '')
-                
                 if not token:
                     print("\nError: Discord bot token not set. Please set a token first.")
                     input("\nPress Enter to continue...")
                     return
-                
-                # Use subprocess to run a script to start the bot
-                start_script = (
-                    "import os, sys\n"
-                    "# Remove the src directory from sys.path\n"
-                    "for path in sys.path:\n"
-                    "    if path.endswith('src'):\n"
-                    "        sys.path.remove(path)\n"
-                    "# Try importing discord modules\n"
-                    "try:\n"
-                    "    import discord\n"
-                    "    from discord.ext import commands\n"
-                    "    print('Discord modules imported successfully')\n"
-                    "except ImportError as e:\n"
-                    "    print(f'Failed to import discord: {e}')\n"
-                    "    sys.exit(1)\n"
-                    "print('Bot start simulation successful')\n"
+                    
+                # Create a daemon process to run the bot
+                bot_script = """
+import os
+import sys
+import asyncio
+import logging
+import signal
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger('discord_bot')
+
+# Remove any path that ends with 'src' to avoid project conflicts
+sys.path = [p for p in sys.path if not p.endswith('src')]
+
+try:
+    import discord
+    from discord.ext import commands
+    
+    # Bot token from environment
+    token = os.environ.get('DISCORD_BOT_TOKEN', '')
+    if not token:
+        logger.error("Discord bot token not set")
+        sys.exit(1)
+    
+    # Set up intents
+    intents = discord.Intents.default()
+    intents.message_content = True
+    
+    # Create bot
+    bot = commands.Bot(command_prefix='!', intents=intents)
+    
+    @bot.event
+    async def on_ready():
+        logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
+        logger.info(f'Bot version: 1.0.0')
+        await bot.sync_commands()  # Sync any slash commands
+        logger.info('Application commands synced')
+
+    # Some basic commands
+    @bot.command(name='ping')
+    async def ping(ctx):
+        await ctx.send('Pong! Bot is running.')
+        
+    @bot.command(name='status')
+    async def status(ctx):
+        await ctx.send(f'Bot is online and working! Connected to {len(bot.guilds)} servers.')
+    
+    # Define cleanup for graceful shutdown
+    def signal_handler(sig, frame):
+        logger.info("Shutdown signal received")
+        loop = asyncio.get_event_loop()
+        loop.create_task(bot.close())
+        sys.exit(0)
+    
+    # Register the signal handler
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Run the bot
+    logger.info("Starting bot...")
+    bot.run(token)
+    
+except Exception as e:
+    logger.error(f"Error starting bot: {e}")
+    sys.exit(1)
+"""
+                # Create a new file for the bot script
+                bot_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'discord_bot_runner.py')
+                with open(bot_script_path, 'w') as f:
+                    f.write(bot_script)
+                    
+                # Start the bot as a background process
+                bot_process = subprocess.Popen(
+                    [sys.executable, bot_script_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
                 )
                 
-                with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as tmp:
-                    tmp.write(start_script.encode())
-                    tmp_path = tmp.name
+                # Wait for a moment to see if it starts correctly
+                import time
+                time.sleep(2)
                 
-                result = subprocess.run([sys.executable, tmp_path], capture_output=True, text=True)
-                
-                try:
-                    os.unlink(tmp_path)
-                except:
-                    pass
-                
-                if result.returncode == 0:
-                    print("Discord bot started successfully in background.")
+                # Check if process is still running
+                if bot_process.poll() is None:
+                    print("\nBot process started successfully!")
+                    # Update the environment variable
                     _update_env_var('DISCORD_BOT_ENABLED', 'true')
+                    _update_env_var('DISCORD_BOT_PID', str(bot_process.pid))
+                    print(f"Bot is running with PID: {bot_process.pid}")
                 else:
-                    print("Error starting Discord bot:")
-                    print(result.stderr.strip())
-        
+                    print("\nFailed to start bot process!")
+                    output, _ = bot_process.communicate(timeout=1)
+                    print(f"Error output: {output}")
+            
+            elif action == '2':
+                # User wants to stop the bot
+                print("\nStopping Discord bot...")
+                
+                # Get the bot PID if available
+                bot_pid = os.environ.get('DISCORD_BOT_PID', '')
+                
+                if bot_pid:
+                    try:
+                        # Try to terminate the process
+                        pid = int(bot_pid)
+                        os.kill(pid, 15)  # SIGTERM
+                        print(f"Sent termination signal to process {pid}")
+                        
+                        # Check if process was terminated
+                        import time
+                        time.sleep(1)
+                        try:
+                            os.kill(pid, 0)  # Check if process exists
+                            print("Process still running, forcing termination...")
+                            os.kill(pid, 9)  # SIGKILL
+                        except OSError:
+                            print("Process terminated successfully")
+                            
+                    except ProcessLookupError:
+                        print(f"No process found with PID {bot_pid}")
+                    except ValueError:
+                        print(f"Invalid PID: {bot_pid}")
+                    except Exception as e:
+                        print(f"Error stopping bot: {e}")
+                else:
+                    print("No bot process ID found. The bot may not be running.")
+                    
+                # Update environment regardless
+                _update_env_var('DISCORD_BOT_ENABLED', 'false')
+                _update_env_var('DISCORD_BOT_PID', '')
+                
+            elif action == '3':
+                # Return to Discord settings
+                return
+                
         except Exception as e:
             print(f"\nUnexpected error: {e}")
             traceback.print_exc()
@@ -2435,7 +2517,6 @@ class SettingsMenu:
     
     def _test_discord_connection(self):
         """Test Discord connection."""
-        # Import required modules explicitly at method level  
         import os
         import sys
         import tempfile
@@ -2448,11 +2529,6 @@ class SettingsMenu:
         print("TESTING DISCORD CONNECTION".center(84))
         print("=" * 84)
         
-        # Remove the src directory from sys.path to avoid conflicts
-        src_dir = os.path.dirname(os.path.dirname(__file__))
-        if src_dir in sys.path:
-            sys.path.remove(src_dir)
-        
         # Get token
         token = os.environ.get('DISCORD_BOT_TOKEN', '')
         
@@ -2461,50 +2537,85 @@ class SettingsMenu:
             input("\nPress Enter to continue...")
             return
         
-        # Use subprocess to test the token
-        test_script = (
-            "import os, sys\n"
-            "# Remove the src directory from sys.path\n"
-            "for path in sys.path:\n"
-            "    if path.endswith('src'):\n"
-            "        sys.path.remove(path)\n"
-            "# Try importing discord modules\n"
-            "try:\n"
-            "    import discord\n"
-            "    print('Discord module imported successfully')\n"
-            "except ImportError as e:\n"
-            "    print(f'Failed to import discord: {e}')\n"
-            "    sys.exit(1)\n"
-            "print('Token validation successful (simulated)')\n"
-        )
-        
+        # Create a temporary script to test the token
         try:
-            with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as tmp:
-                tmp.write(test_script.encode())
-                tmp_path = tmp.name
+            with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as temp_file:
+                temp_path = temp_file.name
+                
+                test_script = f"""
+import sys
+import os
+import asyncio
+
+# Remove any src path from sys.path
+sys.path = [p for p in sys.path if not p.endswith('src')]
+
+try:
+    import discord
+    from discord.ext import commands
+    print(f"Using discord.py version {{discord.__version__}}")
+    
+    # Test token
+    async def test_token():
+        try:
+            # Set up intents
+            intents = discord.Intents.default()
+            client = discord.Client(intents=intents)
             
-            print("\nTesting Discord connection...")
-            result = subprocess.run([sys.executable, tmp_path], capture_output=True, text=True)
+            # Set up events
+            @client.event
+            async def on_ready():
+                print(f"Connection successful! Logged in as {{client.user}}")
+                print(f"Connected to {{len(client.guilds)}} servers:")
+                for guild in client.guilds:
+                    print(f" - {{guild.name}} (ID: {{guild.id}})")
+                await client.close()
             
+            # Try to log in and connect
+            await client.start('{token}')
+            return True
+            
+        except discord.LoginFailure:
+            print("Login failed: Invalid token")
+            return False
+        except Exception as e:
+            print(f"Error: {{e}}")
+            return False
+    
+    # Run the test
+    asyncio.run(test_token())
+    
+except ImportError as e:
+    print(f"Error importing discord.py: {{e}}")
+    sys.exit(1)
+"""
+                temp_file.write(test_script.encode())
+                
+            # Run the test script
+            print("\nTesting Discord token...")
+            result = subprocess.run([sys.executable, temp_path], capture_output=True, text=True)
+            
+            # Clean up the temp file
             try:
-                os.unlink(tmp_path)
+                os.unlink(temp_path)
             except:
                 pass
             
+            # Process the results
             if result.returncode == 0:
                 print("\n" + result.stdout.strip())
-                if "Token validation successful" in result.stdout:
-                    print("\nYour Discord token appears to be valid!")
+                if "Connection successful" in result.stdout:
+                    print("\nTest completed successfully!")
                 else:
-                    print("\nDiscord module loaded but token validation failed.")
+                    print("\nTest completed with errors. Check the output above.")
             else:
-                print("\nError executing test:")
+                print("\nTest failed:")
                 print(result.stderr.strip())
                 
         except Exception as e:
-            print(f"\nError during test: {e}")
+            print(f"\nError running test: {e}")
             traceback.print_exc()
-        
+            
         input("\nPress Enter to continue...")
 def generate_bot_invite_url(client_id, permissions=8):
     """
