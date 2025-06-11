@@ -7,10 +7,13 @@ This module handles sending notifications to Discord via webhooks.
 import os
 import json
 import requests
+import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from src.main import get_logger
+def get_logger(name):
+    """Get a logger with the given name."""
+    return logging.getLogger(name)
 
 logger = get_logger(__name__)
 

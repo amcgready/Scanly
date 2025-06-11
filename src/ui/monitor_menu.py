@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import logging
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -11,8 +12,12 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from src.main import get_logger, clear_screen, display_ascii_art, _clean_directory_path, _update_env_var
-from src.core.monitor_manager import MonitorManager
+# Import from main for common functions
+from src.main import get_logger, clear_screen, display_ascii_art, _clean_directory_path
+
+def get_logger(name):
+    """Get a logger with the given name."""
+    return logging.getLogger(name)
 
 class MonitorMenu:
     """Menu for monitoring functionality."""
@@ -23,6 +28,7 @@ class MonitorMenu:
         
         # Initialize the MonitorManager
         try:
+            from src.core.monitor_manager import MonitorManager
             self.monitor_manager = MonitorManager()
         except Exception as e:
             self.logger.error(f"Error initializing MonitorManager: {e}")
@@ -203,10 +209,10 @@ class MonitorMenu:
             # Process the files
             print(f"\nProcessing {directory_info['count']} files from {directory_info['description']}...")
             
-            from src.core.monitor_processor import MonitorProcessor
-            processor = MonitorProcessor(auto_mode=auto_mode)
-            
             try:
+                from src.core.monitor_processor import MonitorProcessor
+                processor = MonitorProcessor(auto_mode=auto_mode)
+                
                 processed, errors, skipped = processor.process_new_files(
                     directory_info['path'], 
                     directory_info['pending_files']
@@ -283,9 +289,7 @@ class MonitorMenu:
             start_now = input("> ").strip().lower()
             
             if start_now == 'y':
-                from src.config import get_settings
-                settings = get_settings()
-                interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
+                interval = int(os.environ.get('MONITOR_SCAN_INTERVAL', '60'))
                 self.monitor_manager.start_monitoring(interval)
                 print(f"\nMonitoring started with {interval} second interval.")
         else:
@@ -441,18 +445,20 @@ class MonitorMenu:
             return
         elif choice == '1':
             # Toggle auto-processing
+            from src.main import _update_env_var
             new_value = 'false' if auto_process else 'true'
-            self._update_monitor_setting('MONITOR_AUTO_PROCESS', new_value)
+            _update_env_var('MONITOR_AUTO_PROCESS', new_value)
             print(f"\nAuto-processing is now {'enabled' if new_value == 'true' else 'disabled'}.")
         elif choice == '2':
             # Change scan interval
             print("\nEnter new scan interval in seconds (15-3600):")
             try:
+                from src.main import _update_env_var
                 new_interval = input("> ").strip()
                 new_interval_int = int(new_interval)
                 
                 if 15 <= new_interval_int <= 3600:
-                    self._update_monitor_setting('MONITOR_SCAN_INTERVAL', str(new_interval_int))
+                    _update_env_var('MONITOR_SCAN_INTERVAL', str(new_interval_int))
                     print(f"\nScan interval updated to {new_interval_int} seconds.")
                     
                     # Update active monitor if running
@@ -468,8 +474,3 @@ class MonitorMenu:
             print("Invalid choice.")
         
         input("\nPress Enter to continue...")
-        
-    def _update_monitor_setting(self, name, value):
-        """Update a monitor setting."""
-        from src.main import _update_env_var
-        _update_env_var(name, value)

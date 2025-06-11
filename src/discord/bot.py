@@ -2,7 +2,6 @@ import os
 import sys
 import asyncio
 import threading
-import discord
 import logging
 import json
 import re
@@ -27,14 +26,21 @@ is_bot_running = False
 active_scans = {}
 command_callbacks = {}
 
-class ScanlyBot(discord.Client):
+# Import discord properly
+try:
+    import discord
+    from discord.ext import commands
+except ImportError as e:
+    logger.error(f"Failed to import discord: {e}")
+
+class ScanlyBot(commands.Bot):
     """Discord bot for Scanly media scanner."""
     
     def __init__(self, channel_id=None):
         intents = discord.Intents.default()
         intents.message_content = True
         intents.reactions = True
-        super().__init__(intents=intents)
+        super().__init__(command_prefix="!", intents=intents)
         self.channel_id = channel_id
         self.target_channel = None
         self.ready_event = asyncio.Event()
@@ -54,6 +60,8 @@ class ScanlyBot(discord.Client):
         
         # Set ready event to signal bot is ready
         self.ready_event.set()
+        global is_bot_running
+        is_bot_running = True
         
     async def on_reaction_add(self, reaction, user):
         """Handle reactions to bot messages."""
@@ -179,53 +187,31 @@ class ScanlyBot(discord.Client):
             return False
 
 def start_bot():
-    """Start the Discord bot in a background thread."""
+    """Start the Discord bot."""
     global bot_instance, bot_thread, is_bot_running
     
-    if is_bot_running and bot_thread and bot_thread.is_alive():
-        logger.info("Bot is already running")
-        return True
-    
     try:
-        # Check if bot is enabled and configured
-        enabled = os.environ.get('DISCORD_BOT_ENABLED', 'false').lower() == 'true'
+        # Get the token from environment
         token = os.environ.get('DISCORD_BOT_TOKEN', '')
-        channel_id = os.environ.get('DISCORD_CHANNEL_ID', '')
         
-        if not enabled:
-            logger.info("Discord bot is disabled in settings")
-            return False
-            
         if not token:
-            logger.error("Discord bot token not configured")
+            logger.error("No Discord token provided in environment variables")
             return False
             
-        # Create bot instance
-        bot_instance = ScanlyBot(channel_id=channel_id)
+        # Create bot instance using commands.Bot 
+        intents = discord.Intents.default()
+        intents.message_content = True  # Enable message content intent if needed
+        bot_instance = ScanlyBot(channel_id=None)
         
-        # Define thread function to run the bot
-        def run_bot():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                loop.run_until_complete(bot_instance.start(token))
-            except Exception as e:
-                logger.error(f"Discord bot error: {e}")
-                logger.error(traceback.format_exc())
-            finally:
-                if not loop.is_closed():
-                    loop.close()
-                    
-        # Start bot in a background thread
-        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        # Start the bot in a separate thread
+        bot_thread = threading.Thread(target=lambda: asyncio.run(bot_instance.start(token)), daemon=True)
         bot_thread.start()
-        is_bot_running = True
         
         logger.info("Discord bot started successfully")
         return True
+        
     except Exception as e:
-        logger.error(f"Error starting Discord bot: {e}")
+        logger.error(f"Failed to start Discord bot: {e}")
         logger.error(traceback.format_exc())
         return False
 
@@ -300,7 +286,7 @@ def test_bot_connection():
     try:
         # Create minimal client just for testing connection
         intents = discord.Intents.default()
-        test_client = discord.Client(intents=intents)
+        test_client = commands.Bot(command_prefix="!", intents=intents)
         
         # Define async function for test
         async def test_connect():

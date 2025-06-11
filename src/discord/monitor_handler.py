@@ -11,8 +11,9 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from src.main import get_logger
-from src.discord.bot import send_notification, register_callback, start_bot, stop_bot
+def get_logger(name):
+    """Get a logger with the given name."""
+    return logging.getLogger(name)
 
 logger = get_logger(__name__)
 
@@ -30,6 +31,7 @@ def initialize_handler():
         tmdb_api = TMDB()
         
         # Register callbacks
+        from src.discord.bot import register_callback, start_bot
         register_callback('on_option_selected', handle_option_selected)
         
         # Start the Discord bot
@@ -50,6 +52,7 @@ def shutdown_handler():
         active_monitor_sessions.clear()
         
         # Stop the Discord bot
+        from src.discord.bot import stop_bot
         stop_bot()
         
         logger.info("Discord monitor handler shut down")
@@ -148,6 +151,7 @@ def notify_new_media(directory_path, subfolder_name, file_paths=None):
         }
         
         # Send notification
+        from src.discord.bot import send_notification
         notification_title = "New Media Detected"
         notification_message = f"New media detected in monitored directory: **{subfolder_name}**"
         
@@ -203,6 +207,7 @@ def handle_option_selected(scan_id, option, option_idx):
             process_media_folder(directory_path, subfolder_name, title, year)
             
             # Send confirmation
+            from src.discord.bot import send_notification
             send_notification(
                 title="Media Accepted",
                 message=f"Processing '{subfolder_name}' with detected metadata",
@@ -212,6 +217,7 @@ def handle_option_selected(scan_id, option, option_idx):
             
         elif option_idx == 1:  # Change search term
             # For changing search term, we need manual interaction
+            from src.discord.bot import send_notification
             send_notification(
                 title="Manual Action Required",
                 message=f"To change search term for '{subfolder_name}', please use Scanly's CLI interface",
@@ -221,6 +227,7 @@ def handle_option_selected(scan_id, option, option_idx):
             
         elif option_idx == 2:  # Change content type
             # For changing content type, we need manual interaction
+            from src.discord.bot import send_notification
             send_notification(
                 title="Manual Action Required",
                 message=f"To change content type for '{subfolder_name}', please use Scanly's CLI interface",
@@ -230,8 +237,8 @@ def handle_option_selected(scan_id, option, option_idx):
             
         elif option_idx == 3:  # Skip
             # Add to skipped items
-            from src.main import skipped_items_registry, save_skipped_items
             import datetime
+            from src.main import skipped_items_registry, save_skipped_items
             
             subfolder_path = os.path.join(directory_path, subfolder_name)
             skipped_items_registry.append({
@@ -242,6 +249,7 @@ def handle_option_selected(scan_id, option, option_idx):
             save_skipped_items(skipped_items_registry)
             
             # Send confirmation
+            from src.discord.bot import send_notification
             send_notification(
                 title="Media Skipped",
                 message=f"'{subfolder_name}' has been added to skipped items for later processing",
