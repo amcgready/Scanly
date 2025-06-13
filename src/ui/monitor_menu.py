@@ -1,484 +1,263 @@
 #!/usr/bin/env python3
 """Monitor menu for Scanly application."""
-
 import os
-import time
-from pathlib import Path
 import sys
+import time
+import logging
+from pathlib import Path
 
 # Ensure parent directory is in path for imports
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from src.main import get_logger, clear_screen, display_ascii_art
-from src.core.monitor_processor import MonitorProcessor
-from src.core.monitor_manager import MonitorManager
+# Now this import should work with our added function
+from src.config import get_settings
+from src.core.monitor import get_monitor_manager
 
-class MonitorMenu:
-    """Menu for monitoring functionality."""
+logger = logging.getLogger(__name__)
+
+def clear_screen():
+    """Clear the console screen."""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def display_ascii_art():
+    """Display ASCII art for the application."""
+    print(r"""
+ ░▒▓███████▓▒░░▒▓██████▓▒░ ░▒▓██████▓▒░░▒▓███████▓▒░░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░ 
+░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░ 
+░▒▓█▓▒░      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░ 
+ ░▒▓██████▓▒░░▒▓█▓▒░      ░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░    ░▒▓██████▓▒░  
+       ░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░     
+       ░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░     
+░▒▓███████▓▒░ ░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓█▓▒░     
+                                                                             
+                                    
+    """)
+    print("Welcome to Scanly Monitor")
+    print("=======================")
+
+def display_monitor_menu():
+    """Display the monitor scan management menu."""
+    monitor_manager = get_monitor_manager()
     
-    def __init__(self):
-        """Initialize the monitor menu."""
-        self.logger = get_logger(__name__)
+    while True:
+        # Clear the screen
+        clear_screen()
+        display_ascii_art()
+        print("\n===== Monitor Scan Management =====")
         
-        # Initialize the MonitorManager
-        try:
-            from src.core.monitor_manager import MonitorManager
-            self.monitor_manager = MonitorManager()
-        except ImportError as e:
-            self.logger.error(f"Error importing MonitorManager: {e}")
-            raise
+        # Get monitored directories
+        monitored_dirs = monitor_manager.get_monitored_directories()
         
-        # Fix invalid entries in monitored directories
-        self._fix_invalid_entries()
-    
-    def _fix_invalid_entries(self):
-        """Fix invalid entries in monitored directories."""
-        monitored_dirs = self.monitor_manager.get_monitored_directories()
+        if not monitored_dirs:
+            print("\nNo directories currently being monitored.")
+        else:
+            print("\nCurrently monitored directories:")
+            print(f"{'ID':<10} {'Name':<25} {'Status':<10} {'Pending':<10} {'Path'}")
+            print("-" * 80)
+            
+            for dir_id, info in monitored_dirs.items():
+                status = "ACTIVE" if info.get('active', False) else "INACTIVE"
+                pending_count = len(info.get('pending_files', []))
+                path = info.get('path', 'Unknown')
+                name = info.get('name', os.path.basename(path))
+                
+                print(f"{dir_id:<10} {name[:25]:<25} {status:<10} {pending_count:<10} {path}")
         
-        # Check for invalid entries
-        invalid_entries = []
-        for dir_id, info in monitored_dirs.items():
-            if not info.get('path') or info.get('path') == 'Unknown' or not os.path.isdir(info.get('path', '')):
-                invalid_entries.append(dir_id)
+        # Menu options
+        print("\nOptions:")
+        print("1. Add directory to monitor")
+        print("2. Remove directory from monitoring")
+        print("3. Toggle monitoring status (on/off)")
+        print("4. View pending files")
+        print("5. Back to main menu")
         
-        # Remove invalid entries
-        if invalid_entries:
-            self.logger.info(f"Removing {len(invalid_entries)} invalid monitored directories")
-            for dir_id in invalid_entries:
-                self.monitor_manager.remove_directory(dir_id)
-            self.monitor_manager._save_monitored_directories()
-    
-    def show(self):
-        """Show the monitor menu."""
-        while True:
-            # Get monitored directories
-            monitored_dirs = self.monitor_manager.get_monitored_directories()
+        choice = input("\nEnter your choice: ").strip()
+        
+        if choice == "1":
+            # Add directory
+            path = input("Enter directory path to monitor: ").strip()
+            path = path.strip('"\'')  # Remove quotes if present
             
-            # Check if monitoring is active
-            is_monitoring = self.monitor_manager.is_monitoring()
+            if not path:
+                print("No path entered.")
+                input("Press Enter to continue...")
+                continue
+                
+            if not os.path.isdir(path):
+                print(f"Error: '{path}' is not a valid directory.")
+                input("Press Enter to continue...")
+                continue
             
-            clear_screen()
-            display_ascii_art()
-            print("=" * 60)
-            print("MONITORED DIRECTORIES")
-            print("=" * 60)
+            name = input("Enter a name for this directory (optional, press Enter to use folder name): ").strip()
             
-            # Display all monitored directories
-            print("\nCurrently monitoring:")
+            dir_id = monitor_manager.add_directory(path, name if name else None)
+            if dir_id:
+                print(f"Directory added successfully with ID: {dir_id}")
+            else:
+                print("Failed to add directory.")
             
+            input("Press Enter to continue...")
+            
+        elif choice == "2":
+            # Remove directory
             if not monitored_dirs:
-                print("\nNo directories are currently being monitored.")
-            else:
-                for i, (dir_id, dir_info) in enumerate(monitored_dirs.items(), 1):
-                    path = dir_info.get('path', 'Unknown')
-                    description = dir_info.get('description', os.path.basename(path))
-                    status = "Active" if dir_info.get('active', True) else "Paused"
-                    auto_process = "Automatic" if dir_info.get('auto_process', False) else "Manual"
-                    
-                    # Get stats
-                    stats = dir_info.get('stats', {})
-                    total_processed = stats.get('total_processed', 0)
-                    last_processed = stats.get('last_processed', 0)
-                    last_processed_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_processed)) if last_processed else 'Never'
-                    
-                    # Check for pending files
-                    pending_files = dir_info.get('pending_files', [])
-                    pending_count = len(pending_files)
-                    
-                    print(f"\n{i}. {description}")
-                    print(f"   Path: {path}")
-                    print(f"   Status: {status}")
-                    print(f"   Processing Mode: {auto_process}")
-                    print(f"   Total Files Processed: {total_processed}")
-                    print(f"   Last Activity: {last_processed_str}")
-                    
-                    if pending_count > 0:
-                        print(f"   Pending Files: {pending_count} (awaiting processing)")
-            
-            print("\nOptions:")
-            print("1. Process pending files")
-            print("2. Add new directory to monitor")
-            print("3. Remove directory from monitoring")
-            print("4. Pause/Resume monitoring")
-            print(f"5. {'Stop' if is_monitoring else 'Start'} Monitoring Process")
-            print("6. Configure monitoring settings")
-            print("0. Back to main menu")
-            
-            choice = input("\nEnter your choice: ").strip()
-            
-            if choice == '0':
-                break
-            elif choice == '1':
-                self.process_pending_files()
-            elif choice == '2':
-                self.add_monitored_directory()
-            elif choice == '3':
-                self.remove_monitored_directory()
-            elif choice == '4':
-                self.toggle_monitoring_status()
-            elif choice == '5':
-                self.toggle_monitoring_process(is_monitoring)
-            elif choice == '6':
-                self.configure_monitoring()
-            else:
-                print("Invalid choice.")
-                input("\nPress Enter to continue...")
-    
-    def toggle_monitoring_process(self, is_active):
-        """Start or stop the monitoring process."""
-        if is_active:
-            # Stop monitoring
-            if self.monitor_manager.stop_monitoring():
-                print("\nMonitoring process stopped.")
-            else:
-                print("\nFailed to stop monitoring process.")
-        else:
-            # Start monitoring
-            from src.config import get_settings
-            settings = get_settings()
-            interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
-            if self.monitor_manager.start_monitoring(interval):
-                print(f"\nMonitoring started with {interval} second interval.")
-            else:
-                print("\nFailed to start monitoring process.")
+                print("No directories to remove.")
+                input("Press Enter to continue...")
+                continue
                 
-        input("\nPress Enter to continue...")
-    
-    def process_pending_files(self):
-        """Process pending files in monitored directories."""
-        # Get directories with pending files
-        pending_dirs = {}
-        for dir_id, dir_info in self.monitor_manager.get_monitored_directories().items():
-            pending_files = dir_info.get('pending_files', [])
-            if pending_files:
-                pending_dirs[dir_id] = {
-                    'path': dir_info.get('path', ''),
-                    'description': dir_info.get('description', ''),
-                    'pending_files': pending_files,
-                    'count': len(pending_files)
-                }
-        
-        if not pending_dirs:
-            print("\nNo pending files found in monitored directories.")
-            input("\nPress Enter to continue...")
-            return
-        
-        # Display directories with pending files
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("PROCESS PENDING FILES")
-        print("=" * 60)
-        
-        print("\nDirectories with pending files:")
-        options = []
-        for i, (dir_id, dir_info) in enumerate(pending_dirs.items(), 1):
-            description = dir_info['description'] or os.path.basename(dir_info['path'])
-            print(f"{i}. {description} ({dir_info['count']} files)")
-            options.append(dir_id)
-        
-        print("\n0. Back to monitor menu")
-        
-        choice = input("\nSelect directory to process (0 to go back): ").strip()
-        
-        if choice == '0':
-            return
-        
-        try:
-            idx = int(choice) - 1
-            if idx < 0 or idx >= len(options):
-                raise ValueError("Invalid choice")
+            dir_id = input("Enter ID of directory to remove: ").strip()
             
-            selected_dir_id = options[idx]
-            directory_info = pending_dirs[selected_dir_id]
-            
-            # Ask for processing mode
-            clear_screen()
-            display_ascii_art()
-            print("=" * 60)
-            print("PROCESS PENDING FILES")
-            print("=" * 60)
-            
-            print(f"\nDirectory: {directory_info['description']}")
-            print(f"Path: {directory_info['path']}")
-            print(f"Number of pending files: {directory_info['count']}")
-            
-            print("\nSelect processing mode:")
-            print("1. Auto Process (automatic content detection and processing)")
-            print("2. Manual Process (interactive content selection and processing)")
-            print("0. Cancel")
-            
-            mode_choice = input("\nEnter choice (0-2): ").strip()
-            
-            if mode_choice == '0':
-                return
-                
-            auto_mode = (mode_choice == '1')
-            
-            if not auto_mode and mode_choice != '2':
-                print("\nInvalid choice. Using manual processing mode.")
-                auto_mode = False
-                input("\nPress Enter to continue...")
-            
-            # Process the files
-            print(f"\nProcessing {directory_info['count']} files from {directory_info['description']}...")
-            
-            from src.core.monitor_processor import MonitorProcessor
-            processor = MonitorProcessor(auto_mode=auto_mode)
-            
-            try:
-                processed, errors, skipped = processor.process_new_files(
-                    directory_info['path'], 
-                    directory_info['pending_files']
-                )
-                
-                # Record the results
-                self.monitor_manager._record_processing(
-                    selected_dir_id, processed, errors, skipped
-                )
-                
-                # Clear pending files that were processed
-                self.monitor_manager.clear_pending_files(selected_dir_id)
-                
-                print(f"\nProcessing completed:")
-                print(f"- Processed: {processed} files")
-                print(f"- Skipped: {skipped} files")
-                print(f"- Errors: {errors} files")
-                
-            except Exception as e:
-                self.logger.error(f"Error processing files: {e}", exc_info=True)
-                print(f"\nError processing files: {e}")
-            
-            input("\nPress Enter to continue...")
-            
-        except (ValueError, IndexError):
-            print("Invalid choice.")
-            input("\nPress Enter to continue...")
-    
-    def add_monitored_directory(self):
-        """Add a new directory to monitoring."""
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("ADD MONITORED DIRECTORY")
-        print("=" * 60)
-        
-        print("\nEnter the path of the directory to monitor (or 'q' to cancel):")
-        dir_path = input("> ").strip()
-        
-        if dir_path.lower() == 'q':
-            return
-        
-        # Strip quotes that might be added when dragging paths into terminal
-        dir_path = dir_path.strip("'\"")
-        
-        # Validate directory exists
-        if not os.path.isdir(dir_path):
-            print(f"\nError: {dir_path} is not a valid directory.")
-            input("\nPress Enter to continue...")
-            return
-        
-        # Get description
-        print("\nEnter a description for this directory (optional):")
-        description = input("> ").strip() or os.path.basename(dir_path)
-        
-        # Ask for processing mode for existing files
-        print("\nHow should existing files in this directory be processed?")
-        print("1. Automatically (process files without user interaction)")
-        print("2. Manually (require manual review before processing)")
-        processing_choice = input("\nEnter choice (1-2): ").strip()
-        
-        auto_process = (processing_choice == "1")
-        
-        # Add to monitored directories with auto_process flag
-        if self.monitor_manager.add_directory(dir_path, description, auto_process=auto_process):
-            print(f"\nDirectory added to monitoring: {dir_path}")
-            if auto_process:
-                print("Existing files will be processed automatically.")
-            else:
-                print("Existing files queued for manual processing.")
-            
-            # Ask if user wants to start monitoring now
-            print("\nDo you want to start monitoring now? (y/n)")
-            start_now = input("> ").strip().lower()
-            
-            if start_now == 'y':
-                from src.config import get_settings
-                settings = get_settings()
-                interval = int(settings.get('MONITOR_SCAN_INTERVAL', '60'))
-                self.monitor_manager.start_monitoring(interval)
-                print(f"\nMonitoring started with {interval} second interval.")
-        else:
-            print(f"\nFailed to add directory: {dir_path}")
-        
-        input("\nPress Enter to continue...")
-    
-    def remove_monitored_directory(self):
-        """Remove a directory from monitoring."""
-        monitored_dirs = self.monitor_manager.get_monitored_directories()
-        
-        if not monitored_dirs:
-            print("No monitored directories found.")
-            input("\nPress Enter to continue...")
-            return
-        
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("REMOVE MONITORED DIRECTORY")
-        print("=" * 60)
-        
-        print("\nSelect a directory to remove from monitoring:")
-        options = []
-        for i, (dir_id, dir_info) in enumerate(monitored_dirs.items(), 1):
-            path = dir_info.get('path', 'Unknown')
-            description = dir_info.get('description', os.path.basename(path))
-            print(f"{i}. {description} ({path})")
-            options.append(dir_id)
-        
-        print("\n0. Cancel")
-        
-        choice = input("\nEnter choice (0 to cancel): ").strip()
-        
-        if choice == '0':
-            return
-        
-        try:
-            idx = int(choice) - 1
-            if idx < 0 or idx >= len(options):
-                raise ValueError("Invalid choice")
-            
-            selected_dir_id = options[idx]
-            directory_info = monitored_dirs[selected_dir_id]
-            
-            # Confirm removal
-            print(f"\nAre you sure you want to remove {directory_info.get('description', selected_dir_id)}? (y/n)")
-            confirm = input("> ").strip().lower()
-            
-            if confirm == 'y':
-                if self.monitor_manager.remove_directory(selected_dir_id):
-                    print("\nDirectory removed from monitoring.")
+            if dir_id in monitored_dirs:
+                if monitor_manager.remove_directory(dir_id):
+                    print(f"Directory with ID {dir_id} removed from monitoring.")
                 else:
-                    print("\nFailed to remove directory.")
+                    print(f"Failed to remove directory with ID {dir_id}.")
             else:
-                print("\nRemoval cancelled.")
+                print(f"Directory ID {dir_id} not found.")
                 
-        except (ValueError, IndexError):
-            print("Invalid choice.")
+            input("Press Enter to continue...")
             
-        input("\nPress Enter to continue...")
-    
-    def toggle_monitoring_status(self):
-        """Toggle active status for a monitored directory."""
-        monitored_dirs = self.monitor_manager.get_monitored_directories()
-        
-        if not monitored_dirs:
-            print("No monitored directories found.")
-            input("\nPress Enter to continue...")
-            return
-        
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("TOGGLE MONITORING STATUS")
-        print("=" * 60)
-        
-        print("\nSelect a directory to toggle monitoring status:")
-        options = []
-        for i, (dir_id, dir_info) in enumerate(monitored_dirs.items(), 1):
-            path = dir_info.get('path', 'Unknown')
-            description = dir_info.get('description', os.path.basename(path))
-            status = "Active" if dir_info.get('active', True) else "Paused"
-            print(f"{i}. {description} ({path}) - Status: {status}")
-            options.append(dir_id)
-        
-        print("\n0. Cancel")
-        
-        choice = input("\nEnter choice (0 to cancel): ").strip()
-        
-        if choice == '0':
-            return
-        
-        try:
-            idx = int(choice) - 1
-            if idx < 0 or idx >= len(options):
-                raise ValueError("Invalid choice")
+        elif choice == "3":
+            # Toggle monitoring status
+            if not monitored_dirs:
+                print("No directories to toggle.")
+                input("Press Enter to continue...")
+                continue
+                
+            dir_id = input("Enter ID of directory to toggle status: ").strip()
             
-            selected_dir_id = options[idx]
-            directory_info = monitored_dirs[selected_dir_id]
-            current_status = directory_info.get('active', True)
-            
-            # Toggle status
-            if self.monitor_manager.set_directory_status(selected_dir_id, not current_status):
-                new_status = "paused" if current_status else "active"
-                print(f"\nDirectory monitoring is now {new_status}.")
+            if dir_id in monitored_dirs:
+                is_active = monitor_manager.toggle_directory_active(dir_id)
+                status = "active" if is_active else "inactive"
+                print(f"Directory with ID {dir_id} is now {status}.")
             else:
-                print("\nFailed to update directory status.")
+                print(f"Directory ID {dir_id} not found.")
                 
-        except (ValueError, IndexError):
-            print("Invalid choice.")
+            input("Press Enter to continue...")
             
-        input("\nPress Enter to continue...")
-    
-    def configure_monitoring(self):
-        """Configure monitoring settings."""
-        from src.config import get_settings, get_monitor_settings
-        
-        clear_screen()
-        display_ascii_art()
-        print("=" * 60)
-        print("MONITORING SETTINGS")
-        print("=" * 60)
-        
-        # Get current settings
-        settings = get_settings()
-        monitor_settings = get_monitor_settings()
-        
-        auto_process = monitor_settings.get('MONITOR_AUTO_PROCESS', 'false').lower() == 'true'
-        scan_interval = int(monitor_settings.get('MONITOR_SCAN_INTERVAL', '60'))
-        
-        print("\nCurrent settings:")
-        print(f"1. Auto-process new files: {'Enabled' if auto_process else 'Disabled'}")
-        print(f"2. Scan interval: {scan_interval} seconds")
-        print("\n0. Back to monitor menu")
-        
-        choice = input("\nSelect setting to modify (0 to go back): ").strip()
-        
-        if choice == '0':
-            return
-        elif choice == '1':
-            # Toggle auto-processing
-            new_value = 'false' if auto_process else 'true'
-            self._update_monitor_setting('MONITOR_AUTO_PROCESS', new_value)
-            print(f"\nAuto-processing is now {'enabled' if new_value == 'true' else 'disabled'}.")
-        elif choice == '2':
-            # Change scan interval
-            print("\nEnter new scan interval in seconds (15-3600):")
-            try:
-                new_interval = input("> ").strip()
-                new_interval_int = int(new_interval)
-                
-                if 15 <= new_interval_int <= 3600:
-                    self._update_monitor_setting('MONITOR_SCAN_INTERVAL', str(new_interval_int))
-                    print(f"\nScan interval updated to {new_interval_int} seconds.")
-                    
-                    # Update active monitor if running
-                    if self.monitor_manager.is_monitoring():
-                        self.monitor_manager.stop_monitoring()
-                        self.monitor_manager.start_monitoring(new_interval_int)
-                        print("Applied new interval to active monitoring.")
-                else:
-                    print("Interval must be between 15 and 3600 seconds.")
-            except ValueError:
-                print("Invalid input. Please enter a number.")
+        elif choice == "4":
+            # View pending files
+            view_pending_files(monitor_manager)
+            
+        elif choice == "5":
+            # Back to main menu
+            break
+            
         else:
-            print("Invalid choice.")
-        
-        input("\nPress Enter to continue...")
+            print("Invalid choice. Please try again.")
+            input("Press Enter to continue...")
+
+
+def view_pending_files(monitor_manager):
+    """View pending files for all monitored directories."""
+    # Clear the screen
+    clear_screen()
+    display_ascii_art()
+    print("\n===== Pending Files =====")
     
-    def _update_monitor_setting(self, name, value):
-        """Update a monitor setting."""
-        from src.main import _update_env_var
-        _update_env_var(name, value)
+    pending_files = monitor_manager.get_all_pending_files()
+    
+    if not pending_files:
+        print("\nNo pending files to display.")
+        input("\nPress Enter to continue...")
+        return
+    
+    print(f"\nFound {len(pending_files)} pending files:")
+    print(f"{'#':<5} {'Directory':<25} {'File'}")
+    print("-" * 80)
+    
+    for i, file_info in enumerate(pending_files, 1):
+        dir_name = file_info['dir_name']
+        file_name = file_info['name']
+        print(f"{i:<5} {dir_name[:25]:<25} {file_name}")
+    
+    print("\nOptions:")
+    print("1. Process specific file")
+    print("2. Process all files")
+    print("3. Remove file from pending list")
+    print("4. Back to monitor menu")
+    
+    choice = input("\nEnter your choice: ").strip()
+    
+    if choice == "1":
+        # Process specific file
+        idx = input("Enter file number to process: ").strip()
+        try:
+            idx = int(idx) - 1
+            if 0 <= idx < len(pending_files):
+                file_info = pending_files[idx]
+                process_pending_file(monitor_manager, file_info)
+            else:
+                print("Invalid file number.")
+        except ValueError:
+            print("Please enter a valid number.")
+        
+        input("Press Enter to continue...")
+        
+    elif choice == "2":
+        # Process all files
+        confirm = input("Are you sure you want to process all pending files? (y/n): ").strip().lower()
+        if confirm == "y":
+            for file_info in pending_files:
+                process_pending_file(monitor_manager, file_info)
+        
+        input("Press Enter to continue...")
+        
+    elif choice == "3":
+        # Remove file from pending list
+        idx = input("Enter file number to remove: ").strip()
+        try:
+            idx = int(idx) - 1
+            if 0 <= idx < len(pending_files):
+                file_info = pending_files[idx]
+                dir_id = file_info['dir_id']
+                file_path = file_info['path']
+                
+                if monitor_manager.remove_pending_file(dir_id, file_path):
+                    print(f"File removed from pending list: {file_info['name']}")
+                else:
+                    print("Failed to remove file from pending list.")
+            else:
+                print("Invalid file number.")
+        except ValueError:
+            print("Please enter a valid number.")
+        
+        input("Press Enter to continue...")
+
+
+def process_pending_file(monitor_manager, file_info):
+    """Process a pending file by running an individual scan on it."""
+    try:
+        # Import DirectoryProcessor here to avoid circular imports
+        from src.main import DirectoryProcessor
+        
+        dir_id = file_info['dir_id']
+        file_path = file_info['path']
+        
+        # Check if the path still exists
+        if not os.path.exists(file_path):
+            print(f"Path no longer exists: {file_path}")
+            # Remove from pending list
+            monitor_manager.remove_pending_file(dir_id, file_path)
+            return
+        
+        print(f"Processing: {file_path}")
+        
+        # Create a processor for this specific path
+        processor = DirectoryProcessor(file_path)
+        result = processor._process_media_files()
+        
+        # Remove from pending list if processed successfully
+        if result is not None and result >= 0:
+            monitor_manager.remove_pending_file(dir_id, file_path)
+            print(f"Processed {result} files from {file_info['name']}")
+        else:
+            print(f"Failed to process {file_info['name']}")
+            
+    except ImportError:
+        print("Error: Could not import DirectoryProcessor. Check your installation.")
+    except Exception as e:
+        print(f"Error processing file: {e}")
+        logger.exception("Error processing pending file")

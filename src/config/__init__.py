@@ -1,32 +1,45 @@
 """
 Configuration module for Scanly.
-Contains constants and configuration variables used throughout the application.
 """
 
 import os
-from pathlib import Path
+import json
 
-# Base directories
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
-
-# Ensure directories exist
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(LOG_DIR, exist_ok=True)
-
-# TMDB API Configuration
-TMDB_BASE_URL = "https://api.themoviedb.org/3"
-TMDB_API_KEY = "dummy_key_for_setup"
-
-# Logging Configuration
-LOG_LEVEL = "DEBUG"
-LOG_FILE = os.path.join(LOG_DIR, 'scanly.log')
-
-# File paths
-PROGRESS_FILE = os.path.join(DATA_DIR, 'progress.json')
-SKIPPED_ITEMS_FILE = os.path.join(BASE_DIR, 'skipped_items.json')
-ACTIVITY_LOG_FILE = os.path.join(LOG_DIR, 'activity.log')
-
-# Default settings
-DEFAULT_MONITOR_INTERVAL = 60  # Minutes
+def get_settings(key=None, default=None):
+    """Get settings from environment variables.
+    
+    Args:
+        key (str, optional): Specific setting key to retrieve. If None, returns all settings.
+        default (any, optional): Default value if setting is not found.
+    
+    Returns:
+        dict or any: All settings or specific setting value
+    """
+    settings = {
+        'destination_directory': os.environ.get('DESTINATION_DIRECTORY', ''),
+        'tmdb_api_key': os.environ.get('TMDB_API_KEY', ''),
+        'discord_webhook_url': os.environ.get('DISCORD_WEBHOOK_URL', ''),
+        'scanner_movies': os.environ.get('SCANNER_MOVIES', 'movies.txt'),
+        'scanner_tv_series': os.environ.get('SCANNER_TV_SERIES', 'tv_series.txt'),
+        'scanner_anime_movies': os.environ.get('SCANNER_ANIME_MOVIES', 'anime_movies.txt'),
+        'scanner_anime_series': os.environ.get('SCANNER_ANIME_SERIES', 'anime_series.txt'),
+        'scanner_wrestling': os.environ.get('SCANNER_WRESTLING', 'wrestling.txt'),
+        'create_missing_scanners': os.environ.get('CREATE_MISSING_SCANNERS', 'True').lower() == 'true',
+        'symlink_mode': os.environ.get('SYMLINK_MODE', 'copy')
+    }
+    
+    # Load custom content types
+    custom_types_json = os.environ.get('SCANNER_CUSTOM_TYPES', '{}')
+    try:
+        custom_types = json.loads(custom_types_json)
+        for content_type, info in custom_types.items():
+            env_var = info.get('env_var')
+            if env_var:
+                settings[env_var.lower()] = os.environ.get(env_var, info.get('default_file', ''))
+    except json.JSONDecodeError:
+        pass
+    
+    if key is not None:
+        return settings.get(key.lower(), default)
+    
+    return settings

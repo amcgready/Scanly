@@ -1,0 +1,57 @@
+2025-06-12 19:04:31,356 - src.core.monitor - INFO - No monitored directories file found, creating a new one
+2025-06-12 19:04:31,357 - src.core.monitor - INFO - Saved 0 monitored directories
+2025-06-12 19:04:31,357 - src.core.monitor - INFO - Started monitoring 0 active directories
+2025-06-12 19:04:37,382 - src.core.monitor - INFO - Loaded 0 monitored directories
+2025-06-12 19:04:47,889 - src.core.monitor - INFO - Saved 1 monitored directories
+2025-06-12 19:04:47,891 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 19:04:47,891 - src.core.monitor - INFO - Saved 1 monitored directories
+2025-06-12 19:04:59,133 - src.core.monitor - INFO - Loaded 1 monitored directories
+2025-06-12 19:05:14,092 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-12 19:05:14,092 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 19:05:14,093 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-12 19:05:22,427 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:03:51,788 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:03:51,791 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:03:51,792 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:03:51,792 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:03:53,479 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:07:56,348 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:07:56,350 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:07:56,351 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:07:56,351 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:12:13,107 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:12:13,109 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:12:13,110 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:12:13,110 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:15:52,361 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:15:52,364 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:15:52,365 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:15:52,365 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:19:48,853 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:19:48,856 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:19:48,857 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:19:48,857 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:25:02,089 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:25:02,091 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:25:02,092 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:25:02,092 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:33:15,974 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:33:15,977 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:33:15,979 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:33:15,979 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:38:18,244 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:38:18,246 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:38:18,247 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:38:18,247 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 08:09:56,627 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 08:09:56,632 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 08:09:56,633 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 08:09:56,633 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 08:17:41,899 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 08:17:41,908 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 08:17:41,909 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 08:17:41,909 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 10:41:55,443 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 10:41:55,456 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 10:41:55,457 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 10:41:55,457 - src.core.monitor - INFO - Started monitoring 2 active directories

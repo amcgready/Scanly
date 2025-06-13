@@ -16,6 +16,10 @@ import difflib
 import argparse
 import shutil
 
+# Add these imports near the top of main.py
+import time
+import threading
+
 # Define a filter to exclude certain log messages from console
 class ConsoleFilter(logging.Filter):
     def filter(self, record):
@@ -431,18 +435,19 @@ def _check_monitor_status():
     print("=" * 84)
     
     try:
-        from src.core.monitor import MonitorManager
-        
-        monitor_manager = MonitorManager()
+        monitor_manager = get_monitor_manager()
         monitored_dirs = monitor_manager.get_monitored_directories()
         
         # Print current state
         print("Current monitored directories:")
-        for dir_id, info in monitored_dirs.items():
-            print(f" - ID: {dir_id}")
-            print(f"   Path: {info.get('path', 'Unknown')}")
-            print(f"   Active: {info.get('active', False)}")
-            print(f"   Pending files: {len(info.get('pending_files', []))}")
+        if not monitored_dirs:
+            print("  No directories are currently being monitored.")
+        else:
+            for dir_id, info in monitored_dirs.items():
+                print(f" - ID: {dir_id}")
+                print(f"   Path: {info.get('path', 'Unknown')}")
+                print(f"   Active: {info.get('active', False)}")
+                print(f"   Pending files: {len(info.get('pending_files', []))}")
         
         # Check for invalid entries
         invalid_entries = []
@@ -457,20 +462,16 @@ def _check_monitor_status():
                 monitor_manager.remove_directory(dir_id)
             monitor_manager._save_monitored_directories()
             print("Done.")
+        else:
+            print("\nAll monitored directories are valid.")
         
         input("\nPress Enter to continue...")
-        clear_screen()  # Clear screen after checking monitor status
-        display_ascii_art()  # Show ASCII art
     except ImportError:
         print("\nMonitor module not found. Please check your installation.")
         input("\nPress Enter to continue...")
-        clear_screen()  # Clear screen after error
-        display_ascii_art()  # Show ASCII art
     except Exception as e:
         print(f"\nError checking monitor status: {e}")
         input("\nPress Enter to continue...")
-        clear_screen()  # Clear screen after error
-        display_ascii_art()  # Show ASCII art
 
 class DirectoryProcessor:
     """Process a directory of media files."""
@@ -498,13 +499,13 @@ class DirectoryProcessor:
         """
         # Determine which scanner list to use based on content type
         if is_anime and is_tv:
-            scanner_file = "anime_series.txt"
+            scanner_file = os.environ.get('SCANNER_ANIME_SERIES', 'anime_series.txt')
         elif is_anime and not is_tv:
-            scanner_file = "anime_movies.txt"
+            scanner_file = os.environ.get('SCANNER_ANIME_MOVIES', 'anime_movies.txt')
         elif is_tv and not is_anime:
-            scanner_file = "tv_series.txt"
+            scanner_file = os.environ.get('SCANNER_TV_SERIES', 'tv_series.txt')
         else:
-            scanner_file = "movies.txt"
+            scanner_file = os.environ.get('SCANNER_MOVIES', 'movies.txt')
         
         # Get the full path to the scanner file
         scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
@@ -520,41 +521,48 @@ class DirectoryProcessor:
         
         matches = []
         try:
-            # Read the scanner file
-            with open(scanner_path, 'r', encoding='utf-8') as file:
-                for line in file:
+            with open(scanner_path, 'r', encoding='utf-8') as f:
+                for line in f:
                     line = line.strip()
                     if not line or line.startswith('#'):
-                        continue  # Skip empty lines and comments
-                    
-                    # Parse the line (format: "Title (Year)" or just "Title")
-                    match = re.match(r'(.+?)(?:\s+\((\d{4})\))?$', line)
-                    if not match:
                         continue
                     
-                    scan_title = match.group(1).strip()
-                    scan_year = match.group(2) if match.group(2) else None
+                    # Check for TMDb ID in scanner entry
+                    tmdb_match = re.search(r'\[tmdb-(\d+)\]', line)
+                    tmdb_id = int(tmdb_match.group(1)) if tmdb_match else None
                     
-                    # Check for match (normalized, case-insensitive)
-                    if self._is_title_match(title, scan_title):
-                        # If year is specified, check it too
-                        if year and scan_year and year != scan_year:
+                    # Clean up the line to get just the title and year
+                    scanner_title = re.sub(r'\s*\[tmdb-\d+\].*$', '', line).strip()
+                    
+                    # Extract year if present in format "Title (YYYY)"
+                    scanner_year = None
+                    year_match = re.search(r'\((\d{4})\)', scanner_title)
+                    if year_match:
+                        scanner_year = year_match.group(1)
+                    
+                    # Compare titles using title match function
+                    title_clean = re.sub(r'\s*\(\d{4}\)', '', title).strip()
+                    scanner_title_clean = re.sub(r'\s*\(\d{4}\)', '', scanner_title).strip()
+                    
+                    if self._is_title_match(title_clean, scanner_title_clean):
+                        # If year was provided, ensure it matches
+                        if year and scanner_year and year != scanner_year:
                             continue
                         
-                        # Add to matches
                         matches.append({
-                            'title': scan_title,
-                            'year': scan_year,
-                            'source': scanner_file
+                            'title': scanner_title,
+                            'tmdb_id': tmdb_id,
+                            'year': scanner_year
                         })
             
-            self.logger.info(f"Found {len(matches)} matches in {scanner_file}")
-            return matches
+            # Sort matches with exact matches first
+            matches.sort(key=lambda x: 0 if x['title'].lower() == title.lower() else 1)
             
+            return matches
         except Exception as e:
-            self.logger.error(f"Error reading scanner file {scanner_path}: {e}")
+            self.logger.error(f"Error checking scanner lists: {e}")
             return []
-
+    
     def _is_title_match(self, title1, title2):
         """Compare two titles to determine if they match.
         
@@ -1748,29 +1756,82 @@ class SettingsMenu:
             print("MONITORING SETTINGS".center(84))
             print("=" * 84)
             
-            interval_minutes = os.environ.get('MONITOR_INTERVAL_MINUTES', '60')
+            # Get webhook URL setting
+            webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+            has_webhook = bool(webhook_url)
             
             print("\nCurrent Monitoring Settings:")
-            print(f"1. Monitoring Interval: {interval_minutes} minutes")
-            print("2. Check Monitor Status")
+            print(f"1. Discord webhook notifications: {'Enabled' if has_webhook else 'Disabled'}")
+            print("2. Manage monitored directories")
+            print("3. Check monitor status")
             print("q. Return to Settings Menu")
             
             choice = input("\nSelect option: ").strip().lower()
             
             if choice == '1':
-                new_interval = input("\nEnter monitoring interval in minutes (10-1440): ").strip()
-                if new_interval.isdigit() and 10 <= int(new_interval) <= 1440:
-                    _update_env_var('MONITOR_INTERVAL_MINUTES', new_interval)
-                    print(f"\nMonitoring interval updated to {new_interval} minutes.")
+                clear_screen()
+                display_ascii_art()
+                print("=" * 84)
+                print("DISCORD WEBHOOK SETTINGS".center(84))
+                print("=" * 84)
+                
+                if has_webhook:
+                    print(f"\nCurrent webhook URL: {webhook_url[:20]}...{webhook_url[-20:] if len(webhook_url) > 40 else ''}")
+                    
+                    disable = input("\nDo you want to disable Discord notifications? (y/n): ").strip().lower()
+                    if disable == 'y':
+                        _update_env_var('DISCORD_WEBHOOK_URL', '')
+                        print("\nDiscord notifications disabled.")
+                        
                 else:
-                    print("\nInvalid interval. Please enter a number between 10 and 1440.")
+                    print("\nDiscord notifications are currently disabled.")
+                    webhook = input("\nEnter Discord webhook URL to enable notifications: ").strip()
+                    
+                    if webhook:
+                        _update_env_var('DISCORD_WEBHOOK_URL', webhook)
+                        print("\nDiscord notifications enabled.")
+                        
+                        # Test the webhook
+                        test = input("\nDo you want to send a test notification? (y/n): ").strip().lower()
+                        if test == 'y':
+                            try:
+                                from discord_webhook import DiscordWebhook
+                                
+                                webhook = DiscordWebhook(
+                                    url=webhook,
+                                    content="🔔 Scanly test notification - Monitoring system is active!"
+                                )
+                                response = webhook.execute()
+                                print("\nTest notification sent.")
+                            except ImportError:
+                                print("\nCould not send test - discord_webhook package not installed.")
+                            except Exception as e:
+                                print(f"\nError sending test notification: {e}")
+                
                 input("\nPress Enter to continue...")
+                
             elif choice == '2':
+                # Use the monitor menu to manage directories
+                try:
+                    from src.ui.monitor_menu import display_monitor_menu
+                    display_monitor_menu()
+                except ImportError as e:
+                    logger.error(f"Error importing monitor menu: {e}")
+                    print(f"\nError: Monitor menu module not found. {e}")
+                    input("\nPress Enter to continue...")
+                except Exception as e:
+                    logger.error(f"Error in monitor menu: {e}")
+                    print(f"\nError in monitor menu: {e}")
+                    input("\nPress Enter to continue...")
+            
+            elif choice == '3':
                 _check_monitor_status()
+            
             elif choice == 'q':
                 return
+            
             else:
-                print("\nInvalid option.")
+                print("\nInvalid option. Please try again.")
                 input("\nPress Enter to continue...")
     
     def _advanced_settings(self):
@@ -1866,7 +1927,7 @@ class SettingsMenu:
         print("=" * 84)
         
         # Get the scanners directory
-        scanner_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+        scanner_dir = os.path.join(os.path.dirname(__file__), 'scanners')
         if not os.path.exists(scanner_dir):
             os.makedirs(scanner_dir, exist_ok=True)
         
@@ -2212,16 +2273,31 @@ class SettingsMenu:
             print("\nInvalid input. Please enter a number.")
             input("\nPress Enter to continue...")
 
+# Add this function to main.py to initialize monitoring on startup
+def initialize_monitoring():
+    """Initialize directory monitoring on application startup."""
+    try:
+        monitor_manager = get_monitor_manager()
+        monitor_manager.start_all()
+        logger.info("Directory monitoring initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize directory monitoring: {e}")
+
+# Import the monitor manager
+from src.core.monitor import get_monitor_manager
+
 def main():
     """Main function to run the Scanly application."""
+    # Initialize monitoring on startup
+    initialize_monitoring()
+    
     clear_screen()
     display_ascii_art()
     
-    print("=" * 84)
-    print("MAIN MENU".center(84))
-    print("=" * 84)
-    
     while True:
+        print("=" * 84)
+        print("MAIN MENU".center(84))
+        print("=" * 84)
         
         # Always available options
         menu_options = {
@@ -2241,7 +2317,21 @@ def main():
         if has_skipped_items():
             menu_options[str(next_option)] = ("Review Skipped Items", None)
             next_option += 1
-            
+        
+        # Monitor Scan option - always available
+        menu_options[str(next_option)] = ("Monitor Scan", None)
+        next_option += 1
+        
+        # Review Monitored option - only if there are pending files
+        try:
+            monitor_manager = get_monitor_manager()
+            pending_files = monitor_manager.get_all_pending_files()
+            if pending_files:
+                menu_options[str(next_option)] = (f"Review Monitored ({len(pending_files)})", None)
+                next_option += 1
+        except Exception as e:
+            logger.error(f"Error checking pending monitored files: {e}")
+        
         # Clear history - only if scan history or skipped items exist
         if has_scan_history() or has_skipped_items():
             menu_options[str(next_option)] = ("Clear History", None)
@@ -2264,289 +2354,97 @@ def main():
         
         # Process the selected option
         if choice == "1":
-            # Individual scan
-            clear_screen()
-            display_ascii_art()
-            print("=" * 84)
-            print("INDIVIDUAL SCAN".center(84))
-            print("=" * 84)
-            directory = input("\nEnter directory path to scan: ").strip()
-            directory = _clean_directory_path(directory)
-            
-            if os.path.isdir(directory):
-                processor = DirectoryProcessor(directory)
-                processor._process_media_files()
-                clear_screen()
-                display_ascii_art()
-            else:
-                print("\nInvalid directory path. Please enter a valid path.")
-                input("\nPress Enter to continue...")
-                clear_screen()
-                display_ascii_art()  # Show ASCII art
+            # Individual scan logic
+            pass
         
         elif choice == "2":
-            # Multi scan
-            clear_screen()
-            display_ascii_art()  # Show ASCII art
-            print("=" * 84)
-            print("MULTI SCAN".center(84))
-            print("=" * 84)
             perform_multi_scan()
             clear_screen()
-            display_ascii_art()  # Show ASCII art
+            display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Resume Scan":
-            # Resume scan
-            clear_screen()
-            display_ascii_art()
-            print("=" * 84)
-            print("RESUME SCAN".center(84))
-            print("=" * 84)
-            print("\nThis feature is not implemented yet.")
-            input("\nPress Enter to continue...")
-            clear_screen()
-            display_ascii_art()  # Show ASCII art
+            # Resume scan logic
+            pass
         
         elif choice in menu_options and menu_options[choice][0] == "Review Skipped Items":
-            # Review skipped items
-            clear_screen()
             review_skipped_items()
         
-        elif choice in menu_options and menu_options[choice][0] == "Clear History":
-            # Clear history
-            clear_screen()
-            display_ascii_art()
-            print("=" * 84)
-            print("CLEAR HISTORY".center(84))
-            print("=" * 84)
-            confirm = input("\nAre you sure you want to clear all history? (y/n): ").strip().lower()
-            if confirm == 'y':
-                clear_all_history()
-            else:
-                print("\nOperation cancelled.")
+        elif choice in menu_options and menu_options[choice][0] == "Monitor Scan":
+            try:
+                # Import the monitor menu module
+                from src.ui.monitor_menu import display_monitor_menu
+                display_monitor_menu()
+                clear_screen()  # Clear screen when returning to main menu
+                display_ascii_art()  # Show ASCII art when returning to main menu
+            except ImportError as e:
+                logger.error(f"Error importing monitor menu: {e}")
+                print(f"\nError displaying monitor menu: {e}")
+                input("\nPress Enter to continue...")
+                clear_screen()
+                display_ascii_art()
+            except Exception as e:
+                logger.error(f"Error in monitor menu: {e}")
+                print(f"\nError in monitor menu: {e}")
                 input("\nPress Enter to continue...")
                 clear_screen()
                 display_ascii_art()
         
+        elif choice in menu_options and menu_options[choice][0] == "Review Monitored":
+            # Process all pending files
+            try:
+                monitor_manager = get_monitor_manager()
+                
+                # Ask for confirmation
+                print("\nProcess all pending monitored files?")
+                confirm = input("Enter 'y' to process, 'v' to view files instead, or any other key to cancel: ").strip().lower()
+                
+                if confirm == 'y':
+                    print("\nProcessing pending files...")
+                    processed = monitor_manager.run_pending_scans()
+                    print(f"\nProcessed {processed} pending files.")
+                    input("\nPress Enter to continue...")
+                elif confirm == 'v':
+                    # View the files instead
+                    from src.ui.monitor_menu import view_pending_files
+                    view_pending_files(monitor_manager)
+                
+                clear_screen()
+                display_ascii_art()
+            except Exception as e:
+                logger.error(f"Error processing monitored files: {e}")
+                print(f"\nError processing monitored files: {e}")
+                input("\nPress Enter to continue...")
+                clear_screen()
+                display_ascii_art()
+            
+        elif choice in menu_options and menu_options[choice][0] == "Clear History":
+            clear_all_history()
+        
         elif choice in menu_options and menu_options[choice][0] == "Settings":
-            # Settings
-            settings_menu = SettingsMenu()
-            settings_menu.display()
+            settings = SettingsMenu()
+            settings.display()
             clear_screen()
             display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Help":
-            # Help
             display_help()
-            
+        
         elif choice == "0":
-            # Quit
-            clear_screen()
-            print("\nThank you for using Scanly!")
-            break
+            # Shut down monitoring before exit
+            try:
+                monitor_manager = get_monitor_manager()
+                monitor_manager.stop_all()
+            except Exception as e:
+                logger.error(f"Error stopping directory monitoring: {e}")
+                
+            print("\nGoodbye!")
+            sys.exit(0)
             
         else:
             print("\nInvalid option. Please try again.")
             input("\nPress Enter to continue...")
             clear_screen()
-            display_ascii_art()  # Show ASCII art
-
-if __name__ == "__main__":
-    main()
-
-#!/usr/bin/env python3
-# filepath: media_organizer.py
-
-import os
-import re
-import argparse
-import shutil
-from pathlib import Path
-
-def extract_info_from_filename(filename):
-    """Extract title, year, season, and episode from filename."""
-    # Try to match movie pattern: could be various formats
-    movie_patterns = [
-        r'(.+?)[\.\s]\((\d{4})\)\.([a-zA-Z0-9]+)$',  # Title (Year).ext
-        r'(.+?)\.(\d{4})\..*\.([a-zA-Z0-9]+)$',      # Title.Year.anything.ext
-        r'(.+?)\.(\d{4})\.([a-zA-Z0-9]+)$',          # Title.Year.ext
-    ]
-    
-    for pattern in movie_patterns:
-        movie_match = re.search(pattern, filename)
-        if movie_match:
-            title = movie_match.group(1).replace('.', ' ').strip()
-            year = movie_match.group(2)
-            extension = movie_match.group(3)
-            return {
-                'type': 'movie',
-                'title': title,
-                'year': year,
-                'extension': extension
-            }
-    
-    # Try to match TV show pattern: Title.S01E01.ext or similar
-    tv_pattern = r'(.+?)[\.\s]S(\d{1,2})E(\d{1,2})(?:\.|\s).*\.([a-zA-Z0-9]+)$'
-    tv_match = re.search(tv_pattern, filename, re.IGNORECASE)
-    
-    if tv_match:
-        title = tv_match.group(1).replace('.', ' ').strip()
-        season = tv_match.group(2).zfill(2)
-        episode = tv_match.group(3).zfill(2)
-        extension = tv_match.group(4)
-        
-        # Try to extract year from title if present
-        year_pattern = r'(.+?)[\.\s]\((\d{4})\)'
-        year_match = re.search(year_pattern, title)
-        if year_match:
-            title = year_match.group(1).strip()
-            year = year_match.group(2)
-        else:
-            year = "YEAR"  # Placeholder
-            
-        return {
-            'type': 'tv',
-            'title': title,
-            'year': year,
-            'season': season,
-            'episode': episode,
-            'extension': extension
-        }
-    
-    return None
-
-def format_movie(info, tmdb_id=None):
-    """Format movie according to 'MEDIA TITLE (YEAR).extension' in 'MEDIA TITLE (YEAR) [tmdb-TMDB ID]'"""
-    if not tmdb_id:
-        tmdb_id = "TMDBID"  # Placeholder
-        
-    folder_name = f"{info['title']} ({info['year']}) [tmdb-{tmdb_id}]"
-    file_name = f"{info['title']} ({info['year']}).{info['extension']}"
-    
-    return {
-        'folder': folder_name,
-        'file': file_name
-    }
-
-def format_tv_show(info, tmdb_id=None):
-    """Format TV show according to specified pattern"""
-    if not tmdb_id:
-        tmdb_id = "TMDBID"  # Placeholder
-        
-    folder_name = f"{info['title']} ({info['year']}) [tmdb-{tmdb_id}]"
-    season_folder = f"Season {info['season']}"
-    file_name = f"{info['title']} ({info['year']}) - S{info['season']}E{info['episode']}.{info['extension']}"
-    
-    return {
-        'folder': folder_name,
-        'season_folder': season_folder,
-        'file': file_name
-    }
-
-def organize_file(source_path, dest_base_path, tmdb_id=None, dry_run=True):
-    """Organize a single file according to naming schema"""
-    filename = os.path.basename(source_path)
-    info = extract_info_from_filename(filename)
-    
-    if not info:
-        print(f"Could not parse information from {filename}")
-        return False
-    
-    if info['type'] == 'movie':
-        output = format_movie(info, tmdb_id)
-        dest_folder = os.path.join(dest_base_path, output['folder'])
-        dest_file = os.path.join(dest_folder, output['file'])
-        
-        if dry_run:
-            print(f"Would create folder: {dest_folder}")
-            print(f"Would save file as: {os.path.basename(dest_file)}")
-            print(f"Would move {source_path} to {dest_file}")
-        else:
-            os.makedirs(dest_folder, exist_ok=True)
-            shutil.copy2(source_path, dest_file)
-            print(f"Moved {source_path} to {dest_file}")
-            
-    elif info['type'] == 'tv':
-        output = format_tv_show(info, tmdb_id)
-        dest_folder = os.path.join(dest_base_path, output['folder'], output['season_folder'])
-        dest_file = os.path.join(dest_folder, output['file'])
-        
-        if dry_run:
-            print(f"Would create folder: {dest_folder}")
-            print(f"Would save file as: {os.path.basename(dest_file)}")
-            print(f"Would move {source_path} to {dest_file}")
-        else:
-            os.makedirs(dest_folder, exist_ok=True)
-            shutil.copy2(source_path, dest_file)
-            print(f"Moved {source_path} to {dest_file}")
-    
-    return True
-
-def validate_output_format():
-    """Test function to validate output formats"""
-    print("=== Testing Movie Format ===")
-    movie_info = {
-        'title': '12 Angry Men',
-        'year': '1957',
-        'extension': 'mkv'
-    }
-    output = format_movie(movie_info, '389')
-    print(f"Folder: {output['folder']}")
-    print(f"File: {output['file']}")
-    
-    print("\n=== Testing TV Show Format ===")
-    tv_info = {
-        'title': 'Breaking Bad',
-        'year': '2008',
-        'season': '01',
-        'episode': '05',
-        'extension': 'mp4'
-    }
-    output = format_tv_show(tv_info, '1396')
-    print(f"Folder: {output['folder']}")
-    print(f"Season: {output['season_folder']}")
-    print(f"File: {output['file']}")
-
-def main():
-    parser = argparse.ArgumentParser(description='Organize media files according to naming schema')
-    parser.add_argument('source', help='Source file or directory')
-    parser.add_argument('destination', help='Destination directory')
-    parser.add_argument('--tmdb', help='TMDB ID (optional)')
-    parser.add_argument('--recursive', action='store_true', help='Process directories recursively')
-    parser.add_argument('--dry-run', action='store_true', help='Show what would be done without making changes')
-    parser.add_argument('--test', action='store_true', help='Test output format')
-    
-    args = parser.parse_args()
-    
-    if args.test:
-        validate_output_format()
-        return
-    
-    source_path = os.path.abspath(args.source)
-    dest_path = os.path.abspath(args.destination)
-    
-    if not os.path.exists(source_path):
-        print(f"Source path {source_path} does not exist")
-        return
-    
-    if not os.path.exists(dest_path):
-        if args.dry_run:
-            print(f"Would create destination directory: {dest_path}")
-        else:
-            os.makedirs(dest_path, exist_ok=True)
-            
-    if os.path.isfile(source_path):
-        organize_file(source_path, dest_path, args.tmdb, args.dry_run)
-    elif os.path.isdir(source_path) and args.recursive:
-        for root, _, files in os.walk(source_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                organize_file(file_path, dest_path, args.tmdb, args.dry_run)
-    elif os.path.isdir(source_path):
-        for item in os.listdir(source_path):
-            item_path = os.path.join(source_path, item)
-            if os.path.isfile(item_path):
-                organize_file(item_path, dest_path, args.tmdb, args.dry_run)
+            display_ascii_art()
 
 if __name__ == "__main__":
     main()
