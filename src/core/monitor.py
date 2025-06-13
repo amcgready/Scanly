@@ -373,7 +373,7 @@ class MonitorManager:
                     processed_count += 1
                 else:
                     logger.warning(f"Failed to process {file_path}")
-        
+    
         except ImportError:
             logger.error("Could not import DirectoryProcessor. Check your installation.")
         except Exception as e:

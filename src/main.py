@@ -1427,35 +1427,29 @@ class SettingsMenu:
             print("SETTINGS".center(84))
             print("=" * 84)
             
-            print("\nSettings Categories:")
-            print("1. Directory Settings")
+            print("\n1. Directory Settings")
             print("2. TMDB API Settings")
             print("3. File Management Settings")
-            print("4. Monitoring Settings")
-            print("5. Advanced Settings")
-            print("6. View Current Configuration")
+            print("4. Advanced Settings")
+            print("5. Monitoring Settings")  # <-- Add this line
             print("q. Return to Main Menu")
             
-            choice = input("\nSelect category (1-6, q): ").strip().lower()
+            choice = input("\nSelect option: ").strip().lower()
             
-            if choice == '1':
+            if choice == "1":
                 self._directory_settings()
-            elif choice == '2':
+            elif choice == "2":
                 self._tmdb_settings()
-            elif choice == '3':
+            elif choice == "3":
                 self._file_management_settings()
-            elif choice == '4':
-                self._monitoring_settings()
-            elif choice == '5':
+            elif choice == "4":
                 self._advanced_settings()
-            elif choice == '6':
-                self._view_all_settings()
-            elif choice == 'q':
-                clear_screen()
-                display_ascii_art()
+            elif choice == "5":  # <-- Add this case
+                self._monitoring_settings()
+            elif choice == "q":
                 return
             else:
-                print("\nInvalid option.")
+                print("\nInvalid option. Please try again.")
                 input("\nPress Enter to continue...")
     
     def _directory_settings(self):
@@ -1602,7 +1596,7 @@ class SettingsMenu:
             else:
                 print("\nInvalid option.")
                 input("\nPress Enter to continue...")
-
+    
     def _configure_plex_settings(self):
         """Configure Plex connection settings."""
         clear_screen()
@@ -1809,18 +1803,18 @@ class SettingsMenu:
                                 print(f"\nError sending test notification: {e}")
                 
                 input("\nPress Enter to continue...")
-                
+                    
             elif choice == '2':
                 # Use the monitor menu to manage directories
                 try:
                     from src.ui.monitor_menu import display_monitor_menu
                     display_monitor_menu()
                 except ImportError as e:
-                    logger.error(f"Error importing monitor menu: {e}")
+                    self.logger.error(f"Error importing monitor menu: {e}")
                     print(f"\nError: Monitor menu module not found. {e}")
                     input("\nPress Enter to continue...")
                 except Exception as e:
-                    logger.error(f"Error in monitor menu: {e}")
+                    self.logger.error(f"Error in monitor menu: {e}")
                     print(f"\nError in monitor menu: {e}")
                     input("\nPress Enter to continue...")
             
@@ -2369,6 +2363,7 @@ def main():
         elif choice in menu_options and menu_options[choice][0] == "Review Skipped Items":
             review_skipped_items()
         
+                # For Monitor Scan option
         elif choice in menu_options and menu_options[choice][0] == "Monitor Scan":
             try:
                 # Import the monitor menu module
@@ -2389,7 +2384,8 @@ def main():
                 clear_screen()
                 display_ascii_art()
         
-        elif choice in menu_options and menu_options[choice][0] == "Review Monitored":
+        # For Review Monitored option
+        elif choice in menu_options and "Review Monitored" in menu_options[choice][0]:
             # Process all pending files
             try:
                 monitor_manager = get_monitor_manager()

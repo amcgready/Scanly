@@ -6,6 +6,16 @@ import os
 import json
 
 def get_settings(key=None, default=None):
+    """Get settings from environment variables or config file."""
+    # This is a simple implementation that just wraps os.environ.get
+    
+    if key is None:
+        # Return all environment variables if no key specified
+        return dict(os.environ)
+    
+    return os.environ.get(key, default)
+
+def get_settings(key=None, default=None):
     """Get settings from environment variables.
     
     Args:

@@ -11,8 +11,7 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-# Now this import should work with our added function
-from src.config import get_settings
+# Updated: Remove the problematic import
 from src.core.monitor import get_monitor_manager
 
 logger = logging.getLogger(__name__)
