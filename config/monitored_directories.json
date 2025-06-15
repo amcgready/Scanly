@@ -4,7 +4,83 @@
     "name": "movies",
     "active": true,
     "added_time": 1749780287.8892982,
-    "pending_files": []
+    "pending_files": [
+      {
+        "path": "/mnt/pd_zurg/movies/12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT/12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT.mkv",
+        "name": "12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT.mkv",
+        "added_at": 1750021810.6584558
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay/12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay.mkv",
+        "name": "12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay.mkv",
+        "added_at": 1750021811.0452142
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer/12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer.mp4",
+        "name": "12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer.mp4",
+        "added_at": 1750021811.2511044
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/1883 The Road West (2022) [720p] [WEBRip] [YTS.MX]/1883.The.Road.West.2022.720p.WEBRip.x264.AAC-[YTS.MX].mp4",
+        "name": "1883.The.Road.West.2022.720p.WEBRip.x264.AAC-[YTS.MX].mp4",
+        "added_at": 1750021811.5455775
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/1917.2019.UHD.Blu-Ray.Remux.2160p/1917.2019.UHD.Blu-Ray.Remux.2160p.mkv",
+        "name": "1917.2019.UHD.Blu-Ray.Remux.2160p.mkv",
+        "added_at": 1750021811.943912
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT/2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT.mkv",
+        "name": "2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT.mkv",
+        "added_at": 1750021812.3115642
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR/2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR.mkv",
+        "name": "2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR.mkv",
+        "added_at": 1750021812.5692232
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo/3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo.mkv",
+        "name": "3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo.mkv",
+        "added_at": 1750021812.7866287
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR.mkv",
+        "name": "9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR.mkv",
+        "added_at": 1750021813.0303164
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/?????????? ??????? (1938) BDRemux 1080p/\u00cd\u00e0\u00e1\u00e5\u00f0\u00e5\u00e6\u00ed\u00e0\u00ff \u00f2\u00f3\u00ec\u00e0\u00ed\u00ee\u00e2 (1938) BDRemux 1080p.mkv",
+        "name": "\u00cd\u00e0\u00e1\u00e5\u00f0\u00e5\u00e6\u00ed\u00e0\u00ff \u00f2\u00f3\u00ec\u00e0\u00ed\u00ee\u00e2 (1938) BDRemux 1080p.mkv",
+        "added_at": 1750021813.3018863
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/A.Beautiful.Mind.2001.BDRemux.1080p/A.Beautiful.Mind.2001.BDRemux.1080p.mkv",
+        "name": "A.Beautiful.Mind.2001.BDRemux.1080p.mkv",
+        "added_at": 1750021813.5305727
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/A.Boy.Named.Charlie.Brown.1969.PROPER.1080p.BluRay.x264-SPRiNTER[rarbg]/a.boy.named.charlie.brown.1969.proper.1080p.bluray.x264-sprinter.mkv",
+        "name": "a.boy.named.charlie.brown.1969.proper.1080p.bluray.x264-sprinter.mkv",
+        "added_at": 1750021813.740928
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/A.Carpool.Karaoke.Christmas.2024.1080p.WEB.H264-EfficientNeatChachalacaOfOpportunity[TGx]/a.carpool.karaoke.christmas.2024.1080p.web.h264-efficientneatchachalacaofopportunity.mkv",
+        "name": "a.carpool.karaoke.christmas.2024.1080p.web.h264-efficientneatchachalacaofopportunity.mkv",
+        "added_at": 1750021813.9621189
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",
+        "name": "A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",
+        "added_at": 1750021814.2195165
+      },
+      {
+        "path": "/mnt/pd_zurg/movies/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",
+        "name": "A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",
+        "added_at": 1750021814.3641055
+      }
+    ]
   },
   "1749780314": {
     "path": "/mnt/pd_zurg/shows",
