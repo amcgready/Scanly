@@ -233,25 +233,24 @@ def clear_all_history():
 # Global skipped items registry
 skipped_items_registry = load_skipped_items()
 
-# Function to clear the screen
+# Function to clear the screen - updating to remove excessive newlines
 def clear_screen():
-    """Clear the terminal screen using multiple methods."""
-    print("\n\n--- Clearing screen... ---\n\n")  # Debug message
+    """Clear the terminal screen using optimal methods."""
+    # Remove the debug message that was adding lines
+    # print("\n\n--- Clearing screen... ---\n\n")  # Remove this debug line
     
     try:
-        # Method 1: Standard os.system call
+        # Method 1: Standard os.system call - this should be sufficient for most terminals
         os.system('cls' if os.name == 'nt' else 'clear')
         
-        # Method 2: Using ANSI escape codes (works in most terminals)
-        print("\033c", end="")
+        # Only use these backup methods if absolutely necessary:
+        # We'll keep one ANSI method as backup, but remove the rest to avoid extra newlines
+        print("\033[H\033[J", end="", flush=True)
         
-        # Method 3: Terminal-specific escape sequences
-        print("\033[H\033[J", end="")
-        
-        # Method 4: Print multiple newlines
-        print("\n" * 100)
+        # Remove the excessive newlines
+        # print("\n" * 100)  # Remove this - it adds a lot of blank space
     except Exception as e:
-        print(f"Error clearing screen: {e}")
+        logger.error(f"Error clearing screen: {e}")
 
 # Function to display ASCII art
 def display_ascii_art():
