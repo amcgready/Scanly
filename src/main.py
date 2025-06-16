@@ -235,8 +235,23 @@ skipped_items_registry = load_skipped_items()
 
 # Function to clear the screen
 def clear_screen():
-    """Clear the terminal screen."""
-    os.system('cls' if os.name == 'nt' else 'clear')
+    """Clear the terminal screen using multiple methods."""
+    print("\n\n--- Clearing screen... ---\n\n")  # Debug message
+    
+    try:
+        # Method 1: Standard os.system call
+        os.system('cls' if os.name == 'nt' else 'clear')
+        
+        # Method 2: Using ANSI escape codes (works in most terminals)
+        print("\033c", end="")
+        
+        # Method 3: Terminal-specific escape sequences
+        print("\033[H\033[J", end="")
+        
+        # Method 4: Print multiple newlines
+        print("\n" * 100)
+    except Exception as e:
+        print(f"Error clearing screen: {e}")
 
 # Function to display ASCII art
 def display_ascii_art():
@@ -250,6 +265,7 @@ def display_ascii_art():
             print("SCANLY")  # Fallback if art file doesn't exist
     except Exception as e:
         print("SCANLY")  # Fallback if art file can't be loaded
+    print()  # Add extra line after ASCII art
 
 # Display help information
 def display_help():
@@ -411,6 +427,8 @@ class DirectoryProcessor:
     # Other methods from main_backup.py would be here
     # ...
 
+# Update perform_individual_scan to properly clear the screen after error
+
 def perform_individual_scan():
     """Perform an individual scan operation."""
     clear_screen()
@@ -432,6 +450,7 @@ def perform_individual_scan():
     if not os.path.isdir(clean_path):
         print(f"\nError: {clean_path} is not a valid directory.")
         input("\nPress Enter to continue...")
+        clear_screen()  # Make sure we clear screen here before returning
         return
     
     # Create processor for this directory
@@ -444,8 +463,7 @@ def perform_individual_scan():
     print("\nScan completed.")
     
     input("\nPress Enter to continue...")
-    clear_screen()
-    display_ascii_art()
+    clear_screen()  # Make sure we clear screen here before returning
 
 def perform_multi_scan():
     """Perform a multi-scan operation on multiple directories."""
@@ -538,11 +556,16 @@ def perform_multi_scan():
     clear_screen()
     display_ascii_art()
 
+# Update handle_monitor_management to ensure proper screen clearing
 def handle_monitor_management(monitor_manager):
     """Handle monitor management submenu."""
     if not monitor_manager:
+        clear_screen()
+        display_ascii_art()
         print("\nMonitor functionality is not available.")
         input("\nPress Enter to continue...")
+        clear_screen()
+        display_ascii_art()
         return
     
     while True:
@@ -604,6 +627,12 @@ def handle_monitor_management(monitor_manager):
         
         if choice == "1":
             # Add directory to monitoring
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("ADD DIRECTORY TO MONITORING".center(84))
+            print("=" * 84)
+            
             path = input("\nEnter directory path to monitor: ").strip()
             path = _clean_directory_path(path)
             
@@ -644,11 +673,26 @@ def handle_monitor_management(monitor_manager):
         elif choice == "2":
             # Remove directory from monitoring
             if not monitored_dirs:
+                clear_screen()
+                display_ascii_art()
+                print("=" * 84)
+                print("REMOVE DIRECTORY FROM MONITORING".center(84))
+                print("=" * 84)
                 print("\nNo directories are currently being monitored.")
+                input("\nPress Enter to continue...")
             else:
+                clear_screen()
+                display_ascii_art()
+                print("=" * 84)
+                print("REMOVE DIRECTORY FROM MONITORING".center(84))
+                print("=" * 84)
+                
                 print("\nSelect directory number to remove:")
+                for i, directory in enumerate(monitored_dirs, 1):
+                    print(f"  {i}. {directory}")
+                
                 try:
-                    idx = int(input()) - 1
+                    idx = int(input("\nEnter number: ")) - 1
                     if 0 <= idx < len(monitored_dirs):
                         directory = monitored_dirs[idx]
                         
@@ -670,10 +714,16 @@ def handle_monitor_management(monitor_manager):
                 except ValueError:
                     print("\nInvalid input. Please enter a number.")
             
-            input("\nPress Enter to continue...")
+                input("\nPress Enter to continue...")
         
         elif choice == "3":
             # Toggle all monitoring
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("TOGGLE MONITORING".center(84))
+            print("=" * 84)
+            
             try:
                 if monitoring_active:
                     # Stop all monitoring
@@ -693,6 +743,12 @@ def handle_monitor_management(monitor_manager):
         
         elif choice == "4" and monitored_dirs:
             # Toggle individual directory monitoring
+            clear_screen()
+            display_ascii_art()
+            print("=" * 84)
+            print("TOGGLE INDIVIDUAL DIRECTORY".center(84))
+            print("=" * 84)
+            
             print("\nSelect directory number to toggle:")
             for i, directory in enumerate(monitored_dirs, 1):
                 dir_active = False
@@ -706,7 +762,7 @@ def handle_monitor_management(monitor_manager):
                 print(f"  {i}. {directory} ({dir_status})")
                 
             try:
-                idx = int(input()) - 1
+                idx = int(input("\nEnter number: ")) - 1
                 if 0 <= idx < len(monitored_dirs):
                     directory = monitored_dirs[idx]
                     
@@ -733,6 +789,8 @@ def handle_monitor_management(monitor_manager):
         
         elif choice == "0":
             # Return to main menu
+            clear_screen()
+            display_ascii_art()
             return
         
         else:
@@ -881,6 +939,7 @@ def help_menu():
     """Handle the Help submenu."""
     display_help()
 
+# Ensure main function also properly clears screen between menus
 def main():
     """Main function to run the Scanly application."""
     # Make sure the screen is clear before we start
@@ -899,10 +958,10 @@ def main():
         logger.error(f"Failed to get monitor manager: {e}")
         monitor_manager = None
     
-    clear_screen()
-    display_ascii_art()
+    clear_screen()  # Make sure screen is clear before starting menu loop
     
     while True:
+        display_ascii_art()
         print("=" * 84)
         print("MAIN MENU".center(84))
         print("=" * 84)
@@ -918,24 +977,24 @@ def main():
         choice = input("Select option: ")
         
         if choice == "1":
-            # Individual scan
             individual_scan_menu()
+            clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "2":
-            # Multi scan
             multi_scan_menu()
+            clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "3":
-            # Monitor Management
             monitor_management_menu(monitor_manager)
+            clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "4":
-            # Settings
             settings_menu()
+            clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "5":
-            # Help
             help_menu()
+            clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "0":
             # Clean shutdown - stop monitoring if active
@@ -951,10 +1010,8 @@ def main():
             
         else:
             print(f"\nInvalid option: {choice}")
-            print("\nPress Enter to continue...")
-            input()
-            clear_screen()
-            display_ascii_art()
+            input("\nPress Enter to continue...")
+            clear_screen()  # Explicitly clear screen on invalid option
 
 if __name__ == "__main__":
     main()
