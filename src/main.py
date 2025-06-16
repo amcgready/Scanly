@@ -7,12 +7,21 @@ import logging
 import os
 import sys
 import json
+import time
 from pathlib import Path
 
 # Ensure parent directory is in path for imports
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
+
+# ======================================================================
+# CRITICAL FIX: Silence problematic loggers BEFORE any imports
+# ======================================================================
+for logger_name in ['discord_webhook', 'urllib3', 'requests', 'websocket']:
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.CRITICAL)
+    logger.propagate = False
 
 # Import dotenv to load environment variables
 try:
@@ -24,42 +33,21 @@ except ImportError:
 # Import the logger utility
 from src.utils.logger import get_logger
 
-# Define a strict filter to exclude monitor log messages from the console
-class ConsoleFilter(logging.Filter):
-    def filter(self, record):
-        # Keep print statements (critical level) visible, but filter out INFO, DEBUG, etc.
-        # Additionally, filter out any logs from monitor modules
-        if record.levelno >= logging.CRITICAL:
-            return True
-        if 'monitor' in record.name.lower():
-            return False
-        # Filter out other logs below CRITICAL level
-        return False
-
 # Create log directory if it doesn't exist
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
 os.makedirs(log_dir, exist_ok=True)
 
-# Configure console handler with filter to block monitor logs
-console_handler = logging.StreamHandler()
-console_handler.addFilter(ConsoleFilter())
-console_handler.setLevel(logging.INFO)  # Process all logs, but filter will block most
-
-# Configure file handler to capture all logs
+# Configure file handler to capture all logs regardless of console visibility
 file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'))
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
-# Configure root logger
+# Configure root logger WITHOUT a console handler
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[console_handler, file_handler]
+    handlers=[file_handler]  # Only file handler, no console handler
 )
-
-# Set lower log levels for noisy libraries
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('requests').setLevel(logging.WARNING)
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -281,7 +269,7 @@ def display_help():
     clear_screen()  # Clear screen after leaving help
     display_ascii_art()  # Show ASCII art when returning to main menu
 
-# Import the monitor manager
+# Import the monitor manager WITHOUT auto-starting it
 try:
     from src.core.monitor import get_monitor_manager
 except ImportError:
@@ -291,24 +279,23 @@ except ImportError:
         logger.error("Monitor functionality is not available")
         return None
 
-# Add this function to initialize monitoring on startup
-def initialize_monitoring():
-    """Initialize directory monitoring on application startup."""
-    try:
-        monitor_manager = get_monitor_manager()
-        if monitor_manager:
-            monitor_manager.start_all()
-            logger.info("Directory monitoring initialized")
-    except Exception as e:
-        logger.error(f"Failed to initialize directory monitoring: {e}")
-
 def main():
     """Main function to run the Scanly application."""
-    # Initialize monitoring on startup
+    # Make sure the screen is clear before we start
+    clear_screen()
+    
+    print("Initializing Scanly...")
+    sys.stdout.flush()
+    
+    # Get the monitor manager but DO NOT start it
     try:
-        initialize_monitoring()
+        monitor_manager = get_monitor_manager()
+        # If the manager has monitored directories, clear them on startup
+        if hasattr(monitor_manager, 'clear_all'):
+            monitor_manager.clear_all()
     except Exception as e:
-        logger.error(f"Failed to initialize monitoring: {e}")
+        logger.error(f"Failed to get monitor manager: {e}")
+        monitor_manager = None
     
     clear_screen()
     display_ascii_art()
@@ -337,15 +324,18 @@ def main():
             menu_options[str(next_option)] = ("Review Skipped Items", None)
             next_option += 1
         
-        # Monitor Scan option - always available
-        menu_options[str(next_option)] = ("Monitor Scan", None)
+        # Monitor Management - only available after scanning (simulated for now)
+        # In a real implementation, you would check if any directories have been scanned
+        menu_options[str(next_option)] = ("Monitor Management", None)
         next_option += 1
         
-        # Review Monitored option - only if there are pending files
+        # Review Monitored option - only if monitoring is active and has pending files
         try:
-            monitor_manager = get_monitor_manager()
-            if monitor_manager and monitor_manager.has_pending_files():
-                menu_options[str(next_option)] = (f"Review Monitored ({monitor_manager.pending_count()})", None)
+            # Only display if monitor has been started and has pending files
+            if monitor_manager and hasattr(monitor_manager, 'is_active') and monitor_manager.is_active() and \
+               hasattr(monitor_manager, 'has_pending_files') and monitor_manager.has_pending_files():
+                pending_count = monitor_manager.pending_count() if hasattr(monitor_manager, 'pending_count') else '?'
+                menu_options[str(next_option)] = (f"Review Monitored ({pending_count})", None)
                 next_option += 1
         except Exception as e:
             logger.error(f"Error checking monitor status: {e}")
@@ -372,46 +362,221 @@ def main():
         
         # Process the selected option
         if choice == "1":
-            print("Individual scan selected")
-            input("\nPress Enter to continue...")
+            # Individual scan
+            print("\nIndividual scan selected")
+            # After scan completes, you could offer to add the directory to monitoring
+            print("\nPress Enter to continue...")
+            input()
+            clear_screen()
+            display_ascii_art()
         
         elif choice == "2":
-            perform_multi_scan()
+            # Multi scan
+            print("\nMulti scan selected")
+            # After scan completes, you could offer to add the directories to monitoring
+            print("\nPress Enter to continue...")
+            input()
+            clear_screen()
+            display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Resume Scan":
-            print("Resume scan selected")
-            input("\nPress Enter to continue...")
+            print("\nResume scan selected")
+            print("\nPress Enter to continue...")
+            input()
+            clear_screen()
+            display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Review Skipped Items":
-            review_skipped_items()
+            print("\nReview skipped items selected")
+            print("\nPress Enter to continue...")
+            input()
+            clear_screen()
+            display_ascii_art()
             
-        elif choice in menu_options and menu_options[choice][0] == "Monitor Scan":
-            print("Monitor scan selected")
-            input("\nPress Enter to continue...")
+        elif choice in menu_options and menu_options[choice][0] == "Monitor Management":
+            # This is where users can add directories to monitoring
+            handle_monitor_management(monitor_manager)
+            clear_screen()
+            display_ascii_art()
             
         elif choice in menu_options and "Review Monitored" in menu_options[choice][0]:
-            print("Review monitored selected")
-            input("\nPress Enter to continue...")
+            print("\nReview monitored selected")
+            print("\nPress Enter to continue...")
+            input()
+            clear_screen()
+            display_ascii_art()
             
         elif choice in menu_options and menu_options[choice][0] == "Clear History":
             clear_all_history()
+            clear_screen()
+            display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Settings":
-            print("Settings selected")
-            input("\nPress Enter to continue...")
+            print("\nSettings selected")
+            print("\nPress Enter to continue...")
+            input()
+            clear_screen()
+            display_ascii_art()
         
         elif choice in menu_options and menu_options[choice][0] == "Help":
             display_help()
         
         elif choice == "0":
-            print("Exiting Scanly. Goodbye!")
+            # Clean shutdown - stop monitoring if active
+            if monitor_manager and hasattr(monitor_manager, 'stop_all'):
+                try:
+                    monitor_manager.stop_all()
+                    print("\nMonitoring stopped.")
+                except Exception as e:
+                    logger.error(f"Error stopping monitors: {e}")
+            
+            print("\nExiting Scanly. Goodbye!")
             break
             
         else:
             print(f"\nInvalid option: {choice}")
-            input("\nPress Enter to continue...")
+            print("\nPress Enter to continue...")
+            input()
             clear_screen()
             display_ascii_art()
+
+def handle_monitor_management(monitor_manager):
+    """Handle monitor management submenu."""
+    if not monitor_manager:
+        print("\nMonitor functionality is not available.")
+        print("\nPress Enter to continue...")
+        input()
+        return
+    
+    while True:
+        clear_screen()
+        display_ascii_art()
+        
+        print("=" * 84)
+        print("MONITOR MANAGEMENT".center(84))
+        print("=" * 84)
+        
+        # Get currently monitored directories
+        monitored_dirs = []
+        if hasattr(monitor_manager, 'get_monitored_directories'):
+            try:
+                monitored_dirs = monitor_manager.get_monitored_directories()
+            except Exception as e:
+                logger.error(f"Error getting monitored directories: {e}")
+        
+        print(f"\nCurrently monitoring {len(monitored_dirs)} directories:")
+        for i, directory in enumerate(monitored_dirs, 1):
+            status = "Active" if hasattr(monitor_manager, 'is_directory_active') and monitor_manager.is_directory_active(directory) else "Inactive"
+            print(f"  {i}. {directory} ({status})")
+        
+        print("\nOptions:")
+        print("  1. Add Directory to Monitoring")
+        print("  2. Remove Directory from Monitoring")
+        print("  3. Start All Monitoring")
+        print("  4. Stop All Monitoring")
+        print("  0. Return to Main Menu")
+        
+        choice = input("\nSelect option: ").strip()
+        
+        if choice == "1":
+            # Add directory to monitoring
+            path = input("\nEnter directory path to monitor: ").strip()
+            path = _clean_directory_path(path)
+            
+            if not os.path.isdir(path):
+                print(f"\nError: {path} is not a valid directory.")
+            else:
+                print(f"\nAdding {path} to monitoring...")
+                try:
+                    # Check if directory has been scanned
+                    scanned = has_directory_been_scanned(path)
+                    
+                    if not scanned:
+                        print("\nWARNING: This directory hasn't been scanned yet.")
+                        print("Adding it to monitoring will process all existing files.")
+                        confirm = input("Do you want to continue? (y/n): ").strip().lower()
+                        
+                        if confirm != 'y':
+                            print("\nDirectory not added to monitoring.")
+                            print("\nPress Enter to continue...")
+                            input()
+                            continue
+                    
+                    if hasattr(monitor_manager, 'add_directory'):
+                        monitor_manager.add_directory(path)
+                        print(f"\nDirectory {path} added to monitoring.")
+                except Exception as e:
+                    logger.error(f"Error adding directory to monitoring: {e}")
+                    print(f"\nError: {e}")
+            
+            print("\nPress Enter to continue...")
+            input()
+        
+        elif choice == "2":
+            # Remove directory from monitoring
+            if not monitored_dirs:
+                print("\nNo directories are currently being monitored.")
+            else:
+                print("\nSelect directory number to remove:")
+                try:
+                    idx = int(input()) - 1
+                    if 0 <= idx < len(monitored_dirs):
+                        directory = monitored_dirs[idx]
+                        if hasattr(monitor_manager, 'remove_directory'):
+                            monitor_manager.remove_directory(directory)
+                            print(f"\nRemoved {directory} from monitoring.")
+                    else:
+                        print("\nInvalid selection.")
+                except ValueError:
+                    print("\nInvalid input. Please enter a number.")
+            
+            print("\nPress Enter to continue...")
+            input()
+        
+        elif choice == "3":
+            # Start all monitoring
+            try:
+                if hasattr(monitor_manager, 'start_all'):
+                    monitor_manager.start_all()
+                    print("\nStarted monitoring all directories.")
+            except Exception as e:
+                logger.error(f"Error starting monitoring: {e}")
+                print(f"\nError: {e}")
+            
+            print("\nPress Enter to continue...")
+            input()
+        
+        elif choice == "4":
+            # Stop all monitoring
+            try:
+                if hasattr(monitor_manager, 'stop_all'):
+                    monitor_manager.stop_all()
+                    print("\nStopped monitoring all directories.")
+            except Exception as e:
+                logger.error(f"Error stopping monitoring: {e}")
+                print(f"\nError: {e}")
+            
+            print("\nPress Enter to continue...")
+            input()
+        
+        elif choice == "0":
+            # Return to main menu
+            return
+        
+        else:
+            print(f"\nInvalid option: {choice}")
+            print("\nPress Enter to continue...")
+            input()
+
+def has_directory_been_scanned(directory):
+    """Check if a directory has been previously scanned."""
+    # This is a stub - in a real implementation, you would check scan history
+    # to see if this directory has been processed before
+    history = load_scan_history()
+    if history and 'path' in history:
+        # Simple check if this directory is in the scan history
+        return directory in history['path']
+    return False
 
 if __name__ == "__main__":
     main()
