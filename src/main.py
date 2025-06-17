@@ -559,8 +559,6 @@ def perform_multi_scan():
 def handle_monitor_management(monitor_manager):
     """Handle monitor management submenu."""
     if not monitor_manager:
-        clear_screen()
-        display_ascii_art()
         print("\nMonitor functionality is not available.")
         input("\nPress Enter to continue...")
         clear_screen()
@@ -570,222 +568,146 @@ def handle_monitor_management(monitor_manager):
     while True:
         clear_screen()
         display_ascii_art()
+        print("=" * 82)
+        print("MONITOR MANAGEMENT".center(82))
+        print("=" * 82)
+        print()
         
-        print("=" * 84)
-        print("MONITOR MANAGEMENT".center(84))
-        print("=" * 84)
+        # Get monitored directories
+        monitored_dirs = monitor_manager.get_monitored_directories()
         
-        # Get currently monitored directories and their status
-        monitored_dirs = []
-        monitoring_active = False
+        # Get actual monitoring status based on observers
+        is_monitoring = monitor_manager.is_monitoring_active()
         
-        if hasattr(monitor_manager, 'get_monitored_directories'):
-            try:
-                monitored_dirs = monitor_manager.get_monitored_directories()
-                # Check if any monitoring is active
-                if hasattr(monitor_manager, 'is_active'):
-                    monitoring_active = monitor_manager.is_active()
-            except Exception as e:
-                logger.error(f"Error getting monitored directories: {e}")
+        # Show monitoring status
+        status = "ACTIVE" if is_monitoring else "INACTIVE"
+        print(f"Monitoring Status: {status}")
+        print()
         
-        # Display monitoring status
-        status_text = "ACTIVE" if monitoring_active else "INACTIVE"
-        print(f"\nMonitoring Status: {status_text}")
-        
-        # Toggle monitoring status text
-        toggle_text = "Stop All Monitoring" if monitoring_active else "Start All Monitoring"
-        
-        print(f"\nCurrently monitoring {len(monitored_dirs)} directories:")
-        if not monitored_dirs:
-            print("  No directories are currently monitored.")
+        # Display monitored directories with their actual status
+        if monitored_dirs:
+            print(f"Currently monitoring {len(monitored_dirs)} directories:")
+            for i, (dir_id, info) in enumerate(monitored_dirs.items(), 1):
+                # A directory is truly active only if it has an observer
+                is_active = dir_id in monitor_manager._observers
+                status_str = "Active" if is_active else "Inactive"
+                dir_name = info.get('name', os.path.basename(info.get('path', 'Unknown')))
+                print(f"  {i}. {dir_name} ({status_str})")
         else:
-            for i, directory in enumerate(monitored_dirs, 1):
-                # Check if this specific directory's monitoring is active
-                dir_active = False
-                if hasattr(monitor_manager, 'is_directory_active'):
-                    try:
-                        dir_active = monitor_manager.is_directory_active(directory)
-                    except Exception as e:
-                        logger.error(f"Error checking directory status: {e}")
-                
-                dir_status = "Active" if dir_active else "Inactive"
-                print(f"  {i}. {directory} ({dir_status})")
+            print("No directories are being monitored.")
         
         print("\nOptions:")
         print("  1. Add Directory to Monitoring")
         print("  2. Remove Directory from Monitoring")
-        print(f"  3. {toggle_text}")
-        
-        # Only show toggle individual directory if we have directories
-        if monitored_dirs:
-            print("  4. Toggle Individual Directory")
-        
+        print("  3. Start All Monitoring")
+        print("  4. Toggle Individual Directory")
+        print("  5. Check Pending Files")
         print("  0. Return to Main Menu")
         
         choice = input("\nSelect option: ").strip()
         
         if choice == "1":
-            # Add directory to monitoring
-            clear_screen()
-            display_ascii_art()
-            print("=" * 84)
-            print("ADD DIRECTORY TO MONITORING".center(84))
-            print("=" * 84)
-            
-            path = input("\nEnter directory path to monitor: ").strip()
-            path = _clean_directory_path(path)
-            
-            if not os.path.isdir(path):
-                print(f"\nError: {path} is not a valid directory.")
-            else:
-                print(f"\nAdding {path} to monitoring...")
-                try:
-                    # Check if directory has been scanned
-                    scanned = has_directory_been_scanned(path)
-                    
-                    if not scanned:
-                        print("\nWARNING: This directory hasn't been scanned yet.")
-                        print("Adding it to monitoring will process all existing files.")
-                        confirm = input("Do you want to continue? (y/n): ").strip().lower()
-                        
-                        if confirm != 'y':
-                            print("\nDirectory not added to monitoring.")
-                            input("\nPress Enter to continue...")
-                            continue
-                    
-                    if hasattr(monitor_manager, 'add_directory'):
-                        monitor_manager.add_directory(path)
-                        print(f"\nDirectory {path} added to monitoring.")
-                        
-                        # If monitoring is already active, ask if the user wants to start this directory
-                        if monitoring_active and hasattr(monitor_manager, 'start_directory'):
-                            start_confirm = input("\nMonitoring is active. Start monitoring this directory now? (y/n): ").strip().lower()
-                            if start_confirm == 'y':
-                                monitor_manager.start_directory(path)
-                                print(f"\nStarted monitoring {path}.")
-                except Exception as e:
-                    logger.error(f"Error adding directory to monitoring: {e}")
-                    print(f"\nError: {e}")
-            
-            input("\nPress Enter to continue...")
-        
-        elif choice == "2":
-            # Remove directory from monitoring
-            if not monitored_dirs:
-                clear_screen()
-                display_ascii_art()
-                print("=" * 84)
-                print("REMOVE DIRECTORY FROM MONITORING".center(84))
-                print("=" * 84)
-                print("\nNo directories are currently being monitored.")
-                input("\nPress Enter to continue...")
-            else:
-                clear_screen()
-                display_ascii_art()
-                print("=" * 84)
-                print("REMOVE DIRECTORY FROM MONITORING".center(84))
-                print("=" * 84)
-                
-                print("\nSelect directory number to remove:")
-                for i, directory in enumerate(monitored_dirs, 1):
-                    print(f"  {i}. {directory}")
-                
-                try:
-                    idx = int(input("\nEnter number: ")) - 1
-                    if 0 <= idx < len(monitored_dirs):
-                        directory = monitored_dirs[idx]
-                        
-                        # Stop monitoring this directory first if it's active
-                        if hasattr(monitor_manager, 'is_directory_active') and hasattr(monitor_manager, 'stop_directory'):
-                            try:
-                                if monitor_manager.is_directory_active(directory):
-                                    monitor_manager.stop_directory(directory)
-                                    print(f"\nStopped monitoring {directory}.")
-                            except Exception as e:
-                                logger.error(f"Error stopping directory monitoring: {e}")
-                        
-                        # Now remove it from the monitoring list
-                        if hasattr(monitor_manager, 'remove_directory'):
-                            monitor_manager.remove_directory(directory)
-                            print(f"\nRemoved {directory} from monitoring.")
-                    else:
-                        print("\nInvalid selection.")
-                except ValueError:
-                    print("\nInvalid input. Please enter a number.")
-            
-                input("\nPress Enter to continue...")
-        
-        elif choice == "3":
-            # Toggle all monitoring
-            clear_screen()
-            display_ascii_art()
-            print("=" * 84)
-            print("TOGGLE MONITORING".center(84))
-            print("=" * 84)
-            
-            try:
-                if monitoring_active:
-                    # Stop all monitoring
-                    if hasattr(monitor_manager, 'stop_all'):
-                        monitor_manager.stop_all()
-                        print("\nStopped monitoring all directories.")
+            # Add directory
+            print("\nEnter the path to the directory you want to monitor:")
+            dir_path = input().strip()
+            if os.path.isdir(dir_path):
+                print("\nEnter a name for this directory (or leave blank to use the folder name):")
+                dir_name = input().strip()
+                dir_id = monitor_manager.add_directory(dir_path, dir_name)
+                if dir_id:
+                    print(f"\nDirectory added successfully with ID: {dir_id}")
                 else:
-                    # Start all monitoring
-                    if hasattr(monitor_manager, 'start_all'):
-                        monitor_manager.start_all()
-                        print("\nStarted monitoring all directories.")
-            except Exception as e:
-                logger.error(f"Error toggling monitoring: {e}")
-                print(f"\nError: {e}")
+                    print("\nFailed to add directory to monitoring.")
+            else:
+                print(f"\nError: {dir_path} is not a valid directory.")
             
             input("\nPress Enter to continue...")
-        
-        elif choice == "4" and monitored_dirs:
-            # Toggle individual directory monitoring
-            clear_screen()
-            display_ascii_art()
-            print("=" * 84)
-            print("TOGGLE INDIVIDUAL DIRECTORY".center(84))
-            print("=" * 84)
             
-            print("\nSelect directory number to toggle:")
-            for i, directory in enumerate(monitored_dirs, 1):
-                dir_active = False
-                if hasattr(monitor_manager, 'is_directory_active'):
-                    try:
-                        dir_active = monitor_manager.is_directory_active(directory)
-                    except Exception as e:
-                        logger.error(f"Error checking directory status: {e}")
+        elif choice == "2":
+            # Remove directory
+            if not monitored_dirs:
+                print("\nNo directories to remove.")
+                input("\nPress Enter to continue...")
+                continue
                 
-                dir_status = "Active" if dir_active else "Inactive"
-                print(f"  {i}. {directory} ({dir_status})")
+            print("\nSelect directory to remove:")
+            for i, (dir_id, info) in enumerate(monitored_dirs.items(), 1):
+                path = info.get('path', 'Unknown path')
+                name = info.get('name', os.path.basename(path))
+                print(f"  {i}. {name} ({path})")
                 
             try:
-                idx = int(input("\nEnter number: ")) - 1
-                if 0 <= idx < len(monitored_dirs):
-                    directory = monitored_dirs[idx]
-                    
-                    # Check current status
-                    dir_active = False
-                    if hasattr(monitor_manager, 'is_directory_active'):
-                        dir_active = monitor_manager.is_directory_active(directory)
-                    
-                    # Toggle the status
-                    if dir_active:
-                        if hasattr(monitor_manager, 'stop_directory'):
-                            monitor_manager.stop_directory(directory)
-                            print(f"\nStopped monitoring {directory}.")
+                dir_index = int(input("\nEnter number: ").strip())
+                if 1 <= dir_index <= len(monitored_dirs):
+                    dir_id = list(monitored_dirs.keys())[dir_index - 1]
+                    if monitor_manager.remove_directory(dir_id):
+                        print("\nDirectory removed from monitoring.")
                     else:
-                        if hasattr(monitor_manager, 'start_directory'):
-                            monitor_manager.start_directory(directory)
-                            print(f"\nStarted monitoring {directory}.")
+                        print("\nFailed to remove directory.")
                 else:
                     print("\nInvalid selection.")
             except ValueError:
-                print("\nInvalid input. Please enter a number.")
+                print("\nPlease enter a valid number.")
                 
             input("\nPress Enter to continue...")
-        
+            
+        elif choice == "3":
+            # Start all monitoring
+            count = monitor_manager.start_all()
+            print(f"\nStarted monitoring {count} directories.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == "4":
+            # Toggle individual directory
+            if not monitored_dirs:
+                print("\nNo directories to toggle.")
+                input("\nPress Enter to continue...")
+                continue
+                
+            print("\nSelect directory to toggle:")
+            for i, (dir_id, info) in enumerate(monitored_dirs.items(), 1):
+                path = info.get('path', 'Unknown path')
+                name = info.get('name', os.path.basename(path))
+                is_active = dir_id in monitor_manager._observers
+                active = "Active" if is_active else "Inactive"
+                print(f"  {i}. {name} ({active})")
+                
+            try:
+                dir_index = int(input("\nEnter number: ").strip())
+                if 1 <= dir_index <= len(monitored_dirs):
+                    dir_id = list(monitored_dirs.keys())[dir_index - 1]
+                    new_state = monitor_manager.toggle_directory_active(dir_id)
+                    
+                    # Show confirmation of the toggle
+                    state_str = "activated" if new_state else "deactivated"
+                    print(f"\nDirectory monitoring {state_str}.")
+                else:
+                    print("\nInvalid selection.")
+            except ValueError:
+                print("\nPlease enter a valid number.")
+            except Exception as e:
+                print(f"\nError toggling directory: {str(e)}")
+                
+            input("\nPress Enter to continue...")
+            
+        elif choice == "5":
+            # Check pending files
+            pending_files = monitor_manager.get_all_pending_files()
+            
+            if not pending_files:
+                print("\nNo pending files found.")
+            else:
+                print(f"\nFound {len(pending_files)} pending files:")
+                for i, file_info in enumerate(pending_files, 1):
+                    print(f"  {i}. {file_info['name']} in {file_info['dir_name']}")
+                    
+                print("\nDo you want to process these files now? (y/n)")
+                if input().strip().lower() == 'y':
+                    count = monitor_manager.run_pending_scans()
+                    print(f"\nProcessed {count} pending files.")
+                
+            input("\nPress Enter to continue...")
+            
         elif choice == "0":
             # Return to main menu
             clear_screen()
@@ -793,77 +715,120 @@ def handle_monitor_management(monitor_manager):
             return
         
         else:
-            print(f"\nInvalid option: {choice}")
+            print("\nInvalid option. Please try again.")
             input("\nPress Enter to continue...")
 
 def handle_webhook_settings():
     """Handle webhook settings submenu."""
-    clear_screen()
-    display_ascii_art()
-    
-    print("=" * 84)
-    print("WEBHOOK SETTINGS".center(84))
-    print("=" * 84)
-    
-    # Display current webhook settings
-    default_webhook_url = os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL', '')
-    monitored_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_MONITORED_ITEM', '')
-    creation_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_CREATION', '')
-    deletion_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', '')
-    repair_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_REPAIR', '')
-    
-    print("\nCurrent Webhook Settings:")
-    print(f"  Default Webhook URL: {default_webhook_url or 'Not set'}")
-    print(f"  Monitored Item Webhook URL: {monitored_webhook_url or 'Using default'}")
-    print(f"  Symlink Creation Webhook URL: {creation_webhook_url or 'Using default'}")
-    print(f"  Symlink Deletion Webhook URL: {deletion_webhook_url or 'Using default'}")
-    print(f"  Symlink Repair Webhook URL: {repair_webhook_url or 'Using default'}")
-    
-    print("\nOptions:")
-    print("  1. Set Default Webhook URL")
-    print("  2. Set Monitored Item Webhook URL")
-    print("  3. Set Symlink Creation Webhook URL")
-    print("  4. Set Symlink Deletion Webhook URL")
-    print("  5. Set Symlink Repair Webhook URL")
-    print("  0. Return to Settings")
-    
-    choice = input("\nSelect option: ").strip()
-    
-    if choice == "1":
-        url = input("\nEnter Default Webhook URL (leave empty to clear): ").strip()
-        _update_env_var('DEFAULT_DISCORD_WEBHOOK_URL', url)
-        print(f"\nDefault Webhook URL {'cleared' if not url else 'updated'}.")
+    while True:
+        clear_screen()
+        display_ascii_art()
         
-    elif choice == "2":
-        url = input("\nEnter Monitored Item Webhook URL (leave empty to use default): ").strip()
-        _update_env_var('DISCORD_WEBHOOK_URL_MONITORED_ITEM', url)
-        print(f"\nMonitored Item Webhook URL {'set to use default' if not url else 'updated'}.")
+        print("=" * 84)
+        print("WEBHOOK SETTINGS".center(84))
+        print("=" * 84)
         
-    elif choice == "3":
-        url = input("\nEnter Symlink Creation Webhook URL (leave empty to use default): ").strip()
-        _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_CREATION', url)
-        print(f"\nSymlink Creation Webhook URL {'set to use default' if not url else 'updated'}.")
+        # Display current webhook settings
+        default_webhook_url = os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL', '')
+        monitored_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_MONITORED_ITEM', '')
+        creation_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_CREATION', '')
+        deletion_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', '')
+        repair_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_REPAIR', '')
+        notifications_enabled = os.environ.get('ENABLE_DISCORD_NOTIFICATIONS', 'true').lower() == 'true'
         
-    elif choice == "4":
-        url = input("\nEnter Symlink Deletion Webhook URL (leave empty to use default): ").strip()
-        _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', url)
-        print(f"\nSymlink Deletion Webhook URL {'set to use default' if not url else 'updated'}.")
+        print("\nCurrent Webhook Settings:")
+        print(f"  Discord Notifications Enabled: {'Yes' if notifications_enabled else 'No'}")
+        print(f"  Default Webhook URL: {default_webhook_url or 'Not set'}")
+        print(f"  Monitored Item Webhook URL: {monitored_webhook_url or 'Using default'}")
+        print(f"  Symlink Creation Webhook URL: {creation_webhook_url or 'Using default'}")
+        print(f"  Symlink Deletion Webhook URL: {deletion_webhook_url or 'Using default'}")
+        print(f"  Symlink Repair Webhook URL: {repair_webhook_url or 'Using default'}")
         
-    elif choice == "5":
-        url = input("\nEnter Symlink Repair Webhook URL (leave empty to use default): ").strip()
-        _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_REPAIR', url)
-        print(f"\nSymlink Repair Webhook URL {'set to use default' if not url else 'updated'}.")
+        print("\nOptions:")
+        print("  1. Set Default Webhook URL")
+        print("  2. Set Monitored Item Webhook URL")
+        print("  3. Set Symlink Creation Webhook URL")
+        print("  4. Set Symlink Deletion Webhook URL")
+        print("  5. Set Symlink Repair Webhook URL")
+        print("  6. Toggle Discord Notifications")
+        print("  7. Test Webhooks")
+        print("  0. Return to Settings")
         
-    elif choice == "0":
-        # Return to settings menu
-        return
-    
-    else:
-        print(f"\nInvalid option: {choice}")
-    
-    print("\nPress Enter to continue...")
-    input()
-    handle_webhook_settings()  # Return to webhook settings
+        choice = input("\nSelect option: ").strip()
+        
+        if choice == "1":
+            print("\nEnter the default Discord webhook URL:")
+            url = input().strip()
+            if url:
+                _update_env_var('DEFAULT_DISCORD_WEBHOOK_URL', url)
+                # Also update DISCORD_WEBHOOK_URL for compatibility
+                os.environ['DISCORD_WEBHOOK_URL'] = url
+                print("\nDefault webhook URL updated.")
+            else:
+                print("\nWebhook URL not changed.")
+        
+        elif choice == "2":
+            print("\nEnter the monitored item Discord webhook URL (leave blank to use default):")
+            url = input().strip()
+            if url:
+                _update_env_var('DISCORD_WEBHOOK_URL_MONITORED_ITEM', url)
+                print("\nMonitored item webhook URL updated.")
+            else:
+                print("\nMonitored item webhook URL set to use default.")
+        
+        elif choice == "3":
+            print("\nEnter the symlink creation Discord webhook URL (leave blank to use default):")
+            url = input().strip()
+            if url:
+                _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_CREATION', url)
+                print("\nSymlink creation webhook URL updated.")
+            else:
+                print("\nSymlink creation webhook URL set to use default.")
+        
+        elif choice == "4":
+            print("\nEnter the symlink deletion Discord webhook URL (leave blank to use default):")
+            url = input().strip()
+            if url:
+                _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', url)
+                print("\nSymlink deletion webhook URL updated.")
+            else:
+                print("\nSymlink deletion webhook URL set to use default.")
+        
+        elif choice == "5":
+            print("\nEnter the symlink repair Discord webhook URL (leave blank to use default):")
+            url = input().strip()
+            if url:
+                _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_REPAIR', url)
+                print("\nSymlink repair webhook URL updated.")
+            else:
+                print("\nSymlink repair webhook URL set to use default.")
+        
+        elif choice == "6":
+            # Toggle Discord notifications
+            new_state = 'false' if notifications_enabled else 'true'
+            _update_env_var('ENABLE_DISCORD_NOTIFICATIONS', new_state)
+            print(f"\nDiscord notifications {'enabled' if new_state == 'true' else 'disabled'}.")
+            
+        elif choice == "7":
+            # Test webhooks
+            print("\nTesting webhook...")
+            try:
+                from src.utils.webhooks import test_webhook
+                test_webhook()
+            except Exception as e:
+                print(f"Error during webhook test: {str(e)}")
+            
+            input("\nPress Enter to continue...")
+            
+        elif choice == "0":
+            return
+        
+        else:
+            print("\nInvalid option. Please try again.")
+        
+        if choice != "7":  # Don't ask to press Enter again after webhook test
+            print("\nPress Enter to continue...")
+            input()
 
 def handle_settings():
     """Handle settings submenu."""
@@ -947,14 +912,19 @@ def main():
     print("Initializing Scanly...")
     sys.stdout.flush()
     
+    # Ensure Discord webhook environment variables are properly set
+    # If DEFAULT_DISCORD_WEBHOOK_URL exists but DISCORD_WEBHOOK_URL doesn't, 
+    # copy it over for compatibility with old code
+    default_webhook = os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL')
+    if default_webhook and not os.environ.get('DISCORD_WEBHOOK_URL'):
+        os.environ['DISCORD_WEBHOOK_URL'] = default_webhook
+        logger.info("Set DISCORD_WEBHOOK_URL from DEFAULT_DISCORD_WEBHOOK_URL for compatibility")
+    
     # Get the monitor manager but DO NOT start it
     try:
         monitor_manager = get_monitor_manager()
-        # If the manager has monitored directories, clear them on startup
-        if hasattr(monitor_manager, 'clear_all'):
-            monitor_manager.clear_all()
     except Exception as e:
-        logger.error(f"Failed to get monitor manager: {e}")
+        logger.error(f"Error initializing monitor manager: {e}")
         monitor_manager = None
     
     clear_screen()  # Make sure screen is clear before starting menu loop

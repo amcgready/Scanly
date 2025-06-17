@@ -265,3 +265,44 @@ def send_symlink_repair_notification(media_name, year, poster, description, orig
     except Exception as e:
         logger.error(f"Error sending symlink repair webhook: {e}")
         return False
+
+def test_webhook():
+    """Test if the webhook is working correctly."""
+    import os
+    from discord_webhook import DiscordWebhook
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Get the webhook URLs
+    default_webhook_url = os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL')
+    monitored_item_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_MONITORED_ITEM')
+    webhook_url = monitored_item_webhook_url or default_webhook_url
+    
+    if not webhook_url:
+        print("No webhook URL found in environment variables.")
+        return False
+    
+    try:
+        print(f"Testing webhook URL: {webhook_url[:30]}...")
+        
+        webhook = DiscordWebhook(
+            url=webhook_url,
+            content="🧪 Webhook Test: This is a test message from Scanly"
+        )
+        response = webhook.execute()
+        
+        # Discord webhooks return 204 for older API or 200 for newer API versions
+        if response.status_code in [200, 204]:
+            print(f"Webhook test successful! (Status code: {response.status_code})")
+            return True
+        else:
+            print(f"Webhook test failed with status code: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Error testing webhook: {str(e)}")
+        return False
+
+if __name__ == "__main__":
+    # This allows running this file directly to test webhooks
+    test_webhook()
