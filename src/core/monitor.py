@@ -768,7 +768,132 @@ class MonitorManager:
         
         logger.info(f"Sending test notification for {dir_name}")
         return self._send_directory_notification(dir_name, "TEST_FOLDER")
+    
+    def get_pending_files_and_folders(self):
+        """Get pending files and folders separately."""
+        files = []
+        folders = []
         
+        for dir_id, info in self._monitored_directories.items():
+            dir_name = info.get('name', 'Unknown')
+            dir_path = info.get('path', '')
+            
+            for item_path in info.get('pending_files', []):
+                # Skip if path no longer exists
+                if not os.path.exists(item_path):
+                    continue
+                    
+                is_directory = os.path.isdir(item_path)
+                item_info = {
+                    'dir_id': dir_id,
+                    'dir_name': dir_name,
+                    'dir_path': dir_path,
+                    'path': item_path,
+                    'name': os.path.basename(item_path),
+                    'is_directory': is_directory
+                }
+                
+                if is_directory:
+                    folders.append(item_info)
+                else:
+                    files.append(item_info)
+                    
+        return files, folders
+
+    def get_pending_files_only(self):
+        """Get only pending media files (not folders)."""
+        files, _ = self.get_pending_files_and_folders()
+        return files
+    
+    def get_pending_folders_only(self):
+        """Get only pending folders (not media files)."""
+        _, folders = self.get_pending_files_and_folders()
+        return folders
+
+    def process_pending_files(self):
+        """Process only pending files using DirectoryProcessor."""
+        pending_files = self.get_pending_files_only()
+        
+        if not pending_files:
+            logger.info("No pending files to process")
+            return 0
+        
+        logger.info(f"Processing {len(pending_files)} pending files")
+        processed_count = 0
+        
+        try:
+            from src.main import DirectoryProcessor
+            
+            for file_info in pending_files:
+                dir_id = file_info['dir_id']
+                file_path = file_info['path']
+                
+                if not os.path.exists(file_path):
+                    logger.warning(f"Skipping non-existent path: {file_path}")
+                    self.remove_pending_file(dir_id, file_path)
+                    continue
+                
+                logger.info(f"Processing pending file: {file_path}")
+                
+                processor = DirectoryProcessor(file_path)
+                result = processor._process_media_files()
+                
+                if result is not None and result >= 0:
+                    self.remove_pending_file(dir_id, file_path)
+                    processed_count += 1
+                else:
+                    logger.warning(f"Failed to process {file_path}")
+
+        except ImportError:
+            logger.error("Could not import DirectoryProcessor. Check your installation.")
+        except Exception as e:
+            logger.exception(f"Error processing pending files: {e}")
+        
+        return processed_count
+
+    def process_pending_folders(self):
+        """Process pending folders by running an individual scan on each."""
+        pending_folders = self.get_pending_folders_only()
+        
+        if not pending_folders:
+            logger.info("No pending folders to process")
+            return 0
+        
+        logger.info(f"Processing {len(pending_folders)} pending folders")
+        processed_count = 0
+        
+        try:
+            from src.main import DirectoryProcessor
+            
+            for folder_info in pending_folders:
+                dir_id = folder_info['dir_id']
+                folder_path = folder_info['path']
+                
+                if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+                    logger.warning(f"Skipping non-existent folder: {folder_path}")
+                    self.remove_pending_file(dir_id, folder_path)
+                    continue
+                
+                logger.info(f"Processing pending folder: {folder_path}")
+                
+                # Create a processor specifically for this folder
+                processor = DirectoryProcessor(folder_path)
+                result = processor._process_media_files()
+                
+                if result is not None:
+                    self.remove_pending_file(dir_id, folder_path)
+                    processed_count += 1
+                else:
+                    logger.warning(f"Failed to process folder {folder_path}")
+
+        except ImportError:
+            logger.error("Could not import DirectoryProcessor. Check your installation.")
+        except Exception as e:
+            logger.exception(f"Error processing pending folders: {e}")
+        
+        return processed_count
+        
+
 # Global monitor manager instance for reuse
 _monitor_manager = None
 
