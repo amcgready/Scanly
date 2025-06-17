@@ -17,36 +17,55 @@ logger = logging.getLogger(__name__)
 
 class DirectoryChangeHandler(FileSystemEventHandler):
     """Event handler for directory changes that detects new folders."""
-    def __init__(self, callback, directory_id):
+    def __init__(self, callback, directory_id, monitored_path):
         self.callback = callback
         self.directory_id = directory_id
+        self.monitored_path = monitored_path  # Store the monitored path
         self.changes = set()
         self.last_notification_time = 0
+        logger.info(f"DirectoryChangeHandler initialized for path: {monitored_path}")
         
     def on_created(self, event):
         """Handle file/directory creation events."""
-        # Check if it's a media file
-        if not event.is_directory and self._is_media_file(event.src_path):
+        # Debug log to see all events
+        logger.debug(f"Event detected: {event.src_path}, is_directory={event.is_directory}")
+        
+        # Only handle directory events
+        if event.is_directory:
             path = event.src_path
-            logger.info(f"New file detected: {path}")
-            self.changes.add(path)
-            self._schedule_notification()
-        # Also handle new directories
-        elif event.is_directory:
-            # Filter out common system directories
-            path = event.src_path
-            # Avoid hidden folders, git, __pycache__, etc.
-            if os.path.basename(path).startswith('.'):
+            parent_dir = os.path.dirname(path)
+            
+            # More debug info to understand what's happening
+            logger.debug(f"Directory event: {path}")
+            logger.debug(f"Parent dir: {parent_dir}")
+            logger.debug(f"Monitored path: {self.monitored_path}")
+            
+            # Check if this is an immediate subdirectory of the monitored path
+            # Use normpath to handle paths with or without trailing slashes
+            norm_parent = os.path.normpath(parent_dir)
+            norm_monitored = os.path.normpath(self.monitored_path)
+            
+            if norm_parent == norm_monitored and self._is_valid_directory(path):
+                logger.info(f"New top-level directory detected: {path}")
+                self.changes.add(path)
+                self._schedule_notification()
                 return
-            if any(excluded in path for excluded in ['.git', '__pycache__', 'node_modules']):
-                return
-                
-            self.changes.add(path)
-            self._schedule_notification()
-    
-    def _is_media_file(self, path):
-        """Check if the file is a media file."""
-        return path.lower().endswith(('.mkv', '.mp4', '.avi', '.m4v', '.mov'))
+            
+            logger.debug(f"Directory {path} is not an immediate child of {self.monitored_path} - ignoring")
+        
+    def _is_valid_directory(self, path):
+        """Check if this is a valid directory we should notify about."""
+        # Skip hidden directories
+        if os.path.basename(path).startswith('.'):
+            logger.debug(f"Skipping hidden directory: {path}")
+            return False
+            
+        # Skip common system/development directories
+        if any(excluded in path for excluded in ['.git', '__pycache__', 'node_modules', '.venv']):
+            logger.debug(f"Skipping system directory: {path}")
+            return False
+            
+        return True
     
     def _schedule_notification(self):
         """Throttle notifications to avoid spamming."""
@@ -56,7 +75,12 @@ class DirectoryChangeHandler(FileSystemEventHandler):
             changes = list(self.changes)
             self.changes.clear()
             if changes:  # Only notify if there are actual changes
+                logger.info(f"Scheduling notification for {len(changes)} changes")
                 self.callback(changes, self.directory_id)
+                # Check if callback worked
+                logger.debug("Notification callback executed")
+            else:
+                logger.debug("No changes to notify about")
 
 
 class MonitorManager:
@@ -98,7 +122,7 @@ class MonitorManager:
                             
                             # Scan for existing files
                             path = info.get('path')
-                            logger.info(f"Scanning for existing files in {path}")
+                            logger.info(f"Scanning for existing subdirectories in {path}")
                             
                             # Check if this is an rclone mount
                             is_rclone = False
@@ -112,7 +136,7 @@ class MonitorManager:
                             if is_rclone:
                                 self._scan_rclone_directory(dir_id, path)
                             else:
-                                self._scan_existing_files(dir_id, path)
+                                self._scan_existing_subdirectories(dir_id, path)
                         else:
                             # If monitoring failed to start, update the state
                             info['active'] = False
@@ -230,10 +254,9 @@ class MonitorManager:
                 self._monitored_directories[dir_id]['active'] = True
                 logger.info(f"Successfully started monitoring for directory {dir_id}")
                 
-                # IMPORTANT FIX: Immediately scan the directory for existing files
-                # This ensures we detect files that are already present
+                # IMPORTANT FIX: Immediately scan the directory for existing subdirectories
                 path = self._monitored_directories[dir_id].get('path')
-                logger.info(f"Performing initial scan of existing files in {path}")
+                logger.info(f"Performing initial scan of existing subdirectories in {path}")
                 
                 # For rclone mounts, use the rclone scanner
                 is_rclone = False
@@ -248,8 +271,8 @@ class MonitorManager:
                     logger.info(f"Initial scan using RclonePoller for {path}")
                     self._scan_rclone_directory(dir_id, path)
                 else:
-                    # Scan for standard directories
-                    self._scan_existing_files(dir_id, path)
+                    # Scan for immediate subdirectories
+                    self._scan_existing_subdirectories(dir_id, path)
             else:
                 # If monitoring failed to start, don't update the state
                 logger.error(f"Failed to start monitoring for directory {dir_id}")
@@ -271,6 +294,7 @@ class MonitorManager:
     def _on_directory_change(self, changes, dir_id):
         """Handle changes in monitored directories."""
         if not changes:
+            logger.debug("No changes to process in _on_directory_change")
             return
         
         if dir_id not in self._monitored_directories:
@@ -280,12 +304,17 @@ class MonitorManager:
         dir_info = self._monitored_directories[dir_id]
         dir_name = dir_info.get('name', 'Unknown')
         
-        logger.info(f"Changes detected in {dir_name}: {len(changes)} new items")
+        logger.info(f"Changes detected in {dir_name}: {len(changes)} new subdirectories")
         
-        # Process each file change individually
-        for file_path in changes:
-            # Use the central file detection method for consistent handling
-            self._on_file_detected(dir_id, file_path)
+        # Process each directory change
+        for dir_path in changes:
+            # Only add items that are actual directories
+            if os.path.isdir(dir_path):
+                logger.debug(f"Processing directory change: {dir_path}")
+                # Use the central detection method for consistent handling
+                self._on_directory_detected(dir_id, dir_path)
+            else:
+                logger.debug(f"Skipping non-directory: {dir_path}")
     
     def _start_monitoring(self, dir_id):
         """Start monitoring a directory."""
@@ -356,7 +385,8 @@ class MonitorManager:
                 observer = Observer()
                 event_handler = DirectoryChangeHandler(
                     callback=self._on_directory_change,
-                    directory_id=dir_id
+                    directory_id=dir_id,
+                    monitored_path=path  # Pass the monitored path to the handler
                 )
                 
                 observer.schedule(event_handler, path, recursive=True)
@@ -365,14 +395,9 @@ class MonitorManager:
                 self._observers[dir_id] = observer
                 logger.info(f"Started standard observer for {dir_id}")
                 
-                # Also scan existing files immediately for standard directories
-                logger.info(f"Scanning existing files in {path}")
-                threading.Thread(
-                    target=self._scan_existing_files,
-                    args=(dir_id, path),
-                    daemon=True,
-                    name=f"initial-scan-{dir_id}"
-                ).start()
+                # IMPORTANT: Force an immediate scan for existing directories 
+                # This ensures we find preexisting directories even if no new event fires
+                self._scan_existing_subdirectories(dir_id, path)
         
             return True
         except Exception as e:
@@ -386,85 +411,124 @@ class MonitorManager:
             return False
     
     def _scan_rclone_directory(self, dir_id, path):
-        """Scan an rclone directory for new files."""
+        """Scan an rclone directory for new top-level subdirectories only."""
         try:
-            # Check for media files directly in the directory
-            for root, _, files in os.walk(path):
-                for file in files:
-                    # Only process media files
-                    if not file.lower().endswith(('.mkv', '.mp4', '.avi', '.m4v', '.mov')):
-                        continue
-                    
-                    file_path = os.path.join(root, file)
-                    
-                    # Check if already in pending files
-                    dir_info = self._monitored_directories[dir_id]
-                    pending_files = dir_info.get('pending_files', [])
-                    
-                    if file_path not in pending_files:
-                        # Log the new file
-                        logger.info(f"New file detected by RclonePoller: {file_path}")
-                        
-                        # Handle as a change event
-                        self._on_file_detected(dir_id, file_path)
+            logger.info(f"Scanning rclone directory: {path}")
+            detected_count = 0
+            
+            # Only scan for immediate subdirectories directly under the monitored path
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                # Only process items that are directories
+                if os.path.isdir(item_path) and not item.startswith('.'):
+                    if not any(excluded in item_path for excluded in ['.git', '__pycache__', 'node_modules']):
+                        logger.info(f"Found subdirectory in rclone mount: {item_path}")
+                        self._on_directory_detected(dir_id, item_path)
+                        detected_count += 1
+            
+            logger.info(f"Rclone scan complete. Found {detected_count} subdirectories.")
         except Exception as e:
             logger.error(f"Error scanning rclone directory {path}: {e}")
 
-    def _on_file_detected(self, dir_id, file_path):
-        """Handle a newly detected file."""
+    def _on_directory_detected(self, dir_id, dir_path):
+        """Handle a newly detected directory under a monitored path."""
         if dir_id not in self._monitored_directories:
+            logger.warning(f"Cannot process directory for unknown dir_id: {dir_id}")
             return
             
         dir_info = self._monitored_directories[dir_id]
         dir_name = dir_info.get('name', 'Unknown')
+        monitored_path = dir_info.get('path', '')
         
-        # Get the file name for notifications
-        file_name = os.path.basename(file_path)
+        # Only process directories that are direct subdirectories of the monitored path
+        # Use normpath to handle paths with or without trailing slashes
+        norm_parent = os.path.normpath(os.path.dirname(dir_path))
+        norm_monitored = os.path.normpath(monitored_path)
         
-        # Add to pending files (if not already there)
+        if norm_parent != norm_monitored:
+            logger.debug(f"Ignoring non-immediate subdirectory: {dir_path}")
+            return
+        
+        # Get the folder name for notifications
+        folder_name = os.path.basename(dir_path)
+        
+        # Debug info to track the process
+        logger.debug(f"Processing detected directory: {dir_path}")
+        logger.debug(f"Parent directory: {os.path.dirname(dir_path)}")
+        logger.debug(f"Monitored path: {monitored_path}")
+        
+        # Add to pending directories (if not already there)
         pending_files = dir_info.get('pending_files', [])
-        if file_path not in pending_files:
-            # Only add to pending files and send notification for new files
-            pending_files.append(file_path)
+        if dir_path not in pending_files:
+            # Only add to pending files and send notification for new directories
+            pending_files.append(dir_path)
             dir_info['pending_files'] = pending_files
-            logger.info(f"Added pending file: {file_name} to directory {dir_name}")
+            logger.info(f"Added pending directory: {folder_name} to monitor {dir_name}")
             self._save_monitored_directories()
             
-            # Check if Discord notifications are enabled
-            notifications_enabled = os.environ.get('ENABLE_DISCORD_NOTIFICATIONS', 'true').lower() == 'true'
+            # Always try to send notification for directories - this is key
+            self._send_directory_notification(dir_name, folder_name)
+    
+    def _send_directory_notification(self, dir_name, folder_name):
+        """Send a notification for a newly detected directory."""
+        logger.info(f"Sending notification for folder: {folder_name} in {dir_name}")
+        
+        # Check if Discord notifications are enabled
+        notifications_enabled = os.environ.get('ENABLE_DISCORD_NOTIFICATIONS', 'true').lower() == 'true'
+        
+        if not notifications_enabled:
+            logger.info("Notifications disabled in environment settings")
+            return False
             
-            if notifications_enabled:
-                # Try webhook URLs in this order: specific event URL, default URL, legacy URL
-                webhook_url = (os.environ.get('DISCORD_WEBHOOK_URL_MONITORED_ITEM') or 
-                              os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL') or 
-                              os.environ.get('DISCORD_WEBHOOK_URL'))
-                
-                # If we have a webhook URL, send notification
-                if webhook_url:
-                    try:
-                        from discord_webhook import DiscordWebhook
-                        
-                        # Log which webhook URL we're using (truncated for security)
-                        webhook_prefix = webhook_url[:30] + "..." if len(webhook_url) > 30 else webhook_url
-                        logger.info(f"Sending notification to webhook: {webhook_prefix}")
-                        
-                        webhook = DiscordWebhook(
-                            url=webhook_url,
-                            content=f"📁 New content detected: **{file_name}** in {dir_name}"
-                        )
-                        response = webhook.execute()
-                        
-                        # Discord webhooks return 204 for older API or 200 for newer API versions
-                        if response.status_code in [200, 204]:
-                            logger.info(f"Webhook notification sent successfully for {file_name} (Status: {response.status_code})")
-                        else:
-                            logger.error(f"Webhook notification failed with status code: {response.status_code}")
-                    except ImportError:
-                        logger.warning("discord_webhook package not installed, skipping notification")
-                    except Exception as e:
-                        logger.error(f"Failed to send webhook notification: {str(e)}")
+        # Try webhook URLs in this order: specific event URL, default URL, legacy URL
+        webhook_url = (os.environ.get('DISCORD_WEBHOOK_URL_MONITORED_ITEM') or 
+                       os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL') or 
+                       os.environ.get('DISCORD_WEBHOOK_URL'))
+        
+        if not webhook_url:
+            logger.warning("No Discord webhook URL configured, skipping notification")
+            return False
+            
+        # If we have a webhook URL, send notification
+        try:
+            from discord_webhook import DiscordWebhook
+            
+            # Log which webhook URL we're using (truncated for security)
+            webhook_prefix = webhook_url[:30] + "..." if len(webhook_url) > 30 else webhook_url
+            logger.info(f"Sending notification to webhook: {webhook_prefix}")
+            
+            # Create a notification message for the new folder
+            message = f"📁 New folder detected: **{folder_name}** in {dir_name}"
+            
+            # Create and send webhook
+            webhook = DiscordWebhook(
+                url=webhook_url,
+                content=message
+            )
+            response = webhook.execute()
+            
+            # Check response status
+            if response and hasattr(response, 'status_code'):
+                # Discord webhooks return 204 for older API or 200 for newer API versions
+                if response.status_code in [200, 204]:
+                    logger.info(f"Webhook notification sent successfully for {folder_name} (Status: {response.status_code})")
+                    return True
                 else:
-                    logger.warning("No Discord webhook URL configured, skipping notification")
+                    logger.error(f"Webhook notification failed with status code: {response.status_code}")
+                    # Try to log response content for debugging
+                    try:
+                        logger.error(f"Response content: {response.content}")
+                    except:
+                        pass
+            else:
+                logger.error("Webhook response object is invalid")
+                
+        except ImportError:
+            logger.warning("discord_webhook package not installed, skipping notification")
+        except Exception as e:
+            logger.error(f"Failed to send webhook notification: {str(e)}")
+            
+        return False
     
     def _stop_monitoring(self, dir_id):
         """Stop monitoring a directory."""
@@ -519,26 +583,6 @@ class MonitorManager:
             if self._start_monitoring(dir_id):
                 count += 1
                 active_dirs.append(dir_id)
-                
-                # IMPORTANT FIX: Perform initial scan for each directory
-                path = info.get('path')
-                logger.info(f"Performing initial scan of existing files in {path}")
-                
-                # For rclone mounts, use the rclone scanner
-                is_rclone = False
-                try:
-                    if os.path.ismount(path):
-                        mount_info = os.popen(f"findmnt -n -o SOURCE {path}").read().lower()
-                        is_rclone = "rclone" in mount_info
-                except Exception as e:
-                    logger.warning(f"Error checking if mount is rclone: {e}")
-                
-                if is_rclone:
-                    logger.info(f"Initial scan using RclonePoller for {path}")
-                    self._scan_rclone_directory(dir_id, path)
-                else:
-                    # Scan for standard directories
-                    self._scan_existing_files(dir_id, path)
             else:
                 # If monitoring failed to start, mark as inactive
                 self._monitored_directories[dir_id]['active'] = False
@@ -611,7 +655,8 @@ class MonitorManager:
                     'dir_name': dir_name,
                     'dir_path': dir_path,
                     'path': file_path,
-                    'name': os.path.basename(file_path)
+                    'name': os.path.basename(file_path),
+                    'is_directory': os.path.isdir(file_path)
                 })
         return result
 
@@ -659,44 +704,31 @@ class MonitorManager:
         
         return processed_count
 
-    def _scan_existing_files(self, dir_id, path):
-        """Scan directory for existing media files upon monitor activation."""
+    def _scan_existing_subdirectories(self, dir_id, path):
+        """Scan directory for existing immediate subdirectories only."""
         try:
-            logger.info(f"Scanning existing files in {path}")
-            file_count = 0
+            logger.info(f"Scanning for immediate subdirectories in {path}")
+            detected_count = 0
             
-            # Use os.walk to find all files in the directory
-            for root, _, files in os.walk(path, followlinks=True):
-                for file in files:
-                    # Only process media files
-                    if file.lower().endswith(('.mkv', '.mp4', '.avi', '.m4v', '.mov')):
-                        file_path = os.path.join(root, file)
-                        
-                        # Get directory info and check if file is already pending
-                        dir_info = self._monitored_directories[dir_id]
-                        pending_files = dir_info.get('pending_files', [])
-                        
-                        if file_path not in pending_files:
-                            # Log the existing file
-                            logger.info(f"Existing file found during initial scan: {file_path}")
-                            
-                            # Handle as a detected file
-                            self._on_file_detected(dir_id, file_path)
-                            file_count += 1
-                            
-                            # Limit number of files to avoid huge batches
-                            if file_count >= 50:
-                                logger.info(f"Reached scan limit of 50 files, will continue on next scan")
-                                break
-            
-                # Break out of outer loop too if we hit the limit
-                if file_count >= 50:
-                    break
-                    
-            logger.info(f"Initial scan complete, found {file_count} files in {path}")
+            # Only scan for immediate subdirectories directly under the monitored path
+            try:
+                for item in os.listdir(path):
+                    item_path = os.path.join(path, item)
+                    # Only process items that are directories
+                    if os.path.isdir(item_path):
+                        # Filter using _is_valid_directory logic
+                        if not item.startswith('.') and not any(
+                            excluded in item_path for excluded in ['.git', '__pycache__', 'node_modules', '.venv']):
+                            logger.info(f"Found existing subdirectory: {item_path}")
+                            self._on_directory_detected(dir_id, item_path)
+                            detected_count += 1
+            except Exception as e:
+                logger.error(f"Error scanning immediate subdirectories: {e}")
+                
+            logger.info(f"Initial subdirectory scan complete for {path}. Found {detected_count} subdirectories.")
     
         except Exception as e:
-            logger.error(f"Error scanning existing files in {path}: {e}")
+            logger.error(f"Error scanning existing subdirectories in {path}: {e}")
     
     def is_monitoring_active(self):
         """Check if any directory is currently being monitored."""
@@ -723,6 +755,20 @@ class MonitorManager:
             'active_count': len(active_dirs),
             'active_directories': active_dirs
         }
+      
+    # DIAGNOSTICS: Add a method to manually send test notifications for debugging
+    def send_test_notification(self, dir_id):
+        """Send a test notification for a monitored directory."""
+        if dir_id not in self._monitored_directories:
+            logger.error(f"Directory ID not found: {dir_id}")
+            return False
+            
+        dir_info = self._monitored_directories[dir_id]
+        dir_name = dir_info.get('name', 'Unknown') 
+        
+        logger.info(f"Sending test notification for {dir_name}")
+        return self._send_directory_notification(dir_name, "TEST_FOLDER")
+        
 # Global monitor manager instance for reuse
 _monitor_manager = None
 
