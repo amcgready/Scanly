@@ -1038,228 +1038,7 @@ class DirectoryProcessor:
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after error
             display_ascii_art()  # Show ASCII art
-            return -1
-
-# Update perform_individual_scan to properly clear the screen after error
-
-def perform_individual_scan():
-    """Perform an individual scan operation."""
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("INDIVIDUAL SCAN".center(84))
-    print("=" * 84)
-    
-    # Get directory to scan
-    print("\nEnter the directory path to scan:")
-    dir_input = input().strip()
-    
-    # Check if user wants to return to main menu
-    if dir_input.lower() in ('exit', 'quit', 'back', 'return'):
-        return
-    
-    # Validate directory path
-    clean_path = _clean_directory_path(dir_input)
-    if not os.path.isdir(clean_path):
-        print(f"\nError: {clean_path} is not a valid directory.")
-        input("\nPress Enter to continue...")
-        clear_screen()  # Make sure we clear screen here before returning
-        return
-    
-    # Create processor for this directory
-    processor = DirectoryProcessor(clean_path)
-    
-    # Process the directory
-    print(f"\nScanning directory: {clean_path}")
-    result = processor._process_media_files()
-    
-    if result is not None and result >= 0:
-        print(f"\nScan completed. Processed {result} items.")
-    else:
-        print("\nScan could not be completed due to an error.")
-    
-    input("\nPress Enter to continue...")
-    clear_screen()  # Make sure we clear screen here before returning
-
-def process_pending_files_multiscan(monitor_manager, pending_files):
-    """Process pending files using multi-scan approach."""
-    if not pending_files:
-        print("\nNo pending files to process.")
-        return 0
-    
-    # Extract directories from pending files
-    directories = [file_info['path'] for file_info in pending_files]
-    
-    # Show confirmation with directories to scan
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("PROCESS PENDING FILES".center(84))
-    print("=" * 84)
-    
-    print(f"\nProcessing {len(directories)} pending items:")
-    for i, directory in enumerate(directories, 1):
-        print(f"  {i}. {os.path.basename(directory)}")
-    
-    # Process each directory
-    total_processed = 0
-    success_count = 0
-    
-    for i, directory in enumerate(directories, 1):
-        clear_screen()
-        display_ascii_art()
-        print("=" * 84)
-        print(f"PROCESSING ITEM {i} OF {len(directories)}".center(84))
-        print("=" * 84)
-        print(f"\nDirectory: {directory}")
-        
-        try:
-            # Get the directory_id from the original pending_files list
-            file_info = pending_files[i-1]
-            dir_id = file_info.get('dir_id')
-            
-            # Check if directory still exists
-            if not os.path.exists(directory):
-                print(f"Directory no longer exists: {directory}")
-                if dir_id:
-                    monitor_manager.remove_pending_file(dir_id, directory)
-                continue
-            
-            # Create processor for this directory
-            processor = DirectoryProcessor(directory)
-            result = processor._process_media_files()
-            
-            if result is not None and result >= 0:
-                print(f"\nSuccessfully processed {result} items.")
-                total_processed += result
-                success_count += 1
-                
-                # Remove from pending files if successful
-                if dir_id:
-                    monitor_manager.remove_pending_file(dir_id, directory)
-            else:
-                print(f"\nFailed to process directory: {directory}")
-        except Exception as e:
-            logger.error(f"Error processing directory {directory}: {e}")
-            print(f"Error: {str(e)}")
-        
-        input("\nPress Enter to continue to next item...")
-    
-    # Show summary after all directories processed
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("PENDING FILES PROCESSING COMPLETE".center(84))
-    print("=" * 84)
-    print(f"\nSuccessfully processed {success_count} of {len(directories)} directories")
-    print(f"Total items processed: {total_processed}")
-    
-    input("\nPress Enter to continue...")
-    return success_count
-
-def perform_multi_scan():
-    """Perform a multi-scan operation on multiple directories."""
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("MULTI SCAN".center(84))
-    print("=" * 84)
-    
-    print("\nEnter directory paths to scan (one per line).")
-    print("Press Enter on an empty line when done.\n")
-    
-    directories = []
-    while True:
-        dir_input = input(f"Directory {len(directories) + 1}: ").strip()
-        
-        # Handle empty input
-        if not dir_input:
-            if directories:
-                break
-            else:
-                print("You need to enter at least one directory.")
-                continue
-        
-        # Check if user wants to return to main menu
-        if dir_input.lower() in ('exit', 'quit', 'back', 'return'):
-            if not directories:
-                return
-            else:
-                break
-        
-        # Validate directory path
-        clean_path = _clean_directory_path(dir_input)
-        if os.path.isdir(clean_path):
-            directories.append(clean_path)
-            print(f"Added: {clean_path}")
-        else:
-            print(f"Error: '{clean_path}' is not a valid directory. Please try again.")
-    
-    if not directories:
-        print("\nNo valid directories to scan.")
-        input("\nPress Enter to continue...")
-        clear_screen()
-        display_ascii_art()
-        return
-    
-    # Confirm directories before scanning
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("CONFIRM DIRECTORIES".center(84))
-    print("=" * 84)
-    
-    print("\nYou've selected these directories to scan:")
-    for i, directory in enumerate(directories, 1):
-        print(f"  {i}. {directory}")
-    
-    confirm = input("\nProceed with scan? (y/n): ").strip().lower()
-    if confirm != 'y':
-        print("\nScan cancelled.")
-        input("\nPress Enter to continue...")
-        clear_screen()
-        display_ascii_art()
-        return
-    
-    # Process each directory
-    total_processed = 0
-    for i, directory in enumerate(directories, 1):
-        clear_screen()
-        display_ascii_art()
-        print("=" * 84)
-        print(f"PROCESSING DIRECTORY {i} OF {len(directories)}".center(84))
-        print("=" * 84)
-        print(f"\nDirectory: {directory}")
-        
-        # Create processor for this directory
-        processor = DirectoryProcessor(directory)
-        result = processor._process_media_files()
-        
-        # Check if user cancelled the scan
-        if result == -1:
-            print("\nMulti-scan cancelled.")
-            input("\nPress Enter to continue...")
-            clear_screen()
-            display_ascii_art()
-            return
-        
-        # Add to total processed count if successful
-        if result is not None and result > 0:
-            total_processed += result
-    
-    # Show summary after all directories processed
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("MULTI SCAN COMPLETE".center(84))
-    print("=" * 84)
-    print(f"\nProcessed {len(directories)} directories")
-    print(f"Total media processed: {total_processed} items")
-    
-    input("\nPress Enter to continue...")
-    clear_screen()
-    display_ascii_art()
-# Fix the handle_monitor_management function to properly handle pending files
+# Fix the handle_monitor_management function to properly handle directories
 def handle_monitor_management(monitor_manager):
     """Handle monitor management submenu."""
     if not monitor_manager:
@@ -1281,35 +1060,84 @@ def handle_monitor_management(monitor_manager):
         
         # Show current status
         if is_active:
-            print(f"\n✅ Monitoring is ACTIVE - {len(active_dirs)} directory(s) being monitored")
+            print("\n✅ Monitoring is ACTIVE")
         else:
             print("\n❌ Monitoring is INACTIVE")
             
-        # Get all directories
-        directories = monitor_manager.get_monitored_directories()
+        # Get all directories - this might be a dictionary with timestamp keys
+        monitor_dirs = monitor_manager.get_monitored_directories()
         
-        # Check pending files
+        # Convert to a list of tuples for easier enumeration
+        if isinstance(monitor_dirs, dict):
+            # If it's a dictionary, create a list of (key, value) pairs
+            directories = list(monitor_dirs.items())
+        else:
+            # If it's already a list or other iterable, use as is
+            directories = list(enumerate(monitor_dirs))
+        
+        # Check pending files - this will be a list of file paths
         pending_files = monitor_manager.get_all_pending_files()
         pending_count = len(pending_files)
+        
+        # Build a map of directories to their pending files count
+        dir_pending_map = {}
+        for file in pending_files:
+            if isinstance(file, dict) and 'directory_path' in file:
+                dir_path = file['directory_path']
+            elif isinstance(file, str):
+                # Try to extract directory path from file path
+                dir_path = os.path.dirname(file)
+            else:
+                continue
+                
+            if dir_path in dir_pending_map:
+                dir_pending_map[dir_path] += 1
+            else:
+                dir_pending_map[dir_path] = 1
         
         # Check active directories
         if directories:
             print(f"\nMonitored Directories: {len(directories)}")
-            i = 0
-            for dir_id, info in directories.items():
-                i += 1
-                path = info.get('path', 'Unknown')
-                name = info.get('name', os.path.basename(path))
-                is_dir_active = info.get('active', False)
-                status_icon = "🟢 " if is_dir_active else "⚪ "
+            for i, (key, directory_info) in enumerate(directories, 1):
+                # Extract directory information
+                if isinstance(directory_info, dict):
+                    dir_path = directory_info.get('path', '')
+                    dir_name = directory_info.get('name', 'Unnamed')
+                    
+                    # If we still don't have a good name, try to extract from path
+                    if not dir_name or dir_name == 'Unnamed':
+                        if dir_path:
+                            dir_name = os.path.basename(dir_path)
+                        else:
+                            dir_name = f"Directory {i}"
+                elif isinstance(directory_info, str):
+                    dir_path = directory_info
+                    dir_name = os.path.basename(dir_path)
+                else:
+                    # Fallback
+                    dir_path = str(directory_info) if directory_info else "Unknown"
+                    dir_name = "Unknown Directory"
                 
-                # Count pending files for this directory
-                dir_pending = len(info.get('pending_files', []))
-                pending_str = f" ({dir_pending} pending)" if dir_pending > 0 else ""
+                # Status indicator
+                is_active = False
+                for active_dir in active_dirs:
+                    if isinstance(active_dir, str) and active_dir == dir_path:
+                        is_active = True
+                        break
+                    elif isinstance(active_dir, dict) and active_dir.get('path') == dir_path:
+                        is_active = True
+                        break
                 
-                print(f"{i}. {status_icon}{name}: {path}{pending_str}")
+                status_icon = "🟢" if is_active else "⚪"
+                
+                # Get pending count
+                pending_for_dir = dir_pending_map.get(dir_path, 0)
+                
+                # Display with pending count only if there are pending files
+                pending_display = f" ({pending_for_dir} pending)" if pending_for_dir > 0 else ""
+                print(f"{i}. {status_icon} {dir_name}: {dir_path}{pending_display}")
         else:
-            print("\nNo directories are currently monitored.")
+            print("\nNo directories being monitored.")
             
         # Show options
         print("\nOptions:")
@@ -1317,64 +1145,66 @@ def handle_monitor_management(monitor_manager):
         print("2. Remove directory from monitoring")
         print("3. Toggle directory active state")
         print("4. Start all monitoring")
-        if pending_count > 0:
-            print(f"5. Check pending files ({pending_count})")
-        else:
-            print("5. Check pending files (0)")
+        print(f"5. Check pending files ({pending_count})")
         print("0. Return to main menu")
         
         choice = input("\nEnter choice: ").strip()
         
         if choice == "1":
-            # Add directory
-            print("\nEnter path to directory to monitor:")
-            path = input().strip()
-            if not path:
-                continue
-                
-            path = _clean_directory_path(path)
-            if not os.path.isdir(path):
-                print(f"\nError: {path} is not a valid directory.")
+            # Add directory handling
+            new_dir = input("\nEnter directory path to monitor: ").strip()
+            new_dir = _clean_directory_path(new_dir)
+            
+            if not os.path.exists(new_dir):
+                print(f"\nDirectory {new_dir} does not exist.")
                 input("\nPress Enter to continue...")
                 continue
                 
-            print("\nEnter a name for this directory (or leave blank to use the folder name):")
-            name = input().strip()
-            
-            # Add the directory
-            dir_id = monitor_manager.add_directory(path, name)
-            if dir_id:
-                print(f"\nDirectory added successfully with ID: {dir_id}")
-            else:
-                print("\nFailed to add directory.")
-                
+            name = input("\nEnter a name for this directory: ").strip() or os.path.basename(new_dir)
+            monitor_manager.add_monitored_directory(new_dir, name)
+            print(f"\nAdded {name} ({new_dir}) to monitored directories.")
             input("\nPress Enter to continue...")
             
         elif choice == "2":
-            # Remove directory
+            # Remove directory handling
             if not directories:
                 print("\nNo directories to remove.")
                 input("\nPress Enter to continue...")
                 continue
                 
-            print("\nEnter the number of the directory to remove:")
-            dir_num = input().strip()
-            
+            dir_num = input("\nEnter number of directory to remove: ").strip()
             try:
                 dir_num = int(dir_num)
-                if dir_num < 1 or dir_num > len(directories):
-                    raise ValueError("Invalid directory number")
+                if 1 <= dir_num <= len(directories):
+                    # Get the key and directory info
+                    key, directory_info = directories[dir_num-1]
                     
-                # Get the directory ID from its position
-                dir_id = list(directories.keys())[dir_num - 1]
-                
-                if monitor_manager.remove_directory(dir_id):
-                    print(f"\nDirectory {dir_num} removed successfully.")
+                    # Extract path based on type
+                    if isinstance(directory_info, dict):
+                        dir_path = directory_info.get('path', '')
+                    else:
+                        dir_path = str(directory_info)
+                    
+                    # Some monitor managers might need the key instead of path
+                    try:
+                        monitor_manager.remove_monitored_directory(dir_path)
+                    except:
+                        # If that fails, try with the key
+                        try:
+                            monitor_manager.remove_monitored_directory(key)
+                        except Exception as e:
+                            print(f"\nError removing directory: {e}")
+                            input("\nPress Enter to continue...")
+                            continue
+                    
+                    print(f"\nRemoved directory from monitoring.")
                 else:
-                    print(f"\nFailed to remove directory {dir_num}.")
+                    print("\nInvalid directory number.")
             except ValueError:
-                print("\nPlease enter a valid directory number.")
-                
+                print("\nInvalid input. Please enter a number.")
+            except Exception as e:
+                print(f"\nError: {e}")
+            
             input("\nPress Enter to continue...")
             
         elif choice == "3":
@@ -1384,60 +1214,66 @@ def handle_monitor_management(monitor_manager):
                 input("\nPress Enter to continue...")
                 continue
                 
-            print("\nEnter the number of the directory to toggle:")
-            dir_num = input().strip()
-            
+            dir_num = input("\nEnter number of directory to toggle: ").strip()
             try:
                 dir_num = int(dir_num)
-                if dir_num < 1 or dir_num > len(directories):
-                    raise ValueError("Invalid directory number")
+                if 1 <= dir_num <= len(directories):
+                    # Get the key and directory info
+                    key, directory_info = directories[dir_num-1]
                     
-                # Get the directory ID from its position
-                dir_id = list(directories.keys())[dir_num - 1]
-                
-                new_state = monitor_manager.toggle_directory_active(dir_id)
-                
-                dir_info = directories[dir_id]
-                name = dir_info.get('name', 'Unknown')
-                print(f"\nDirectory '{name}' is now {'ACTIVE' if new_state else 'INACTIVE'}.")
+                    # Extract path based on type
+                    if isinstance(directory_info, dict):
+                        dir_path = directory_info.get('path', '')
+                    else:
+                        dir_path = str(directory_info)
+                    
+                    # Some monitor managers might need the key instead of path
+                    try:
+                        monitor_manager.toggle_directory_active(dir_path)
+                    except:
+                        # If that fails, try with the key
+                        try:
+                            monitor_manager.toggle_directory_active(key)
+                        except Exception as e:
+                            print(f"\nError toggling directory state: {e}")
+                            input("\nPress Enter to continue...")
+                            continue
+                    
+                    print(f"\nToggled active state for directory.")
+                else:
+                    print("\nInvalid directory number.")
             except ValueError:
-                print("\nPlease enter a valid directory number.")
-                
+                print(f"\nInvalid input. Please enter a number between 1 and {len(directories)}.")
+            except Exception as e:
+                print(f"\nError: {e}")
+            
             input("\nPress Enter to continue...")
             
         elif choice == "4":
-            # Start all monitoring
-            count = monitor_manager.start_all()
-            print(f"\nStarted monitoring {count} directories.")
+            # Start monitoring
+            try:
+                monitor_manager.start_monitoring()
+                print("\nStarted monitoring for all active directories.")
+            except Exception as e:
+                print(f"\nError starting monitoring: {e}")
+            
             input("\nPress Enter to continue...")
             
         elif choice == "5":
-            # Check pending files
-            pending_files = monitor_manager.get_all_pending_files()
-            
-            if not pending_files:
-                print("\nNo pending files found.")
-                input("\nPress Enter to continue...")
-                continue
+            # Process pending files
+            if pending_count > 0:
+                process_pending_files_multiscan(monitor_manager, pending_files)
             else:
-                print(f"\nFound {len(pending_files)} pending files:")
-                for i, file_info in enumerate(pending_files, 1):
-                    print(f"  {i}. {file_info['name']} in {file_info['dir_name']}")
-                
-                print("\nDo you want to process these files now? (y/n)")
-                if input().strip().lower() == 'y':
-                    # Call the function to process pending files
-                    success_count = process_pending_files_multiscan(monitor_manager, pending_files)
-                    print(f"\nProcessed {success_count} out of {len(pending_files)} pending items.")
-                    input("\nPress Enter to continue...")
+                print("\nNo pending files to process.")
+                input("\nPress Enter to continue...")
             
         elif choice == "0":
-            # Return to main menu
             return
             
         else:
-            print("\nInvalid choice. Please try again.")
-            time.sleep(1)
+            print("\nInvalid option.")
+            input("\nPress Enter to continue...")
+
 def handle_webhook_settings():
     """Handle webhook settings submenu."""
     while True:
