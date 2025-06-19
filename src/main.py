@@ -425,7 +425,7 @@ class DirectoryProcessor:
         self._detected_tmdb_id = None
     
     def _check_scanner_lists(self, title, year=None, is_tv=False, is_anime=False):
-        """Check appropriate scanner lists for matches based on content type"""
+        """Check appropriate scanner lists for matches based on content type, with a real progress bar."""
         # Determine which scanner list to use based on content type
         if is_anime and is_tv:
             scanner_file = "anime_series.txt"
@@ -450,12 +450,20 @@ class DirectoryProcessor:
         
         matches = []
         try:
-            # Read the scanner file
+            # Count total lines for progress bar
             with open(scanner_path, 'r', encoding='utf-8') as file:
+                lines = [line for line in file if line.strip() and not line.strip().startswith('#')]
+            total = len(lines)
+            if total == 0:
+                return []
+            print("\nChecking scanner lists:", end=" ", flush=True)
+            # Now process with progress bar
+            with open(scanner_path, 'r', encoding='utf-8') as file:
+                processed = 0
                 for line in file:
                     line = line.strip()
                     if not line or line.startswith('#'):
-                        continue  # Skip empty lines and comments
+                        continue
                     
                     # Parse the line (format: "Title (Year)" or just "Title")
                     match = re.match(r'(.+?)(?:\s+\((\d{4})\))?$', line)
@@ -477,7 +485,14 @@ class DirectoryProcessor:
                             'year': scan_year,
                             'source': scanner_file
                         })
-            
+                    processed += 1
+                    # Update progress bar
+                    bar_len = 30
+                    filled_len = int(bar_len * processed // total)
+                    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+                    percent = int(100 * processed / total)
+                    print(f"\rChecking scanner lists: [{bar}] {percent}%", end='', flush=True)
+                print()  # Newline after progress bar
             self.logger.info(f"Found {len(matches)} matches in {scanner_file}")
             return matches
             
@@ -850,13 +865,6 @@ class DirectoryProcessor:
                     print(f"  Search term: {search_term}")
                     if tmdb_id:
                         print(f"  TMDB ID: {tmdb_id}")
-
-                    # Show progress bar for checking scanner lists
-                    print("\nChecking scanner lists...", end="", flush=True)
-                    for i in range(10):
-                        print(".", end="", flush=True)
-                        time.sleep(0.05)
-                    print(" please wait.")
 
                     # Check scanner lists for matches using current search term
                     scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
