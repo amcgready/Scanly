@@ -321,20 +321,14 @@ class MonitorManager:
         if dir_id not in self._monitored_directories:
             logger.error(f"Directory ID not found: {dir_id}")
             return False
-        
-        # Get directory info
         dir_info = self._monitored_directories[dir_id]
         path = dir_info.get('path')
-        
         if not path or not os.path.isdir(path):
             logger.error(f"Invalid directory path: {path}")
             return False
-        
-        # Check if already being monitored
         if dir_id in self._observers:
             logger.info(f"Directory {dir_id} is already being monitored")
             return True
-        
         logger.info(f"Starting monitoring for directory {dir_id} at path {path}")
         
         try:
@@ -730,168 +724,163 @@ class MonitorManager:
         except Exception as e:
             logger.error(f"Error scanning existing subdirectories in {path}: {e}")
     
-    def is_monitoring_active(self):
-        """Check if any directory is currently being monitored."""
-        return bool(self._observers)
+    def start_monitoring(self, interval: int = 60) -> bool:
+        # Activate and start monitoring for all directories
+        for dir_id in self._monitored_directories:
+            if not self._monitored_directories[dir_id].get('active', False):
+                success = self._start_monitoring(dir_id)
+                if success:
+                    self._monitored_directories[dir_id]['active'] = True
+        self._save_monitored_directories()
+        if hasattr(self, 'monitoring_thread') and self.monitoring_thread and self.monitoring_thread.is_alive():
+            return False
+        if not hasattr(self, 'stop_event'):
+            self.stop_event = threading.Event()
+        else:
+            self.stop_event.clear()
+        self.monitoring_thread = threading.Thread(
+            target=self._monitor_loop,
+            args=(interval,),
+            daemon=True
+        )
+        self.monitoring_thread.start()
+        return True
+
+    def stop_monitoring(self) -> bool:
+        """
+        Stop the monitoring thread.
+        Returns:
+            True if monitoring was stopped, False if not monitoring
+        """
+        if not hasattr(self, 'monitoring_thread') or not self.monitoring_thread or not self.monitoring_thread.is_alive():
+            logger.warning("Not currently monitoring")
+            return False
+        logger.info("Stopping monitoring...")
+        self.stop_event.set()
+        self.monitoring_thread.join(timeout=10)
+        logger.info("Monitoring stopped")
+        return True
+
+    def is_monitoring(self) -> bool:
+        alive = hasattr(self, 'monitoring_thread') and self.monitoring_thread is not None and self.monitoring_thread.is_alive()
+        return alive
+
+    def _monitor_loop(self, interval: int) -> None:
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    self.monitor_directories()
+                except Exception as e:
+                    print(f"[ERROR] Exception in monitor_directories: {e}")
+                self.stop_event.wait(interval)
+        except Exception as e:
+            print(f"[ERROR] Exception in _monitor_loop: {e}")
 
     def get_monitoring_status(self):
-        """Get the status of monitoring."""
-        is_active = self.is_monitoring_active()
-        active_dirs = []
-        
-        # Collect information about actively monitored directories
-        for dir_id, observer in self._observers.items():
-            if dir_id in self._monitored_directories:
-                dir_info = self._monitored_directories[dir_id]
-                active_dirs.append({
-                    'id': dir_id,
-                    'name': dir_info.get('name', 'Unknown'),
-                    'path': dir_info.get('path', 'Unknown')
-                })
-        
+        status = "active" if self.is_monitoring() else "inactive"
+        active_dirs = [dir_id for dir_id, info in self._monitored_directories.items() if info.get('active', False)]
         return {
-            'active': is_active,
-            'directory_count': len(self._monitored_directories),
-            'active_count': len(active_dirs),
-            'active_directories': active_dirs
+            "status": status,
+            "active_directories": active_dirs
         }
-      
-    # DIAGNOSTICS: Add a method to manually send test notifications for debugging
-    def send_test_notification(self, dir_id):
-        """Send a test notification for a monitored directory."""
+
+    def monitor_directories(self):
+        """
+        Monitor all directories for changes.
+        """
+        logger.debug(f"Checking monitored directories...")
+        for dir_id in list(self._monitored_directories.keys()):
+            # Skip directories that are not active
+            if not self._monitored_directories[dir_id].get('active', True):
+                continue
+            directory_info = self._monitored_directories[dir_id]
+            auto_process = directory_info.get('auto_process', False)
+            # Check for new files
+            new_files = self.detect_changes(dir_id)
+            if new_files:
+                # Process according to the directory's auto_process setting
+                self.handle_new_files(dir_id, new_files, auto_process=auto_process)
+    
+    def detect_changes(self, dir_id):
+        """Detect new files or directories in the monitored directory."""
         if dir_id not in self._monitored_directories:
             logger.error(f"Directory ID not found: {dir_id}")
-            return False
-            
+            return []
+        
         dir_info = self._monitored_directories[dir_id]
-        dir_name = dir_info.get('name', 'Unknown') 
+        path = dir_info.get('path', '')
         
-        logger.info(f"Sending test notification for {dir_name}")
-        return self._send_directory_notification(dir_name, "TEST_FOLDER")
+        if not os.path.isdir(path):
+            logger.warning(f"Path is not a directory or doesn't exist: {path}")
+            return []
+        
+        logger.debug(f"Scanning for changes in {path}")
+        current_files = set(os.listdir(path))
+        new_files = []
+        
+        # Compare with previously known files
+        known_files = set(dir_info.get('known_files', []))
+        logger.debug(f"Known files: {known_files}")
+        
+        # Detect new files or directories
+        for item in current_files:
+            if item.startswith('.'):
+                continue  # Skip hidden files
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path) and item not in known_files:
+                logger.info(f"New directory detected: {item_path}")
+                new_files.append(item_path)
+            elif os.path.isfile(item_path) and item not in known_files:
+                logger.info(f"New file detected: {item_path}")
+                new_files.append(item_path)
+        
+        # Update the known files list
+        if new_files:
+            logger.info(f"Updating known files for {dir_id}: {new_files}")
+            dir_info['known_files'] = list(current_files)
+            self._save_monitored_directories()
+        
+        return new_files
     
-    def get_pending_files_and_folders(self):
-        """Get pending files and folders separately."""
-        files = []
-        folders = []
+    def handle_new_files(self, dir_id, new_files, auto_process=False):
+        """Handle newly detected files or directories."""
+        if dir_id not in self._monitored_directories:
+            logger.error(f"Directory ID not found: {dir_id}")
+            return
         
-        for dir_id, info in self._monitored_directories.items():
-            dir_name = info.get('name', 'Unknown')
-            dir_path = info.get('path', '')
-            
-            for item_path in info.get('pending_files', []):
-                # Skip if path no longer exists
-                if not os.path.exists(item_path):
-                    continue
-                    
-                is_directory = os.path.isdir(item_path)
-                item_info = {
-                    'dir_id': dir_id,
-                    'dir_name': dir_name,
-                    'dir_path': dir_path,
-                    'path': item_path,
-                    'name': os.path.basename(item_path),
-                    'is_directory': is_directory
-                }
+        dir_info = self._monitored_directories[dir_id]
+        dir_name = dir_info.get('name', 'Unknown')
+        
+        logger.info(f"Handling {len(new_files)} new files for directory {dir_name} (Auto-process: {auto_process})")
+        
+        for file_path in new_files:
+            # For directories, we may want to process them differently
+            if os.path.isdir(file_path):
+                logger.info(f"New directory detected: {file_path}")
+                # Add to pending files for monitoring
+                self.add_pending_file(dir_id, file_path)
                 
-                if is_directory:
-                    folders.append(item_info)
-                else:
-                    files.append(item_info)
-                    
-        return files, folders
-
-    def get_pending_files_only(self):
-        """Get only pending media files (not folders)."""
-        files, _ = self.get_pending_files_and_folders()
-        return files
+                # Auto-process directories if enabled
+                if auto_process:
+                    logger.info(f"Auto-processing new directory: {file_path}")
+                    self.process_directory(dir_id, file_path)
+            else:
+                logger.info(f"New file detected: {file_path}")
+                # For files, we typically want to process them
+                self.add_pending_file(dir_id, file_path)
+                self.process_file(dir_id, file_path)
     
-    def get_pending_folders_only(self):
-        """Get only pending folders (not media files)."""
-        _, folders = self.get_pending_files_and_folders()
-        return folders
-
-    def process_pending_files(self):
-        """Process only pending files using DirectoryProcessor."""
-        pending_files = self.get_pending_files_only()
-        
-        if not pending_files:
-            logger.info("No pending files to process")
-            return 0
-        
-        logger.info(f"Processing {len(pending_files)} pending files")
-        processed_count = 0
-        
-        try:
-            from src.main import DirectoryProcessor
-            
-            for file_info in pending_files:
-                dir_id = file_info['dir_id']
-                file_path = file_info['path']
-                
-                if not os.path.exists(file_path):
-                    logger.warning(f"Skipping non-existent path: {file_path}")
-                    self.remove_pending_file(dir_id, file_path)
-                    continue
-                
-                logger.info(f"Processing pending file: {file_path}")
-                
-                processor = DirectoryProcessor(file_path)
-                result = processor._process_media_files()
-                
-                if result is not None and result >= 0:
-                    self.remove_pending_file(dir_id, file_path)
-                    processed_count += 1
-                else:
-                    logger.warning(f"Failed to process {file_path}")
-
-        except ImportError:
-            logger.error("Could not import DirectoryProcessor. Check your installation.")
-        except Exception as e:
-            logger.exception(f"Error processing pending files: {e}")
-        
-        return processed_count
-
-    def process_pending_folders(self):
-        """Process pending folders by running an individual scan on each."""
-        pending_folders = self.get_pending_folders_only()
-        
-        if not pending_folders:
-            logger.info("No pending folders to process")
-            return 0
-        
-        logger.info(f"Processing {len(pending_folders)} pending folders")
-        processed_count = 0
-        
-        try:
-            from src.main import DirectoryProcessor
-            
-            for folder_info in pending_folders:
-                dir_id = folder_info['dir_id']
-                folder_path = folder_info['path']
-                
-                if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
-                    logger.warning(f"Skipping non-existent folder: {folder_path}")
-                    self.remove_pending_file(dir_id, folder_path)
-                    continue
-                
-                logger.info(f"Processing pending folder: {folder_path}")
-                
-                # Create a processor specifically for this folder
-                processor = DirectoryProcessor(folder_path)
-                result = processor._process_media_files()
-                
-                if result is not None:
-                    self.remove_pending_file(dir_id, folder_path)
-                    processed_count += 1
-                else:
-                    logger.warning(f"Failed to process folder {folder_path}")
-
-        except ImportError:
-            logger.error("Could not import DirectoryProcessor. Check your installation.")
-        except Exception as e:
-            logger.exception(f"Error processing pending folders: {e}")
-        
-        return processed_count
+    def process_directory(self, dir_id, dir_path):
+        """Process a new directory - placeholder for custom logic."""
+        logger.info(f"Processing new directory: {dir_path}")
+        # Here you can add custom processing logic for new directories
+        # For example, scanning media files, organizing files, etc.
+    
+    def process_file(self, dir_id, file_path):
+        """Process a new file - placeholder for custom logic."""
+        logger.info(f"Processing new file: {file_path}")
+        # Here you can add custom processing logic for new files
+        # For example, moving files, changing file attributes, etc.
         
 
 # Global monitor manager instance for reuse

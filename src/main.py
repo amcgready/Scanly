@@ -1056,8 +1056,8 @@ def handle_monitor_management(monitor_manager):
         # Get status
         status = monitor_manager.get_monitoring_status()
         active_dirs = status.get('active_directories', [])
-        is_active = status.get('active', False)
-        
+        # Monitoring is ACTIVE if any directory is active
+        is_active = bool(active_dirs)
         # Show current status
         if is_active:
             print("\n✅ Monitoring is ACTIVE")
@@ -1119,16 +1119,12 @@ def handle_monitor_management(monitor_manager):
                     dir_name = "Unknown Directory"
                 
                 # Status indicator
-                is_active = False
+                is_active_dir = False
                 for active_dir in active_dirs:
-                    if isinstance(active_dir, str) and active_dir == dir_path:
-                        is_active = True
+                    if active_dir == key:
+                        is_active_dir = True
                         break
-                    elif isinstance(active_dir, dict) and active_dir.get('path') == dir_path:
-                        is_active = True
-                        break
-                
-                status_icon = "🟢" if is_active else "⚪"
+                status_icon = "🟢" if is_active_dir else "🔴"
                 
                 # Get pending count
                 pending_for_dir = dir_pending_map.get(dir_path, 0)
@@ -1213,40 +1209,25 @@ def handle_monitor_management(monitor_manager):
                 print("\nNo directories to toggle.")
                 input("\nPress Enter to continue...")
                 continue
-                
             dir_num = input("\nEnter number of directory to toggle: ").strip()
             try:
                 dir_num = int(dir_num)
                 if 1 <= dir_num <= len(directories):
                     # Get the key and directory info
                     key, directory_info = directories[dir_num-1]
-                    
-                    # Extract path based on type
-                    if isinstance(directory_info, dict):
-                        dir_path = directory_info.get('path', '')
-                    else:
-                        dir_path = str(directory_info)
-                    
-                    # Some monitor managers might need the key instead of path
                     try:
-                        monitor_manager.toggle_directory_active(dir_path)
-                    except:
-                        # If that fails, try with the key
-                        try:
-                            monitor_manager.toggle_directory_active(key)
-                        except Exception as e:
-                            print(f"\nError toggling directory state: {e}")
-                            input("\nPress Enter to continue...")
-                            continue
-                    
+                        monitor_manager.toggle_directory_active(key)
+                    except Exception as e:
+                        print(f"\nError toggling directory state: {e}")
+                        input("\nPress Enter to continue...")
+                        continue
                     print(f"\nToggled active state for directory.")
                 else:
                     print("\nInvalid directory number.")
             except ValueError:
-                print(f"\nInvalid input. Please enter a number between 1 and {len(directories)}.")
+                print("\nInvalid input. Please enter a number.")
             except Exception as e:
                 print(f"\nError: {e}")
-            
             input("\nPress Enter to continue...")
             
         elif choice == "4":
