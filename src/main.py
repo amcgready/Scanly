@@ -3,6 +3,7 @@
 
 This module is the main entry point for the Scanly application.
 """
+import datetime
 import logging
 import os
 import sys
@@ -525,7 +526,6 @@ class DirectoryProcessor:
             clean_title = re.sub(r'\s*\(\d{4}\)\s*', ' ', folder_name).strip()
         else:
             # Look for 4-digit sequences that could be years
-            import datetime
             current_year = datetime.datetime.now().year
             year_matches = re.findall(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', folder_name)
             
@@ -850,7 +850,14 @@ class DirectoryProcessor:
                     print(f"  Search term: {search_term}")
                     if tmdb_id:
                         print(f"  TMDB ID: {tmdb_id}")
-                    
+
+                    # Show progress bar for checking scanner lists
+                    print("\nChecking scanner lists...", end="", flush=True)
+                    for i in range(10):
+                        print(".", end="", flush=True)
+                        time.sleep(0.05)
+                    print(" please wait.")
+
                     # Check scanner lists for matches using current search term
                     scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
                     print(f"  Scanner Matches: {len(scanner_matches)}")
