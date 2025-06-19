@@ -1038,6 +1038,115 @@ class DirectoryProcessor:
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after error
             display_ascii_art()  # Show ASCII art
+
+def perform_individual_scan():
+    """Perform an individual scan operation."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("INDIVIDUAL SCAN".center(84))
+    print("=" * 84)
+    # Get directory to scan
+    print("\nEnter the directory path to scan:")
+    dir_input = input().strip()
+    # Check if user wants to return to main menu
+    if dir_input.lower() in ('exit', 'quit', 'back', 'return'):
+        return
+    # Validate directory path
+    clean_path = _clean_directory_path(dir_input)
+    if not os.path.isdir(clean_path):
+        print(f"\nError: {clean_path} is not a valid directory.")
+        input("\nPress Enter to continue...")
+        clear_screen()  # Make sure we clear screen here before returning
+        return
+    # Create processor for this directory
+    processor = DirectoryProcessor(clean_path)
+    # Process the directory using the full scan logic
+    print(f"\nScanning directory: {clean_path}")
+    result = processor._process_media_files()
+    if result is not None and result >= 0:
+        print(f"\nScan completed. Processed {result} items.")
+    else:
+        print("\nScan did not complete successfully.")
+    input("\nPress Enter to continue...")
+    clear_screen()  # Make sure we clear screen here before returning
+
+def perform_multi_scan():
+    """Perform a multi-scan operation on multiple directories."""
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MULTI SCAN".center(84))
+    print("=" * 84)
+    print("\nEnter directory paths to scan (one per line).")
+    print("Press Enter on an empty line when done.\n")
+    directories = []
+    while True:
+        dir_input = input(f"Directory {len(directories) + 1}: ").strip()
+        # Handle empty input
+        if not dir_input:
+            break
+        # Check if user wants to return to main menu
+        if dir_input.lower() in ('exit', 'quit', 'back', 'return'):
+            if not directories:  # If no directories were added, return to main menu
+                return
+            break
+        # Validate directory path
+        clean_path = _clean_directory_path(dir_input)
+        if os.path.isdir(clean_path):
+            directories.append(clean_path)
+        else:
+            print(f"Error: {clean_path} is not a valid directory.")
+    if not directories:
+        print("\nNo valid directories to scan.")
+        input("\nPress Enter to continue...")
+        clear_screen()
+        display_ascii_art()
+        return
+    # Confirm directories before scanning
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("CONFIRM DIRECTORIES".center(84))
+    print("=" * 84)
+    print("\nYou've selected these directories to scan:")
+    for i, directory in enumerate(directories):
+        print(f"{i+1}. {directory}")
+    confirm = input("\nProceed with scan? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print("\nScan cancelled.")
+        input("\nPress Enter to continue...")
+        clear_screen()
+        display_ascii_art()
+        return
+    # Process each directory
+    total_processed = 0
+    for i, directory in enumerate(directories):
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print(f"PROCESSING DIRECTORY {i+1} OF {len(directories)}".center(84))
+        print("=" * 84)
+        print(f"\nDirectory: {directory}")
+        # Create processor for this directory
+        processor = DirectoryProcessor(directory)
+        # Call the real scan logic
+        result = processor._process_media_files()
+        # Add to total processed count if successful
+        if result is not None and result > 0:
+            total_processed += result
+    # Show summary after all directories processed
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("MULTI SCAN COMPLETE".center(84))
+    print("=" * 84)
+    print(f"\nProcessed {len(directories)} directories")
+    print(f"Total media processed: {total_processed} items")
+    input("\nPress Enter to continue...")
+    clear_screen()
+    display_ascii_art()
+
 # Fix the handle_monitor_management function to properly handle directories
 def handle_monitor_management(monitor_manager):
     """Handle monitor management submenu."""
