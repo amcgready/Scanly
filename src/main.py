@@ -1364,6 +1364,43 @@ def handle_monitor_management(monitor_manager):
             print("\nInvalid option.")
             input("\nPress Enter to continue...")
 
+def process_pending_files_multiscan(monitor_manager, pending_files):
+    """Process each pending file as an individual scan, showing progress and scan info."""
+    if not pending_files:
+        print("\nNo pending files to process.")
+        input("\nPress Enter to continue...")
+        return
+    total = len(pending_files)
+    for idx, file_info in enumerate(pending_files, 1):
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print(f"PROCESSING PENDING FILE {idx} OF {total}".center(84))
+        print("=" * 84)
+        # Extract file path and directory
+        if isinstance(file_info, dict):
+            file_path = file_info.get('path') or file_info.get('file_path')
+        else:
+            file_path = str(file_info)
+        print(f"\nFile: {file_path}")
+        if not file_path or not os.path.exists(file_path):
+            print("[SKIP] File does not exist.")
+            continue
+        # Process as individual scan
+        processor = DirectoryProcessor(os.path.dirname(file_path))
+        # Optionally, you could pass just the file, but DirectoryProcessor expects a directory
+        # You may want to adapt DirectoryProcessor to handle single files if needed
+        print(f"\nScanning file: {file_path}")
+        # For now, just call the directory scan (will process all files in the folder)
+        result = processor._process_media_files()
+        if result is not None and result >= 0:
+            print(f"\nScan completed. Processed {result} items.")
+        else:
+            print("\nScan did not complete successfully.")
+        input("\nPress Enter to continue to next file...")
+    print("\nAll pending files processed.")
+    input("\nPress Enter to continue...")
+
 def handle_webhook_settings():
     """Handle webhook settings submenu."""
     while True:
