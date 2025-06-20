@@ -5,6 +5,7 @@ This module handles sending notifications to Discord webhooks for various events
 import os
 import requests
 from datetime import datetime
+from discord_webhook import DiscordWebhook
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -92,17 +93,29 @@ def send_symlink_deletion_notification(title, year, poster, description, symlink
     Returns:
         bool: True if notification was sent successfully, False otherwise
     """
-    webhook_url = get_webhook_url("SYMLINK_DELETION")
+    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or os.environ.get("DEFAULT_DISCORD_WEBHOOK_URL")
     if not webhook_url:
-        logger.warning("No webhook URL configured for symlink deletion")
+        logger.warning("Webhook URL not set, cannot send deletion notification.")
         return False
-    embed = _symlink_embed("Deleted", title, year, poster, description, symlink_path)
-    payload = {"embeds": [embed]}
-    response = requests.post(webhook_url, json=payload)
-    if response.status_code >= 400:
-        logger.error(f"Discord webhook error: {response.status_code}, {response.text}")
+    embed = {
+        "title": f"Symlink Deleted: {title} ({year})",
+        "description": description or "",
+        "fields": [
+            {"name": "Symlink Path", "value": symlink_path, "inline": False}
+        ],
+        "image": {"url": poster} if poster else None
+    }
+    # Remove None values
+    embed = {k: v for k, v in embed.items() if v is not None}
+    data = {"embeds": [embed]}
+    try:
+        response = requests.post(webhook_url, json=data)
+        response.raise_for_status()
+        logger.info("Sent symlink deletion webhook for %s", title)
+        return True
+    except Exception as e:
+        logger.error("Failed to send deletion webhook: %s", e)
         return False
-    return True
 
 def send_symlink_repair_notification(title, year, poster, description, symlink_path):
     """Send a notification for a symlink repair event.
@@ -117,23 +130,63 @@ def send_symlink_repair_notification(title, year, poster, description, symlink_p
     Returns:
         bool: True if notification was sent successfully, False otherwise
     """
-    webhook_url = get_webhook_url("SYMLINK_REPAIR")
+    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or os.environ.get("DEFAULT_DISCORD_WEBHOOK_URL")
     if not webhook_url:
-        logger.warning("No webhook URL configured for symlink repair")
+        logger.warning("Webhook URL not set, cannot send repair notification.")
         return False
-    embed = _symlink_embed("Repaired", title, year, poster, description, symlink_path)
-    payload = {"embeds": [embed]}
-    response = requests.post(webhook_url, json=payload)
-    if response.status_code >= 400:
-        logger.error(f"Discord webhook error: {response.status_code}, {response.text}")
+    embed = {
+        "title": f"Symlink Repaired: {title} ({year})",
+        "description": description or "",
+        "fields": [
+            {"name": "Symlink Path", "value": symlink_path, "inline": False}
+        ],
+        "image": {"url": poster} if poster else None
+    }
+    # Remove None values
+    embed = {k: v for k, v in embed.items() if v is not None}
+    data = {"embeds": [embed]}
+    try:
+        response = requests.post(webhook_url, json=data)
+        response.raise_for_status()
+        logger.info("Sent symlink repair webhook for %s", title)
+        return True
+    except Exception as e:
+        logger.error("Failed to send repair webhook: %s", e)
         return False
-    return True
 
 def send_monitored_item_notification(item_data):
-    """Send a notification for a monitored item event (stub implementation)."""
-    # You can implement this as needed, or just log for now
-    logger.info("Monitored item notification: %s", item_data)
-    return True
+    """Send a notification for a monitored item event.
+    
+    Args:
+        item_data (dict): Dictionary containing item details (title, description, path, poster)
+        
+    Returns:
+        bool: True if notification was sent successfully, False otherwise
+    """
+    webhook_url = get_webhook_url("MONITORED_ITEM")
+    if not webhook_url:
+        logger.warning("No webhook URL configured for monitored item")
+        return False
+
+    folder_name = item_data.get('title', 'Unknown')
+    dir_name = item_data.get('parent', 'Unknown')
+    message = f"📁 New folder detected: **{folder_name}** in {dir_name}"
+
+    try:
+        webhook = DiscordWebhook(
+            url=webhook_url,
+            content=message
+        )
+        response = webhook.execute()
+        if response and hasattr(response, 'status_code') and response.status_code in [200, 204]:
+            logger.info(f"Monitored item webhook sent for {folder_name} in {dir_name}")
+            return True
+        else:
+            logger.error(f"Webhook notification failed with status code: {getattr(response, 'status_code', 'unknown')}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to send monitored item webhook: {e}")
+        return False
 
 def test_webhook():
     """Test if the webhook is working correctly."""
