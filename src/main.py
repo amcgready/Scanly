@@ -27,21 +27,20 @@ for logger_name in ['discord_webhook', 'urllib3', 'requests', 'websocket']:
     logger.propagate = False
 
 # Import dotenv to load environment variables
-try:
-    from dotenv import load_dotenv
-    load_dotenv()  # Load environment variables from .env file
-except ImportError:
-    print("Warning: dotenv package not found. Environment variables must be set manually.")
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 
 # Import the logger utility
 from src.utils.logger import get_logger
+# IMPORTANT: All scan logic (title/year/content type extraction, etc.) must be imported from src/utils/scan_logic.py.
+# Do not duplicate or modify scan logic in this file.
 
 # Create log directory if it doesn't exist
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
 os.makedirs(log_dir, exist_ok=True)
 
 # Configure file handler to capture all logs regardless of console visibility
-file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'))
+file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), mode='w')  # Overwrite log each session
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
@@ -49,7 +48,8 @@ file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelnam
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[file_handler]  # Only file handler, no console handler
+    handlers=[file_handler],
+    force=True  # <--- Add this line
 )
 
 # Get logger for this module
@@ -96,6 +96,7 @@ def _update_env_var(name, value):
 # Try to load the TMDB API 
 try:
     from src.api.tmdb import TMDB
+    from src.config import TMDB_API_KEY, TMDB_BASE_URL
 except ImportError as e:
     logger.error(f"Error importing TMDB API: {e}. TMDB functionality will be disabled.")
     
@@ -391,8 +392,8 @@ try:
         send_symlink_repair_notification
     )
     webhook_available = True
-except ImportError:
-    logger.warning("Webhook functionality is not available")
+except Exception as e:
+    logger.error(f"Webhook import failed: {e}", exc_info=True)
     webhook_available = False
     
     # Create stub functions for webhooks
@@ -400,7 +401,7 @@ except ImportError:
         logger.error("Webhook functionality is not available")
         return False
         
-    def send_symlink_creation_notification(media_name, year, poster, description, original_path, symlink_path):
+    def send_symlink_creation_notification(title, year, poster, description, symlink_path):
         logger.error("Webhook functionality is not available")
         return False
         
@@ -785,6 +786,15 @@ class DirectoryProcessor:
                         # Create new symlink
                         os.symlink(source_file_path, dest_file_path)
                         self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
+                        
+                        # --- Webhook notification for symlink creation ---
+                        send_symlink_creation_notification(
+                            title,
+                            year,
+                            metadata.get('poster') if 'metadata' in locals() else None,
+                            metadata.get('description') if 'metadata' in locals() else "",
+                            dest_file_path
+                        )
                     else:
                         # Copy file if it doesn't exist
                         if not os.path.exists(dest_file_path):
@@ -804,7 +814,7 @@ class DirectoryProcessor:
         """Process media files in the directory."""
         # Place global declaration at the beginning of function
         global skipped_items_registry
-        
+
         try:
             # Get all subdirectories
             subdirs = [d for d in os.listdir(self.directory_path) 
@@ -816,16 +826,43 @@ class DirectoryProcessor:
                 clear_screen()  # Clear screen when returning to main menu
                 display_ascii_art()  # Show ASCII art
                 return 0
-                
+
             print(f"Found {len(subdirs)} subdirectories to process")
-            
+
             # Track progress
             processed = 0
-            
-            # Process each subfolder
+
             for subfolder_name in subdirs:
                 subfolder_path = os.path.join(self.directory_path, subfolder_name)
-                
+
+                # --- SKIP LOGIC START ---
+                # 1. Skip if subfolder is a symlink
+                if os.path.islink(subfolder_path):
+                    self.logger.info(f"Skipping symlink: {subfolder_path}")
+                    continue
+
+                # 2. Skip if already processed (symlink exists in destination)
+                # We'll check if a symlink exists in any destination subdir for this folder
+                already_processed = False
+                if DESTINATION_DIRECTORY:
+                    for root, dirs, files in os.walk(DESTINATION_DIRECTORY):
+                        for d in dirs:
+                            dest_dir_path = os.path.join(root, d)
+                            if os.path.islink(dest_dir_path):
+                                # If the symlink points to this subfolder, skip
+                                try:
+                                    if os.path.realpath(dest_dir_path) == os.path.realpath(subfolder_path):
+                                        self.logger.info(f"Skipping already processed (symlink exists): {subfolder_path}")
+                                        already_processed = True
+                                        break
+                                except Exception as e:
+                                    self.logger.warning(f"Error checking symlink: {dest_dir_path} -> {e}")
+                        if already_processed:
+                            break
+                if already_processed:
+                    continue
+                # --- SKIP LOGIC END ---
+
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
                 
