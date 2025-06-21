@@ -1,6 +1,7 @@
 import re
 import datetime
 import unicodedata
+import os
 
 def extract_folder_metadata(folder_name):
     # ...copy the logic from DirectoryProcessor._extract_folder_metadata...
@@ -70,8 +71,52 @@ def get_content_type(folder_name):
     return "Unknown"
 
 def normalize_title(name):
-    """Normalize a title for matching (remove accents, special chars, lowercase)."""
     name = name.lower()
     name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
     name = re.sub(r'[^a-z0-9]', '', name)
     return name
+
+SCANNER_FILES = {
+    "Anime Movie": "anime_movies.txt",
+    "Anime Series": "anime_series.txt",
+    "Movie": "movies.txt",
+    "TV Series": "tv_series.txt",
+    "Wrestling": "wrestling.txt"
+}
+
+def load_scanner_list(content_type):
+    scanner_file = SCANNER_FILES.get(content_type)
+    if not scanner_file:
+        return []
+    scanner_path = os.path.join("scanners", scanner_file)
+    if not os.path.exists(scanner_path):
+        return []
+    with open(scanner_path, encoding="utf-8") as f:
+        return [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
+def find_scanner_matches(search_term, content_type):
+    scanner_list = load_scanner_list(content_type)
+    norm_search = normalize_title(search_term)
+    matches = []
+    for entry in scanner_list:
+        # Extract just the title (before year or [tmdb-...])
+        title_match = re.match(r'^(.+?)(?:\s+\(\d{4}\))?(?:\s+\[.*\])?$', entry)
+        if not title_match:
+            continue
+        scanner_title = title_match.group(1)
+        if normalize_title(scanner_title) == norm_search:
+            matches.append(entry)
+    return matches
+
+def get_movie_folder_name(title, year, tmdb_id):
+    if TMDB_FOLDER_ID and tmdb_id:
+        return f"{title} ({year}) [tmdb-{tmdb_id}]"
+    else:
+        return f"{title} ({year})"
+
+def get_series_folder_name(title, year, tmdb_id, season_number):
+    if TMDB_FOLDER_ID and tmdb_id:
+        base = f"{title} ({year}) [tmdb-{tmdb_id}]"
+    else:
+        base = f"{title} ({year})"
+    return os.path.join(base, f"S{season_number:02d}")

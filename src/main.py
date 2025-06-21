@@ -12,6 +12,7 @@ import time
 import re
 import difflib
 from pathlib import Path
+TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
 # Ensure parent directory is in path for imports
 parent_dir = os.path.dirname(os.path.dirname(__file__))
@@ -1774,4 +1775,29 @@ def main():
             clear_screen()  # Explicitly clear screen on invalid option
 
 if __name__ == "__main__":
+    from src.utils.scan_logic import find_scanner_matches, get_movie_folder_name, get_series_folder_name
     main()
+
+    # Determine content type string for scanner logic
+    if is_wrestling:
+        content_type = "Wrestling"
+    elif is_tv and is_anime:
+        content_type = "Anime Series"
+    elif not is_tv and is_anime:
+        content_type = "Anime Movie"
+    elif is_tv and not is_anime:
+        content_type = "TV Series"
+    else:
+        content_type = "Movie"
+
+    scanner_matches = find_scanner_matches(search_term, content_type)
+    print(f"  Scanner Matches: {len(scanner_matches)}")
+
+    # Folder naming logic (for later use in symlink creation)
+    if content_type in ("Movie", "Anime Movie"):
+        folder_name = get_movie_folder_name(title, year, tmdb_id)
+    elif content_type in ("TV Series", "Anime Series"):
+        # You must have season_number available here
+        folder_name = get_series_folder_name(title, year, tmdb_id, season_number)
+    else:
+        folder_name = f"{title} ({year})"
