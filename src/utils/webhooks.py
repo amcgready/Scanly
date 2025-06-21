@@ -30,32 +30,33 @@ def get_webhook_url(event_type=None):
     # Return default webhook URL if no event-specific URL is set
     return os.getenv("DEFAULT_DISCORD_WEBHOOK_URL")
 
-def _symlink_embed(event, title, year, poster, description, symlink_path):
+def _symlink_embed(event, title, year, poster, description, symlink_path, tmdb_id=None):
+    # Format title with TMDB ID if available
+    if tmdb_id:
+        display_title = f"{title} [tmdb-{tmdb_id}]"
+    else:
+        display_title = title
+
     embed = {
-        "title": f"{event}: {title} ({year or 'Unknown'})",
-        "description": description or "No description.",
+        "title": f"{event}: {display_title}",
+        "fields": [
+            {"name": "Year", "value": year or "Unknown", "inline": True},
+            {"name": "Description", "value": description or "No description.", "inline": False},
+            {"name": "Symlink Path", "value": f"```{symlink_path}```", "inline": False}
+        ],
         "color": {
             "CREATED": 0x00ff00,
             "DELETED": 0xff0000,
             "REPAIRED": 0x0000ff
         }.get(event.upper(), 0xcccccc),
         "timestamp": datetime.utcnow().isoformat(),
-        "fields": [
-            {
-                "name": "Symlink Path",
-                "value": f"```{symlink_path}```",
-                "inline": False
-            }
-        ],
-        "footer": {
-            "text": "Scanly Symlink Event"
-        }
+        "footer": {"text": "Scanly Symlink Event"}
     }
     if poster:
         embed["thumbnail"] = {"url": poster}
     return embed
 
-def send_symlink_creation_notification(title, year, poster, description, symlink_path):
+def send_symlink_creation_notification(title, year, poster, description, symlink_path, tmdb_id=None):
     """Send a notification for a symlink creation event.
     
     Args:
@@ -72,7 +73,7 @@ def send_symlink_creation_notification(title, year, poster, description, symlink
     if not webhook_url:
         logger.warning("No webhook URL configured for symlink creation")
         return False
-    embed = _symlink_embed("Created", title, year, poster, description, symlink_path)
+    embed = _symlink_embed("Created", title, year, poster, description, symlink_path, tmdb_id)
     payload = {"embeds": [embed]}
     response = requests.post(webhook_url, json=payload)
     if response.status_code >= 400:

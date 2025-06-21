@@ -766,12 +766,48 @@ class DirectoryProcessor:
                         self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
                         
                         # --- Webhook notification for symlink creation ---
+                        # --- Fetch TMDB metadata ---
+                        metadata = {}
+                        try:
+                            tmdb = TMDB()
+                            if tmdb_id:
+                                if is_tv:
+                                    details = tmdb.get_tv_details(tmdb_id)
+                                else:
+                                    details = tmdb.get_movie_details(tmdb_id)
+                            else:
+                                # Fallback: search by title/year
+                                if is_tv:
+                                    results = tmdb.search_tv(title)
+                                else:
+                                    results = tmdb.search_movie(title)
+                                details = results[0] if results else {}
+                            metadata['title'] = details.get('title') or details.get('name') or title
+                            metadata['year'] = (details.get('release_date') or details.get('first_air_date') or str(year or ""))[:4]
+                            metadata['description'] = details.get('overview', '')
+                            poster_path = details.get('poster_path')
+                            if poster_path:
+                                metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
+                            else:
+                                metadata['poster'] = None
+                            metadata['tmdb_id'] = details.get('id') or tmdb_id
+                        except Exception as e:
+                            self.logger.warning(f"Could not fetch TMDB metadata: {e}")
+                            metadata = {
+                                'title': title,
+                                'year': year,
+                                'description': '',
+                                'poster': None,
+                                'tmdb_id': tmdb_id
+                            }
+                        
                         send_symlink_creation_notification(
-                            title,
-                            year,
-                            metadata.get('poster') if 'metadata' in locals() else None,
-                            metadata.get('description') if 'metadata' in locals() else "",
-                            dest_file_path
+                            metadata['title'],
+                            metadata['year'],
+                            metadata['poster'],
+                            metadata['description'],
+                            dest_file_path,
+                            metadata['tmdb_id']
                         )
                     else:
                         # Copy file if it doesn't exist
@@ -880,7 +916,9 @@ class DirectoryProcessor:
                 print(f"  Type: {content_type}")
 
                 # Prompt user to skip
-                user_input = input("\nPress [S] to skip this item, or Enter to continue: ").strip().lower()
+                user_input = input("\nPress [S] to skip this item, or Enter to continue: ")
+
+
                 if user_input == 's':
                     self.logger.info(f"User skipped: {subfolder_name}")
                     skipped_items_registry.append(subfolder_name)
@@ -1000,6 +1038,46 @@ class DirectoryProcessor:
                                 clear_screen()
                                 display_ascii_art()
                             break
+                        elif action_choice == "2":
+                            new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                            if new_search:
+                                search_term = new_search
+                            continue  # Re-check scanner list with new search term
+                        elif action_choice == "3":
+                            print("\nSelect new content type:")
+                            print("1. Movie")
+                            print("2. TV Series")
+                            print("3. Anime Movie")
+                            print("4. Anime Series")
+                            print("5. Wrestling")
+                            print("0. Cancel")
+                            type_choice = input("Select type: ").strip()
+                            if type_choice == "1":
+                                is_tv = False
+                                is_anime = False
+                                is_wrestling = False
+                            elif type_choice == "2":
+                                is_tv = True
+                                is_anime = False
+                                is_wrestling = False
+                            elif type_choice == "3":
+                                is_tv = False
+                                is_anime = True
+                                is_wrestling = False
+                            elif type_choice == "4":
+                                is_tv = True
+                                is_anime = True
+                                is_wrestling = False
+                            elif type_choice == "5":
+                                is_tv = False
+                                is_anime = False
+                                is_wrestling = True
+                            elif type_choice == "0":
+                                continue  # Go back to previous menu
+                            else:
+                                print("Invalid type. Returning to previous menu.")
+                                continue
+                            continue  # <--- THIS IS CRITICAL!
                         elif action_choice == "4":
                             print(f"\nSkipping folder: {subfolder_name}")
                             skipped_items_registry.append({
@@ -1045,8 +1123,42 @@ class DirectoryProcessor:
                             search_term = new_search
                         continue  # Re-check scanner list with new search term
                     elif choice == "3":
-                        is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
-                        continue  # Re-check scanner list with new content type
+                        # Prompt for new content type and update variables
+                        print("\nSelect new content type:")
+                        print("1. Movie")
+                        print("2. TV Series")
+                        print("3. Anime Movie")
+                        print("4. Anime Series")
+                        print("5. Wrestling")
+                        print("0. Cancel")
+                        type_choice = input("Select type: ").strip()
+                        if type_choice == "1":
+                            is_tv = False
+                            is_anime = False
+                            is_wrestling = False
+                        elif type_choice == "2":
+                            is_tv = True
+                            is_anime = False
+                            is_wrestling = False
+                        elif type_choice == "3":
+                            is_tv = False
+                            is_anime = True
+                            is_wrestling = False
+                        elif type_choice == "4":
+                            is_tv = True
+                            is_anime = True
+                            is_wrestling = False
+                        elif type_choice == "5":
+                            is_tv = False
+                            is_anime = False
+                            is_wrestling = True
+                        elif type_choice == "0":
+                            continue  # Go back to previous menu
+                        else:
+                            print("Invalid type. Returning to previous menu.")
+                            continue
+                        # After changing type, re-run the scanner with new type
+                        continue
                     elif choice == "4":
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                         if new_tmdb_id:
@@ -1408,6 +1520,9 @@ def handle_monitor_management(monitor_manager):
                 print("\nNo directories to toggle.")
                 input("\nPress Enter to continue...")
                 continue
+            dir_num = input("\nEnter number of directory to toggle: ")
+
+
             dir_num = input("\nEnter number of directory to toggle: ").strip()
             try:
                 dir_num = int(dir_num)
