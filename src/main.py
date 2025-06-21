@@ -865,16 +865,47 @@ class DirectoryProcessor:
 
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
-                
-                # Detect if this is a TV show or anime
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 is_wrestling = False
-                
-                # Initialize search term and TMDB ID
-                search_term = title
                 tmdb_id = None
-                
+
+                # --- NEW: Prompt to skip before scanner lists are checked ---
+                clear_screen()
+                display_ascii_art()
+                print("=" * 84)
+                print("FOLDER PROCESSING".center(84))
+                print("=" * 84)
+                print(f"\nProcessing: {subfolder_name}")
+                print(f"  Title: {title}")
+                print(f"  Year: {year if year else 'Unknown'}")
+                content_type = "Movie"
+                if is_wrestling:
+                    content_type = "Wrestling"
+                elif is_tv and is_anime:
+                    content_type = "Anime Series"
+                elif not is_tv and is_anime:
+                    content_type = "Anime Movie"
+                elif is_tv and not is_anime:
+                    content_type = "TV Series"
+                print(f"  Type: {content_type}")
+
+                # Prompt user to skip
+                user_input = input("\nPress [S] to skip this item, or Enter to continue: ").strip().lower()
+                if user_input == 's':
+                    self.logger.info(f"User skipped: {subfolder_name}")
+                    skipped_items_registry.append(subfolder_name)
+                    save_skipped_items(skipped_items_registry)
+                    continue
+
+                # --- Now check scanner lists ---
+                if self._check_scanner_lists(title, year, is_tv, is_anime):
+                    self.logger.info(f"Skipping {subfolder_name}: already in scanner lists.")
+                    continue
+
+                # Initialize search_term before using it
+                search_term = title
+
                 # Loop for processing the current folder with different options
                 while True:
                     clear_screen()  # Clear screen before displaying folder processing menu
@@ -1090,6 +1121,43 @@ class DirectoryProcessor:
             input("\nPress Enter to continue...")
             clear_screen()  # Clear screen after error
             display_ascii_art()  # Show ASCII art
+
+    def _has_existing_symlink(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None):
+        """
+        Check if a symlink for the main media file(s) in this subfolder already exists in the destination directory.
+        """
+        # Format the base name with year for both folder and files
+        base_name = title
+        if year and not is_wrestling:
+            base_name = f"{title} ({year})"
+        folder_name = base_name
+        if tmdb_id:
+            folder_name = f"{base_name} [tmdb-{tmdb_id}]"
+
+        # Determine appropriate subdirectory based on content type
+        if is_wrestling:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
+        elif is_anime and is_tv:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
+        elif is_anime and not is_tv:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
+        elif is_tv and not is_anime:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
+        else:
+            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
+
+        target_dir_path = os.path.join(dest_subdir, folder_name)
+        if not os.path.exists(target_dir_path):
+            return False
+
+        # Check for any symlinked files in the target directory
+        for file in os.listdir(subfolder_path):
+            file_ext = os.path.splitext(file)[1]
+            dest_file_name = f"{base_name}{file_ext}"
+            dest_file_path = os.path.join(target_dir_path, dest_file_name)
+            if os.path.islink(dest_file_path):
+                return True
+        return False
 
 def perform_individual_scan():
     """Perform an individual scan operation."""
