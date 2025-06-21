@@ -863,6 +863,17 @@ class DirectoryProcessor:
                     continue
                 # --- SKIP LOGIC END ---
 
+                # --- NEW: Skip if any symlinked file for this subfolder exists in destination ---
+                title, year = self._extract_folder_metadata(subfolder_name)
+                is_tv = self._detect_if_tv_show(subfolder_name)
+                is_anime = self._detect_if_anime(subfolder_name)
+                is_wrestling = False
+                tmdb_id = None
+
+                if self._has_existing_symlink(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                    self.logger.info(f"Skipping {subfolder_name}: media file symlink already exists in destination.")
+                    continue
+
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
                 is_tv = self._detect_if_tv_show(subfolder_name)
