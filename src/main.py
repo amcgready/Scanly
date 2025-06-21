@@ -902,7 +902,6 @@ class DirectoryProcessor:
                     print("=" * 84)
                     print("FOLDER PROCESSING".center(84))
                     print("=" * 84)
-                    
                     print(f"\nProcessing: {subfolder_name}")
                     print(f"  Title: {title}")
                     print(f"  Year: {year if year else 'Unknown'}")
@@ -923,80 +922,85 @@ class DirectoryProcessor:
                     if tmdb_id:
                         print(f"  TMDB ID: {tmdb_id}")
 
-                    # Check scanner lists for matches using current search term
-                    scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
+                    # --- NEW: Use shared scanner logic and always re-check ---
+                    from src.utils.scan_logic import find_scanner_matches
+
+                    scanner_matches = find_scanner_matches(search_term, content_type)
                     print(f"  Scanner Matches: {len(scanner_matches)}")
-                    
-                    # If multiple scanner matches found, ask user to select
+
+                    # Prompt user if multiple scanner matches
                     selected_match = None
                     if len(scanner_matches) > 1:
-                        print("\nSelect the correct match:")
-                        for i, match in enumerate(scanner_matches):
-                            match_title = match.get('title', 'Unknown')
-                            year_str = f" ({match.get('year')})" if match.get('year') else ""
-                            match_tmdb_id = match.get('tmdb_id', '')
-                            id_str = f" [tmdb-{match_tmdb_id}]" if match_tmdb_id else ""
-                            print(f"{i+1}. {match_title}{year_str}{id_str}")
+                        print("\nMultiple scanner matches found. Please select the correct one:")
+                        for idx, entry in enumerate(scanner_matches, 1):
+                            match = re.match(r'^(.+?)\s+\((\d{4})\)', entry)
+                            if match:
+                                display_title = match.group(1)
+                                display_year = match.group(2)
+                            else:
+                                display_title = entry
+                                display_year = "Unknown"
+                            # Try to extract TMDB ID
+                            tmdb_id_match = re.search(r'\[tmdb-(\d+)\]', entry)
+                            display_tmdb_id = tmdb_id_match.group(1) if tmdb_id_match else ""
+                            id_str = f" [tmdb-{display_tmdb_id}]" if display_tmdb_id else ""
+                            print(f"{idx}. {display_title} ({display_year}){id_str}")
                         print("0. Additional options")
-                        
-                        match_choice = input("\nSelect correct match: ").strip()
-                        # Make Enter key select option 1 as default
-                        if match_choice == "":
-                            match_choice = "1"
-                            
-                        try:
-                            match_idx = int(match_choice) - 1
-                            if 0 <= match_idx < len(scanner_matches):
-                                selected_match = scanner_matches[match_idx]
-                                title = selected_match.get('title', title)
-                                year = selected_match.get('year', year)
-                                tmdb_id = selected_match.get('tmdb_id')
-                                
-                                # Display the selected match
-                                year_str = f" ({year})" if year else ""
-                                id_str = f" [tmdb-{tmdb_id}]" if tmdb_id else ""
-                                print(f"\nSelected: {title}{year_str}{id_str}")
-                                
-                                # Process the file immediately with the selected match
-                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
-                                    processed += 1
-                                    input("\nPress Enter to continue...")
-                                    clear_screen()  # Clear screen after successful processing
-                                    display_ascii_art()  # Show ASCII art
-                                    break  # Exit the loop for this subfolder
+                        while True:
+                            match_choice = input(f"\nSelect [1-{len(scanner_matches)}] or 0 for options: ").strip()
+                            if match_choice == "":
+                                match_choice = "1"
+                            if match_choice.isdigit():
+                                match_idx = int(match_choice)
+                                if 1 <= match_idx <= len(scanner_matches):
+                                    selected_entry = scanner_matches[match_idx - 1]
+                                    # Parse title, year, tmdb_id from entry
+                                    match = re.match(r'^(.+?)\s+\((\d{4})\)', selected_entry)
+                                    if match:
+                                        title = match.group(1)
+                                        year = match.group(2)
+                                    tmdb_id_match = re.search(r'\[tmdb-(\d+)\]', selected_entry)
+                                    tmdb_id = tmdb_id_match.group(1) if tmdb_id_match else None
+                                    print(f"\nSelected: {title} ({year}) [tmdb-{tmdb_id}]")
+                                    # Proceed to symlink creation
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                        processed += 1
+                                        input("\nPress Enter to continue...")
+                                        clear_screen()
+                                        display_ascii_art()
+                                        break  # Exit loop for this subfolder
+                                    break
+                                elif match_idx == 0:
+                                    print("\nProceeding with manual identification...")
+                                    break
+                            print("Invalid selection. Please try again.")
+                        if match_idx != 0:
+                            break  # Only break if a match was selected
 
-                            elif match_idx == -1:  # User selected "Additional options"
-                                print("\nProceeding with manual identification...")
-                                # Continue to manual options (existing flow)
-                        except ValueError:
-                            print("\nInvalid choice. Proceeding with manual options.")
                     elif len(scanner_matches) == 1:
-                        selected_match = scanner_matches[0]
-                        match_tmdb_id = selected_match.get('tmdb_id', '')
-                        id_str = f" [tmdb-{match_tmdb_id}]" if match_tmdb_id else ""
-                        print(f"\nScanner match: {selected_match.get('title', 'Unknown')} ({selected_match.get('year', 'Unknown')}){id_str}")
-                        
-                        # Instead of just confirming, show all options
+                        selected_entry = scanner_matches[0]
+                        match = re.match(r'^(.+?)\s+\((\d{4})\)', selected_entry)
+                        if match:
+                            title = match.group(1)
+                            year = match.group(2)
+                        tmdb_id_match = re.search(r'\[tmdb-(\d+)\]', selected_entry)
+                        tmdb_id = tmdb_id_match.group(1) if tmdb_id_match else None
+                        print(f"\nScanner match: {title} ({year}) [tmdb-{tmdb_id}]")
                         print("\nOptions:")
                         print("1. Accept this match")
                         print("2. Change search term")
-                        print("3. Change content type") 
+                        print("3. Change content type")
                         print("4. Skip this folder")
                         print("0. Quit")
-                        
                         action_choice = input("\nSelect option: ").strip()
                         if action_choice == "" or action_choice == "1":
-                            title = selected_match.get('title', title)
-                            year = selected_match.get('year', year)
-                            tmdb_id = selected_match.get('tmdb_id', '')
                             if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
                                 input("\nPress Enter to continue...")
-                                clear_screen()  # Clear screen after successful processing
-                                display_ascii_art()  # Show ASCII art
-                                break  # Exit the loop for this subfolder
+                                clear_screen()
+                                display_ascii_art()
+                            break
                         elif action_choice == "4":
-                            # Skip this folder
                             print(f"\nSkipping folder: {subfolder_name}")
                             skipped_items_registry.append({
                                 'subfolder': subfolder_name,
@@ -1005,20 +1009,17 @@ class DirectoryProcessor:
                             })
                             save_skipped_items(skipped_items_registry)
                             input("\nPress Enter to continue...")
-                            clear_screen()  # Clear screen after skipping
-                            display_ascii_art()  # Show ASCII art
-                            break  # Exit loop for this subfolder
+                            clear_screen()
+                            display_ascii_art()
+                            break
                         elif action_choice == "0":
-                            # Quit
                             if input("\nAre you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                                 print("\nScan cancelled.")
                                 input("\nPress Enter to continue...")
-                                clear_screen()  # Clear screen after quitting
-                                display_ascii_art()  # Show ASCII art
+                                clear_screen()
+                                display_ascii_art()
                                 return -1
-                        # If other options selected, continue with the loop
-                        
-                    # Show options for this subfolder
+                    # Show options for this subfolder (if no scanner match or user chose manual)
                     print("\nOptions:")
                     print("1. Accept as is")
                     print("2. Change search term")
@@ -1026,49 +1027,32 @@ class DirectoryProcessor:
                     print("4. Manual TMDB ID")
                     print("5. Skip (save for later review)")
                     print("0. Quit")
-                    
+
                     choice = input("\nSelect option: ").strip()
-                    
-                    # Make Enter key select option 1 as a default
                     if choice == "":
                         choice = "1"
-                        
+
                     if choice == "1":
-                        # Accept the extracted info
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                             processed += 1
                             input("\nPress Enter to continue...")
-                            clear_screen()  # Clear screen after successful processing
-                            display_ascii_art()  # Show ASCII art
-                        break  # Exit the loop for this subfolder
-                        
+                            clear_screen()
+                            display_ascii_art()
+                        break
                     elif choice == "2":
-                        # Change search term
                         new_search = input(f"Enter new search term [{search_term}]: ").strip()
                         if new_search:
                             search_term = new_search
-                        # Loop continues with new search term
-                        clear_screen()  # Clear screen after changing search term
-                        display_ascii_art()  # Show ASCII art
-                        
+                        continue  # Re-check scanner list with new search term
                     elif choice == "3":
-                        # Change content type using the helper method
                         is_tv, is_anime, is_wrestling = self._prompt_for_content_type(is_tv, is_anime)
-                        # Loop continues with new content type settings
-                        clear_screen()  # Clear screen after changing content type
-                        display_ascii_art()  # Show ASCII art
-                    
+                        continue  # Re-check scanner list with new content type
                     elif choice == "4":
-                        # Manual TMDB ID entry
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                         if new_tmdb_id:
                             tmdb_id = new_tmdb_id
-                        # Loop continues with new TMDB ID
-                        clear_screen()  # Clear screen after changing TMDB ID
-                        display_ascii_art()  # Show ASCII art
-                        
+                        continue
                     elif choice == "5":
-                        # Skip this subfolder
                         print(f"Skipping subfolder: {subfolder_name}")
                         skipped_items_registry.append({
                             'subfolder': subfolder_name,
@@ -1077,26 +1061,23 @@ class DirectoryProcessor:
                         })
                         save_skipped_items(skipped_items_registry)
                         input("\nPress Enter to continue...")
-                        clear_screen()  # Clear screen after skipping
-                        display_ascii_art()  # Show ASCII art
-                        break  # Exit the loop for this subfolder
-                        
+                        clear_screen()
+                        display_ascii_art()
+                        break
                     elif choice == "0":
-                        # Quit the scan
                         if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                             print("Scan cancelled.")
                             input("\nPress Enter to continue...")
-                            clear_screen()  # Clear screen after quitting
-                            display_ascii_art()  # Show ASCII art
+                            clear_screen()
+                            display_ascii_art()
                             return -1
-                        clear_screen()  # Clear screen if user decides not to quit
-                        display_ascii_art()  # Show ASCII art
-                        
+                        clear_screen()
+                        display_ascii_art()
                     else:
                         print("Invalid option. Please try again.")
                         input("\nPress Enter to continue...")
-                        clear_screen()  # Clear screen after invalid option
-                        display_ascii_art()  # Show ASCII art
+                        clear_screen()
+                        display_ascii_art()
         
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
             input("\nPress Enter to continue...")
@@ -1515,19 +1496,15 @@ def handle_webhook_settings():
     while True:
         clear_screen()
         display_ascii_art()
-        
         print("=" * 84)
         print("WEBHOOK SETTINGS".center(84))
         print("=" * 84)
-        
-        # Display current webhook settings
         default_webhook_url = os.environ.get('DEFAULT_DISCORD_WEBHOOK_URL', '')
         monitored_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_MONITORED_ITEM', '')
         creation_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_CREATION', '')
         deletion_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', '')
         repair_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_SYMLINK_REPAIR', '')
         notifications_enabled = os.environ.get('ENABLE_DISCORD_NOTIFICATIONS', 'true').lower() == 'true'
-        
         print("\nCurrent Webhook Settings:")
         print(f"  Discord Notifications Enabled: {'Yes' if notifications_enabled else 'No'}")
         print(f"  Default Webhook URL: {default_webhook_url or 'Not set'}")
@@ -1535,7 +1512,6 @@ def handle_webhook_settings():
         print(f"  Symlink Creation Webhook URL: {creation_webhook_url or 'Using default'}")
         print(f"  Symlink Deletion Webhook URL: {deletion_webhook_url or 'Using default'}")
         print(f"  Symlink Repair Webhook URL: {repair_webhook_url or 'Using default'}")
-        
         print("\nOptions:")
         print("  1. Set Default Webhook URL")
         print("  2. Set Monitored Item Webhook URL")
@@ -1545,20 +1521,16 @@ def handle_webhook_settings():
         print("  6. Toggle Discord Notifications")
         print("  7. Test Webhooks")
         print("  0. Return to Settings")
-        
         choice = input("\nSelect option: ").strip()
-        
         if choice == "1":
             print("\nEnter the default Discord webhook URL:")
             url = input().strip()
             if url:
                 _update_env_var('DEFAULT_DISCORD_WEBHOOK_URL', url)
-                # Also update DISCORD_WEBHOOK_URL for compatibility
                 os.environ['DISCORD_WEBHOOK_URL'] = url
                 print("\nDefault webhook URL updated.")
             else:
                 print("\nWebhook URL not changed.")
-        
         elif choice == "2":
             print("\nEnter the monitored item Discord webhook URL (leave blank to use default):")
             url = input().strip()
@@ -1567,7 +1539,6 @@ def handle_webhook_settings():
                 print("\nMonitored item webhook URL updated.")
             else:
                 print("\nMonitored item webhook URL set to use default.")
-        
         elif choice == "3":
             print("\nEnter the symlink creation Discord webhook URL (leave blank to use default):")
             url = input().strip()
@@ -1576,7 +1547,6 @@ def handle_webhook_settings():
                 print("\nSymlink creation webhook URL updated.")
             else:
                 print("\nSymlink creation webhook URL set to use default.")
-        
         elif choice == "4":
             print("\nEnter the symlink deletion Discord webhook URL (leave blank to use default):")
             url = input().strip()
@@ -1585,7 +1555,6 @@ def handle_webhook_settings():
                 print("\nSymlink deletion webhook URL updated.")
             else:
                 print("\nSymlink deletion webhook URL set to use default.")
-        
         elif choice == "5":
             print("\nEnter the symlink repair Discord webhook URL (leave blank to use default):")
             url = input().strip()
@@ -1594,76 +1563,83 @@ def handle_webhook_settings():
                 print("\nSymlink repair webhook URL updated.")
             else:
                 print("\nSymlink repair webhook URL set to use default.")
-        
         elif choice == "6":
-            # Toggle Discord notifications
             new_state = 'false' if notifications_enabled else 'true'
             _update_env_var('ENABLE_DISCORD_NOTIFICATIONS', new_state)
             print(f"\nDiscord notifications {'enabled' if new_state == 'true' else 'disabled'}.")
-            
         elif choice == "7":
-            # Test webhooks
             print("\nTesting webhook...")
             try:
                 from src.utils.webhooks import test_webhook
                 test_webhook()
             except Exception as e:
                 print(f"Error during webhook test: {str(e)}")
-            
             input("\nPress Enter to continue...")
-            
         elif choice == "0":
             return
-        
         else:
             print("\nInvalid option. Please try again.")
-        
-        if choice != "7":  # Don't ask to press Enter again after webhook test
+        if choice != "7":
             print("\nPress Enter to continue...")
             input()
 
 def handle_settings():
-    """Handle settings submenu."""
     while True:
         clear_screen()
         display_ascii_art()
-        
         print("=" * 84)
         print("SETTINGS".center(84))
         print("=" * 84)
-        
         print("\nOptions:")
         print("  1. Configure File Paths")
         print("  2. Configure API Settings")
         print("  3. Configure Webhook Settings")
+        print("  4. Test TMDB Integration")
         print("  0. Return to Main Menu")
-        
         choice = input("\nSelect option: ").strip()
-        
         if choice == "1":
-            # Handle file path settings
             print("\nFile path settings selected")
             print("\nPress Enter to continue...")
             input()
-            
         elif choice == "2":
-            # Handle API settings
             print("\nAPI settings selected")
             print("\nPress Enter to continue...")
             input()
-            
         elif choice == "3":
-            # Handle webhook settings
             handle_webhook_settings()
-            
+        elif choice == "4":
+            handle_tmdb_test()
         elif choice == "0":
-            # Return to main menu
             return
-            
         else:
             print(f"\nInvalid option: {choice}")
             print("\nPress Enter to continue...")
             input()
+
+def handle_tmdb_test():
+    clear_screen()
+    display_ascii_art()
+    print("=" * 84)
+    print("TMDB INTEGRATION TEST".center(84))
+    print("=" * 84)
+    print("\nEnter a movie title to test TMDB integration:")
+    query = input("Title: ").strip()
+    if not query:
+        print("\nNo title entered. Returning to settings.")
+        input("\nPress Enter to continue...")
+        return
+    try:
+        tmdb = TMDB()
+        results = tmdb.search_movie(query)
+        if not results:
+            print("\nNo results found from TMDB.")
+        else:
+            print(f"\nResults for '{query}':")
+            for movie in results[:5]:
+                print(f"- {movie.get('title', 'Unknown')} ({movie.get('release_date', 'N/A')[:4]}) [tmdb-{movie.get('id', 'N/A')}]")
+    except Exception as e:
+        print(f"\nError testing TMDB: {e}")
+    input("\nPress Enter to continue...")
 
 def has_directory_been_scanned(directory):
     """Check if a directory has been previously scanned."""
@@ -1688,7 +1664,6 @@ def monitor_management_menu(monitor_manager):
     handle_monitor_management(monitor_manager)
 
 def settings_menu():
-    """Handle the Settings submenu."""
     handle_settings()
 
 def help_menu():
