@@ -465,21 +465,21 @@ class DirectoryProcessor:
                     line = line.strip()
                     if not line or line.startswith('#'):
                         continue
-                    
+
                     # Parse the line (format: "Title (Year)" or just "Title")
                     match = re.match(r'(.+?)(?:\s+\((\d{4})\))?$', line)
                     if not match:
                         continue
-                    
+
                     scan_title = match.group(1).strip()
                     scan_year = match.group(2) if match.group(2) else None
-                    
-                    # Check for match (normalized, case-insensitive)
-                    if self._is_title_match(title, scan_title):
-                        # If year is specified, check it too
-                        if year and scan_year and year != scan_year:
+
+                    # Normalize both titles before comparison
+                    if normalize_title(title) == normalize_title(scan_title):
+                        # If year is specified, check it too (normalize year as string)
+                        if year and scan_year and str(year) != str(scan_year):
                             continue
-                        
+
                         # Add to matches
                         matches.append({
                             'title': scan_title,
@@ -502,32 +502,8 @@ class DirectoryProcessor:
             return []
 
     def _is_title_match(self, title1, title2):
-        """Compare two titles to determine if they match."""
-        # Normalize both titles
-        def normalize(title):
-            # Convert to lowercase
-            title = title.lower()
-            # Remove punctuation
-            title = re.sub(r'[^\w\s]', '', title)
-            # Normalize whitespace
-            title = re.sub(r'\s+', ' ', title).strip()
-            return title
-        
-        norm1 = normalize(title1)
-        norm2 = normalize(title2)
-        
-        # Check for exact match after normalization
-        if norm1 == norm2:
-            return True
-        
-        # Check for substring match (one title contained in another)
-        if norm1 in norm2 or norm2 in norm1:
-            return True
-        
-        # Calculate similarity score
-        similarity = difflib.SequenceMatcher(None, norm1, norm2).ratio()
-        # Return True if similarity is above threshold
-        return similarity > 0.8
+        from src.utils.scan_logic import normalize_title
+        return normalize_title(title1) == normalize_title(title2)
 
     def _extract_folder_metadata(self, folder_name):
         """Extract title and year from a folder name."""
@@ -611,7 +587,8 @@ class DirectoryProcessor:
         # Remove the FGT pattern explicitly
         clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
         
-        # Replace multiple spaces with a single space and trim
+        # Remove empty parentheses
+        clean_title = re.sub(r'\(\s*\)', '', clean_title)
         clean_title = re.sub(r'\s+', ' ', clean_title).strip()
         
         # If the title is empty after cleaning, use the original folder name

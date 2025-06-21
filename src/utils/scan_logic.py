@@ -1,5 +1,6 @@
 import re
 import datetime
+import unicodedata
 
 def extract_folder_metadata(folder_name):
     # ...copy the logic from DirectoryProcessor._extract_folder_metadata...
@@ -44,6 +45,7 @@ def extract_folder_metadata(folder_name):
         clean_title = re.sub(pattern, ' ', clean_title)
     clean_title = re.sub(r'\.|\-|_', ' ', clean_title)
     clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
+    clean_title = re.sub(r'\(\s*\)', '', clean_title)  # Remove empty parentheses
     clean_title = re.sub(r'\s+', ' ', clean_title).strip()
     if not clean_title:
         clean_title = folder_name
@@ -61,5 +63,15 @@ def get_content_type(folder_name):
     ]
     for indicator in anime_indicators:
         if re.search(indicator, folder_lower, re.IGNORECASE):
-            return "Anime"
+            # If it's anime and looks like a series, return Anime Series
+            if re.search(r'season|episode|s\d+e\d+|complete series|tv series', folder_lower):
+                return "Anime Series"
+            return "Anime Movie"
     return "Unknown"
+
+def normalize_title(name):
+    """Normalize a title for matching (remove accents, special chars, lowercase)."""
+    name = name.lower()
+    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
+    name = re.sub(r'[^a-z0-9]', '', name)
+    return name
