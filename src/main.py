@@ -690,28 +690,24 @@ class DirectoryProcessor:
     def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None):
         """Create symlinks from the source directory to the destination directory."""
         try:
-            # Check if destination directory is configured
             if not DESTINATION_DIRECTORY:
                 self.logger.error("Destination directory not configured")
                 print("\nError: Destination directory not configured. Please configure in settings.")
                 return False
-            
-            # Make sure destination directory exists
+
             if not os.path.exists(DESTINATION_DIRECTORY):
                 os.makedirs(DESTINATION_DIRECTORY, exist_ok=True)
                 self.logger.info(f"Created destination directory: {DESTINATION_DIRECTORY}")
-            
-            # Format the base name with year for both folder and files
+
+            # --- Folder name logic ---
             base_name = title
             if year and not is_wrestling:
                 base_name = f"{title} ({year})"
-            
-            # Add TMDB ID if available - same format for all media types: [tmdb-ID]
             folder_name = base_name
             if tmdb_id:
                 folder_name = f"{base_name} [tmdb-{tmdb_id}]"
-            
-            # Determine appropriate subdirectory based on content type
+
+            # --- Content type subdir ---
             if is_wrestling:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
             elif is_anime and is_tv:
@@ -722,103 +718,148 @@ class DirectoryProcessor:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
             else:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
-            
-            # Create content type subdirectory if it doesn't exist
-            if not os.path.exists(dest_subdir):
-                os.makedirs(dest_subdir, exist_ok=True)
-                self.logger.info(f"Created content subdirectory: {dest_subdir}")
-            
-            # Create full path for the target directory
+
+            # --- Create series folder ---
             target_dir_path = os.path.join(dest_subdir, folder_name)
-            
-            # Create the target directory if it doesn't exist
-            if not os.path.exists(target_dir_path):
-                os.makedirs(target_dir_path, exist_ok=True)
-                self.logger.info(f"Created target directory: {target_dir_path}")
-            
-            # Check if using symlinks or copies
+            os.makedirs(target_dir_path, exist_ok=True)
+
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
-            
-            # Process files in subfolder
-            for root, dirs, files in os.walk(subfolder_path):
-                for file in files:
-                    # Get the source file path
-                    source_file_path = os.path.join(root, file)
-                    
-                    # Create the destination file path - use base_name without the (None) suffix
-                    # Just use the original file extension instead of copying the entire filename
-                    file_ext = os.path.splitext(file)[1]
+
+            # --- TV/Anime Series logic ---
+            if (is_tv and not is_wrestling):
+                # Find all episodes and their season numbers
+                episode_symlinks = []
+                for root, dirs, files in os.walk(subfolder_path):
+                    rel_path = os.path.relpath(root, subfolder_path)
+                    for file in files:
+                        # Try to extract SXXEXX from filename
+                        ep_match = re.search(r'[sS](\d{1,2})[eE](\d{1,2})', file)
+                        if ep_match:
+                            s_num = int(ep_match.group(1))
+                            e_num = int(ep_match.group(2))
+                        else:
+                            s_num = 1
+                            e_num = 1
+
+                        ext = os.path.splitext(file)[1]
+                        ep_symlink_name = f"{base_name} - S{s_num:02d}E{e_num:02d}{ext}"
+                        season_folder = f"Season {s_num}"
+                        season_dir = os.path.join(target_dir_path, season_folder)
+                        os.makedirs(season_dir, exist_ok=True)
+                        source_file_path = os.path.join(root, file)
+                        dest_file_path = os.path.join(season_dir, ep_symlink_name)
+
+                        if use_symlinks:
+                            if os.path.exists(dest_file_path):
+                                os.remove(dest_file_path)
+                            os.symlink(source_file_path, dest_file_path)
+                            self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
+                        else:
+                            if not os.path.exists(dest_file_path):
+                                shutil.copy2(source_file_path, dest_file_path)
+                                self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
+
+                        episode_symlinks.append(dest_file_path)
+
+                # --- Send one webhook for the whole subfolder ---
+                # (Use the first episode's symlink path for the webhook, or the folder path)
+                metadata = {}
+                try:
+                    tmdb = TMDB()
+                    details = {}
                     if tmdb_id:
-                        dest_file_name = f"{base_name}{file_ext}"
+                        details = tmdb.get_tv_details(tmdb_id)
                     else:
-                        dest_file_name = f"{base_name}{file_ext}"
-                    
-                    dest_file_path = os.path.join(target_dir_path, dest_file_name)
-                    
-                    # Create symlink or copy file
-                    if use_symlinks:
-                        # Remove existing symlink if it exists
-                        if os.path.exists(dest_file_path):
-                            os.remove(dest_file_path)
-                        
-                        # Create new symlink
-                        os.symlink(source_file_path, dest_file_path)
-                        self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
-                        
-                        # --- Webhook notification for symlink creation ---
-                        # --- Fetch TMDB metadata ---
-                        metadata = {}
-                        try:
-                            tmdb = TMDB()
-                            if tmdb_id:
-                                if is_tv:
-                                    details = tmdb.get_tv_details(tmdb_id)
-                                else:
-                                    details = tmdb.get_movie_details(tmdb_id)
-                            else:
-                                # Fallback: search by title/year
-                                if is_tv:
-                                    results = tmdb.search_tv(title)
-                                else:
-                                    results = tmdb.search_movie(title)
-                                details = results[0] if results else {}
-                            metadata['title'] = details.get('title') or details.get('name') or title
-                            metadata['year'] = (details.get('release_date') or details.get('first_air_date') or str(year or ""))[:4]
-                            metadata['description'] = details.get('overview', '')
-                            poster_path = details.get('poster_path')
-                            if poster_path:
-                                metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                            else:
-                                metadata['poster'] = None
-                            metadata['tmdb_id'] = details.get('id') or tmdb_id
-                        except Exception as e:
-                            self.logger.warning(f"Could not fetch TMDB metadata: {e}")
-                            metadata = {
-                                'title': title,
-                                'year': year,
-                                'description': '',
-                                'poster': None,
-                                'tmdb_id': tmdb_id
-                            }
-                        
-                        send_symlink_creation_notification(
-                            metadata['title'],
-                            metadata['year'],
-                            metadata['poster'],
-                            metadata['description'],
-                            dest_file_path,
-                            metadata['tmdb_id']
-                        )
+                        results = tmdb.search_tv(title)
+                        details = results[0] if results else {}
+                    metadata['title'] = details.get('name') or title
+                    metadata['year'] = (details.get('first_air_date') or str(year or ""))[:4]
+                    metadata['description'] = details.get('overview', '')
+                    poster_path = details.get('poster_path')
+                    if poster_path:
+                        metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
                     else:
-                        # Copy file if it doesn't exist
-                        if not os.path.exists(dest_file_path):
-                            shutil.copy2(source_file_path, dest_file_path)
-                            self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
-            
+                        metadata['poster'] = None
+                    metadata['tmdb_id'] = details.get('id') or tmdb_id
+                except Exception as e:
+                    self.logger.warning(f"Could not fetch TMDB metadata: {e}")
+                    metadata = {
+                        'title': title,
+                        'year': year,
+                        'description': '',
+                        'poster': None,
+                        'tmdb_id': tmdb_id
+                    }
+                # Use the first symlink path for the webhook, or the folder if none
+                symlink_path = episode_symlinks[0] if episode_symlinks else target_dir_path
+                send_symlink_creation_notification(
+                    metadata['title'],
+                    metadata['year'],
+                    metadata['poster'],
+                    metadata['description'],
+                    symlink_path,
+                    metadata['tmdb_id']
+                )
+
+            else:
+                # --- Movie/Anime Movie/Wrestling logic (unchanged) ---
+                for root, dirs, files in os.walk(subfolder_path):
+                    for file in files:
+                        source_file_path = os.path.join(root, file)
+                        file_ext = os.path.splitext(file)[1]
+                        dest_file_name = f"{base_name}{file_ext}"
+                        dest_file_path = os.path.join(target_dir_path, dest_file_name)
+                        if use_symlinks:
+                            if os.path.exists(dest_file_path):
+                                os.remove(dest_file_path)
+                            os.symlink(source_file_path, dest_file_path)
+                            self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
+                        else:
+                            if not os.path.exists(dest_file_path):
+                                shutil.copy2(source_file_path, dest_file_path)
+                                self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
+
+                # Send one webhook for the movie folder
+                metadata = {}
+                try:
+                    tmdb = TMDB()
+                    details = {}
+                    if tmdb_id:
+                        details = tmdb.get_movie_details(tmdb_id)
+                    else:
+                        results = tmdb.search_movie(title)
+                        details = results[0] if results else {}
+                    metadata['title'] = details.get('title') or title
+                    metadata['year'] = (details.get('release_date') or str(year or ""))[:4]
+                    metadata['description'] = details.get('overview', '')
+                    poster_path = details.get('poster_path')
+                    if poster_path:
+                        metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
+                    else:
+                        metadata['poster'] = None
+                    metadata['tmdb_id'] = details.get('id') or tmdb_id
+                except Exception as e:
+                    self.logger.warning(f"Could not fetch TMDB metadata: {e}")
+                    metadata = {
+                        'title': title,
+                        'year': year,
+                        'description': '',
+                        'poster': None,
+                        'tmdb_id': tmdb_id
+                    }
+                send_symlink_creation_notification(
+                    metadata['title'],
+                    metadata['year'],
+                    metadata['poster'],
+                    metadata['description'],
+                    target_dir_path,
+                    metadata['tmdb_id']
+                )
+
             self.logger.info(f"Successfully created links in: {target_dir_path}")
             print(f"\nSuccessfully created links in: {target_dir_path}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error creating symlinks: {e}")
             print(f"\nError creating links: {e}")
