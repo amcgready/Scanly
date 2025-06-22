@@ -1610,9 +1610,60 @@ def handle_monitor_management(monitor_manager):
             input("\nPress Enter to continue...")
             
         elif choice == "5":
-            # Check pending files (menu option kept, but functionality disabled)
-            print("\nThe 'Check pending files' feature is not yet implemented.")
-            input("\nPress Enter to continue...")
+            # --- NEW: Check pending files implementation ---
+            # Gather pending files per directory, filter out already scanned
+            pending_files = monitor_manager.get_all_pending_files()
+            scan_history = load_scan_history_set()
+            # Build a map: dir_path -> [pending files]
+            dir_pending_map = {}
+            for file in pending_files:
+                if isinstance(file, dict) and 'directory_path' in file:
+                    dir_path = file['directory_path']
+                    file_path = file.get('path') or file.get('file_path')
+                elif isinstance(file, str):
+                    file_path = file
+                    dir_path = os.path.dirname(file)
+                else:
+                    continue
+                # Only include if not in scan history
+                if file_path and file_path not in scan_history:
+                    dir_pending_map.setdefault(dir_path, []).append(file_path)
+            if not dir_pending_map:
+                print("\nNo new pending files to process.")
+                input("\nPress Enter to continue...")
+                continue
+            # Show directories with pending files
+            print("\nSelect a directory to process pending files:")
+            dir_list = list(dir_pending_map.items())
+            for idx, (dir_path, files) in enumerate(dir_list, 1):
+                print(f"{idx}. {dir_path} ({len(files)} new)")
+            print("0. Return to Monitor Management")
+            sel = input("\nEnter number: ").strip()
+            if sel == "0":
+                continue
+            try:
+                sel_idx = int(sel) - 1
+                if 0 <= sel_idx < len(dir_list):
+                    selected_dir, files = dir_list[sel_idx]
+                    print(f"\nPending files in {selected_dir}:")
+                    for i, f in enumerate(files, 1):
+                        print(f"  {i}. {os.path.basename(f)}")
+                    confirm = input("\nProcess all new files in this directory? (y/n): ").strip().lower()
+                    if confirm == "y":
+                        # Process as individual scan (reuse your scan logic)
+                        processor = DirectoryProcessor(selected_dir)
+                        result = processor._process_media_files()
+                        if result is not None and result >= 0:
+                            print(f"\nScan completed. Processed {result} items.")
+                        else:
+                            print("\nScan did not complete successfully.")
+                        input("\nPress Enter to continue...")
+                else:
+                    print("\nInvalid selection.")
+                    input("\nPress Enter to continue...")
+            except ValueError:
+                print("\nInvalid input.")
+                input("\nPress Enter to continue...")
             
         elif choice == "0":
             return
