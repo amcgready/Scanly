@@ -142,6 +142,20 @@ def _clean_directory_path(path):
     return path
 
 # Import utility functions for scan history
+SCAN_HISTORY_FILE = os.path.join(os.path.dirname(__file__), 'scan_history.txt')
+
+def load_scan_history_set():
+    """Load processed file paths from scan_history.txt as a set."""
+    if not os.path.exists(SCAN_HISTORY_FILE):
+        return set()
+    with open(SCAN_HISTORY_FILE, 'r') as f:
+        return set(line.strip() for line in f if line.strip())
+
+def append_to_scan_history(path):
+    """Append a processed file path to scan_history.txt."""
+    with open(SCAN_HISTORY_FILE, 'a') as f:
+        f.write(f"{path}\n")
+
 def load_scan_history():
     """Load scan history from file."""
     try:
@@ -861,8 +875,10 @@ class DirectoryProcessor:
 
     def _process_media_files(self):
         """Process media files in the directory."""
-        # Place global declaration at the beginning of function
         global skipped_items_registry
+
+        # --- Load scan history at the start ---
+        processed_paths = load_scan_history_set()
 
         try:
             # Get all subdirectories
@@ -883,6 +899,11 @@ class DirectoryProcessor:
 
             for subfolder_name in subdirs:
                 subfolder_path = os.path.join(self.directory_path, subfolder_name)
+
+                # --- SKIP if already in scan history ---
+                if subfolder_path in processed_paths:
+                    self.logger.info(f"Skipping already processed (scan_history): {subfolder_path}")
+                    continue
 
                 # --- SKIP LOGIC START ---
                 # 1. Skip if subfolder is a symlink
@@ -1034,6 +1055,7 @@ class DirectoryProcessor:
                                     # Proceed to symlink creation
                                     if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                         processed += 1
+                                        append_to_scan_history(subfolder_path)  # <--- Add this line
                                         input("\nPress Enter to continue...")
                                         clear_screen()
                                         display_ascii_art()
@@ -1065,6 +1087,7 @@ class DirectoryProcessor:
                         if action_choice == "" or action_choice == "1":
                             if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
+                                append_to_scan_history(subfolder_path)  # <--- Add this line
                                 input("\nPress Enter to continue...")
                                 clear_screen()
                                 display_ascii_art()
@@ -1144,6 +1167,7 @@ class DirectoryProcessor:
                     if choice == "1":
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                             processed += 1
+                            append_to_scan_history(subfolder_path)  # <--- Add this line
                             input("\nPress Enter to continue...")
                             clear_screen()
                             display_ascii_art()
