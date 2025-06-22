@@ -1507,7 +1507,7 @@ def handle_monitor_management(monitor_manager):
         print("2. Remove directory from monitoring")
         print("3. Toggle directory active state")
         print("4. Start all monitoring")
-        print(f"5. Check pending files ({pending_count})")
+        print(f"5. Check pending files")
         print("0. Return to main menu")
         
         choice = input("\nEnter choice: ").strip()
@@ -1610,12 +1610,9 @@ def handle_monitor_management(monitor_manager):
             input("\nPress Enter to continue...")
             
         elif choice == "5":
-            # Process pending files
-            if pending_count > 0:
-                process_pending_files_multiscan(monitor_manager, pending_files)
-            else:
-                print("\nNo pending files to process.")
-                input("\nPress Enter to continue...")
+            # Check pending files (menu option kept, but functionality disabled)
+            print("\nThe 'Check pending files' feature is not yet implemented.")
+            input("\nPress Enter to continue...")
             
         elif choice == "0":
             return
