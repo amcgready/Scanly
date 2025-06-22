@@ -688,7 +688,12 @@ class DirectoryProcessor:
         return is_tv, is_anime, is_wrestling
 
     def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None):
-        """Create symlinks from the source directory to the destination directory."""
+        """
+        Create symlinks from the source directory to the destination directory.
+        For TV/Anime Series, creates a symlink for each episode in the format:
+        'MEDIA TITLE (YEAR) [tmdb-TMDB_ID]' / 'Season X' / 'MEDIA TITLE (YEAR) - SXXEXX.ext'
+        Sends one webhook per subfolder processed.
+        """
         try:
             if not DESTINATION_DIRECTORY:
                 self.logger.error("Destination directory not configured")
@@ -699,15 +704,9 @@ class DirectoryProcessor:
                 os.makedirs(DESTINATION_DIRECTORY, exist_ok=True)
                 self.logger.info(f"Created destination directory: {DESTINATION_DIRECTORY}")
 
-            # --- Folder name logic ---
-            base_name = title
-            if year and not is_wrestling:
-                base_name = f"{title} ({year})"
-            folder_name = base_name
-            if tmdb_id:
-                folder_name = f"{base_name} [tmdb-{tmdb_id}]"
+            base_name = f"{title} ({year})" if year and not is_wrestling else title
+            folder_name = f"{base_name} [tmdb-{tmdb_id}]" if tmdb_id else base_name
 
-            # --- Content type subdir ---
             if is_wrestling:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
             elif is_anime and is_tv:
@@ -719,27 +718,26 @@ class DirectoryProcessor:
             else:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
 
-            # --- Create series folder ---
             target_dir_path = os.path.join(dest_subdir, folder_name)
             os.makedirs(target_dir_path, exist_ok=True)
 
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
 
-            # --- TV/Anime Series logic ---
-            if (is_tv and not is_wrestling):
-                # Find all episodes and their season numbers
-                episode_symlinks = []
+            episode_symlinks = []
+
+            if is_tv and not is_wrestling:
                 for root, dirs, files in os.walk(subfolder_path):
-                    rel_path = os.path.relpath(root, subfolder_path)
-                    for file in files:
-                        # Try to extract SXXEXX from filename
-                        ep_match = re.search(r'[sS](\d{1,2})[eE](\d{1,2})', file)
+                    # Sort files for consistent episode numbering fallback
+                    media_files = [f for f in files if f.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv'))]
+                    for idx, file in enumerate(sorted(media_files), 1):
+                        # Match SXXEYY, SXX.EYY, or just EYY (with or without season)
+                        ep_match = re.search(r'(?:[sS](\d{1,2}))?[\. _-]*[eE](\d{1,2})', file)
                         if ep_match:
-                            s_num = int(ep_match.group(1))
+                            s_num = int(ep_match.group(1)) if ep_match.group(1) else 1
                             e_num = int(ep_match.group(2))
                         else:
                             s_num = 1
-                            e_num = 1
+                            e_num = idx  # fallback to file index for uniqueness
 
                         ext = os.path.splitext(file)[1]
                         ep_symlink_name = f"{base_name} - S{s_num:02d}E{e_num:02d}{ext}"
@@ -749,20 +747,18 @@ class DirectoryProcessor:
                         source_file_path = os.path.join(root, file)
                         dest_file_path = os.path.join(season_dir, ep_symlink_name)
 
+                        if os.path.islink(dest_file_path) or os.path.exists(dest_file_path):
+                            os.remove(dest_file_path)
                         if use_symlinks:
-                            if os.path.exists(dest_file_path):
-                                os.remove(dest_file_path)
                             os.symlink(source_file_path, dest_file_path)
                             self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
                         else:
-                            if not os.path.exists(dest_file_path):
-                                shutil.copy2(source_file_path, dest_file_path)
-                                self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
+                            shutil.copy2(source_file_path, dest_file_path)
+                            self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
 
                         episode_symlinks.append(dest_file_path)
 
-                # --- Send one webhook for the whole subfolder ---
-                # (Use the first episode's symlink path for the webhook, or the folder path)
+                # Send one webhook for the whole subfolder (first symlink as reference)
                 metadata = {}
                 try:
                     tmdb = TMDB()
@@ -790,7 +786,6 @@ class DirectoryProcessor:
                         'poster': None,
                         'tmdb_id': tmdb_id
                     }
-                # Use the first symlink path for the webhook, or the folder if none
                 symlink_path = episode_symlinks[0] if episode_symlinks else target_dir_path
                 send_symlink_creation_notification(
                     metadata['title'],
@@ -802,22 +797,21 @@ class DirectoryProcessor:
                 )
 
             else:
-                # --- Movie/Anime Movie/Wrestling logic (unchanged) ---
+                # Movie/Anime Movie/Wrestling logic (unchanged)
                 for root, dirs, files in os.walk(subfolder_path):
                     for file in files:
                         source_file_path = os.path.join(root, file)
                         file_ext = os.path.splitext(file)[1]
                         dest_file_name = f"{base_name}{file_ext}"
                         dest_file_path = os.path.join(target_dir_path, dest_file_name)
+                        if os.path.islink(dest_file_path) or os.path.exists(dest_file_path):
+                            os.remove(dest_file_path)
                         if use_symlinks:
-                            if os.path.exists(dest_file_path):
-                                os.remove(dest_file_path)
                             os.symlink(source_file_path, dest_file_path)
                             self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
                         else:
-                            if not os.path.exists(dest_file_path):
-                                shutil.copy2(source_file_path, dest_file_path)
-                                self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
+                            shutil.copy2(source_file_path, dest_file_path)
+                            self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
 
                 # Send one webhook for the movie folder
                 metadata = {}
@@ -864,7 +858,7 @@ class DirectoryProcessor:
             self.logger.error(f"Error creating symlinks: {e}")
             print(f"\nError creating links: {e}")
             return False
-    
+
     def _process_media_files(self):
         """Process media files in the directory."""
         # Place global declaration at the beginning of function
@@ -924,10 +918,6 @@ class DirectoryProcessor:
                 is_anime = self._detect_if_anime(subfolder_name)
                 is_wrestling = False
                 tmdb_id = None
-
-                if self._has_existing_symlink(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
-                    self.logger.info(f"Skipping {subfolder_name}: media file symlink already exists in destination.")
-                    continue
 
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
@@ -1873,6 +1863,7 @@ def main():
             clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "2":
+            multi_scan_menu()
             multi_scan_menu()
             clear_screen()  # Explicitly clear screen when returning to main menu
         
