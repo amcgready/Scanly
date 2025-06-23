@@ -24,24 +24,9 @@ COPY . .
 RUN mkdir -p /app/logs /media/source /media/library && \
     chmod -R 777 /app/logs
 
-# Create a wrapper script that handles permissions and user setup
-RUN echo '#!/bin/bash\n\
-# Create user with matching UID/GID if provided\n\
-USER_ID=${PUID:-1000}\n\
-GROUP_ID=${PGID:-1000}\n\
-\n\
-echo "Starting with UID: $USER_ID, GID: $GROUP_ID"\n\
-groupadd -g $GROUP_ID scanly\n\
-useradd -u $USER_ID -g $GROUP_ID -d /app scanly\n\
-\n\
-# Ensure proper permissions on log directories\n\
-mkdir -p /app/logs /media/source /media/library\n\
-chown -R scanly:scanly /app/logs\n\
-\n\
-# Execute entrypoint with the proper user\n\
-exec gosu scanly:scanly /app/entrypoint.sh "$@"\n\
-' > /docker-entrypoint.sh && \
-    chmod +x /docker-entrypoint.sh
+# Copy the docker-entrypoint.sh script
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Create the actual entrypoint script
 RUN echo '#!/bin/bash\n\
@@ -73,7 +58,4 @@ exec "$@"\n\
     chmod +x /app/entrypoint.sh
 
 # Set the wrapper script as the entry point
-ENTRYPOINT ["/docker-entrypoint.sh"]
-
-# Default command
-CMD ["python", "src/main.py"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
