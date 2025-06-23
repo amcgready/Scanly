@@ -948,35 +948,8 @@ class DirectoryProcessor:
                 is_wrestling = False
                 tmdb_id = None
 
-                # --- NEW: Prompt to skip before scanner lists are checked ---
-                clear_screen()
-                display_ascii_art()
-                print("=" * 84)
-                print("FOLDER PROCESSING".center(84))
-                print("=" * 84)
-                print(f"\nProcessing: {subfolder_name}")
-                print(f"  Title: {title}")
-                print(f"  Year: {year if year else 'Unknown'}")
-                content_type = "Movie"
-                if is_wrestling:
-                    content_type = "Wrestling"
-                elif is_tv and is_anime:
-                    content_type = "Anime Series"
-                elif not is_tv and is_anime:
-                    content_type = "Anime Movie"
-                elif is_tv and not is_anime:
-                    content_type = "TV Series"
-                print(f"  Type: {content_type}")
-
-                # Prompt user to skip
-                user_input = input("\nPress [S] to skip this item, or Enter to continue: ")
-
-
-                if user_input == 's':
-                    self.logger.info(f"User skipped: {subfolder_name}")
-                    skipped_items_registry.append(subfolder_name)
-                    save_skipped_items(skipped_items_registry)
-                    continue
+                # --- NEW: Skip the skip prompt and always continue
+                # (No input, just proceed to scanner list check)
 
                 # --- Now check scanner lists ---
                 if self._check_scanner_lists(title, year, is_tv, is_anime):
@@ -1252,7 +1225,7 @@ class DirectoryProcessor:
         
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
             input("\nPress Enter to continue...")
-            clear_screen()  # Clear screen after completing all processing
+            clear_screen()  # Make sure we clear screen here before returning
             display_ascii_art()  # Show ASCII art
             return processed
             
@@ -1834,6 +1807,32 @@ def handle_settings():
         elif choice == "0":
             return
         else:
+            display_ascii_art()
+        print("=" * 84)
+        print("SETTINGS".center(84))
+        print("=" * 84)
+        print("\nOptions:")
+        print("  1. Configure File Paths")
+        print("  2. Configure API Settings")
+        print("  3. Configure Webhook Settings")
+        print("  4. Test TMDB Integration")
+        print("  0. Return to Main Menu")
+        choice = input("\nSelect option: ").strip()
+        if choice == "1":
+            print("\nFile path settings selected")
+            print("\nPress Enter to continue...")
+            input()
+        elif choice == "2":
+            print("\nAPI settings selected")
+            print("\nPress Enter to continue...")
+            input()
+        elif choice == "3":
+            handle_webhook_settings()
+        elif choice == "4":
+            handle_tmdb_test()
+        elif choice == "0":
+            return
+        else:
             print(f"\nInvalid option: {choice}")
             print("\nPress Enter to continue...")
             input()
@@ -1842,6 +1841,7 @@ def handle_tmdb_test():
     clear_screen()
     display_ascii_art()
     print("=" * 84)
+
     print("TMDB INTEGRATION TEST".center(84))
     print("=" * 84)
     print("\nEnter a movie title to test TMDB integration:")
