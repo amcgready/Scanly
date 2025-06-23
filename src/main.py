@@ -12,6 +12,7 @@ import time
 import re
 import difflib
 from pathlib import Path
+from utils.plex_utils import refresh_selected_plex_libraries 
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
 # Ensure parent directory is in path for imports
@@ -1056,6 +1057,7 @@ class DirectoryProcessor:
                                     if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                         processed += 1
                                         append_to_scan_history(subfolder_path)  # <--- Add this line
+                                        trigger_plex_refresh()  # Trigger Plex refresh after symlink creation
                                         input("\nPress Enter to continue...")
                                         clear_screen()
                                         display_ascii_art()
@@ -1088,6 +1090,7 @@ class DirectoryProcessor:
                             if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
                                 append_to_scan_history(subfolder_path)  # <--- Add this line
+                                trigger_plex_refresh()  # Trigger Plex refresh after symlink creation
                                 input("\nPress Enter to continue...")
                                 clear_screen()
                                 display_ascii_art()
@@ -1168,6 +1171,7 @@ class DirectoryProcessor:
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                             processed += 1
                             append_to_scan_history(subfolder_path)  # <--- Add this line
+                            trigger_plex_refresh()  # Trigger Plex refresh after symlink creation
                             input("\nPress Enter to continue...")
                             clear_screen()
                             display_ascii_art()
@@ -1323,6 +1327,7 @@ def perform_individual_scan():
     result = processor._process_media_files()
     if result is not None and result >= 0:
         print(f"\nScan completed. Processed {result} items.")
+        trigger_plex_refresh()  # <-- Add this line
     else:
         print("\nScan did not complete successfully.")
     input("\nPress Enter to continue...")
@@ -1802,7 +1807,6 @@ def handle_webhook_settings():
             input()
 
 def handle_settings():
-    while True:
         clear_screen()
         display_ascii_art()
         print("=" * 84)
@@ -1887,6 +1891,23 @@ def settings_menu():
 def help_menu():
     """Handle the Help submenu."""
     display_help()
+
+def trigger_plex_refresh():
+    """Refresh only the applicable Plex libraries after a scan."""
+    PLEX_URL = os.getenv("PLEX_URL")
+    PLEX_TOKEN = os.getenv("PLEX_TOKEN")
+    LIBRARIES = [
+        os.getenv("PLEX_MOVIES_LIBRARY"),
+        os.getenv("PLEX_TV_LIBRARY"),
+        os.getenv("PLEX_ANIME_TV_LIBRARY"),
+        os.getenv("PLEX_ANIME_MOVIES_LIBRARY"),
+    ]
+    LIBRARIES = [lib for lib in LIBRARIES if lib]
+    if PLEX_URL and PLEX_TOKEN and LIBRARIES:
+        result = refresh_selected_plex_libraries(PLEX_URL, PLEX_TOKEN, LIBRARIES)
+        print("Plex refresh results:", result)
+    else:
+        print("Plex refresh skipped: missing configuration.")
 
 # Ensure main function also properly clears screen between menus
 def main():

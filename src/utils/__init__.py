@@ -5,3 +5,5 @@ This module contains utility functions and classes used throughout the applicati
 """
 
 from .logger import get_logger, setup_logging
+
+# Makes utils a Python package
