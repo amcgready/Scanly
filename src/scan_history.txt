@@ -6,3 +6,8 @@
 /mnt/pd_zurg/anime/[Datte13] Naruto Shippuuden - Road to Ninja [BD 1080p Hi10] [Dual-Audio FLAC] [DFD9BD67]
 /mnt/pd_zurg/anime/[RaptoR] Sword Art Online the Movie -Progressive- Aria of a Starless Night [BDRemux 1080p AVC TrueHD Atmos] [6D3D30BF]
 /mnt/pd_zurg/anime/[sam] Sword Art Online [BD 1080p FLAC]
+/mnt/pd_zurg/shows/!Extras
+/mnt/pd_zurg/shows/1883.S01.1080p.Blu-ray.Remux.AVC.TrueHD.5.1-SiCFoI
+/mnt/pd_zurg/shows/1923.S01.1080p.BluRay.REMUX.AVC.TrueHD.5.1-TRiToN
+/mnt/pd_zurg/shows/1923.s02e01.1080p.web.h264-successfulcrab[EZTVx.to]
+/mnt/pd_zurg/shows/9-1-1.Lone.Star.S01.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
