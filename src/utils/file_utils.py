@@ -9,6 +9,7 @@ import os
 import logging
 import shutil
 from pathlib import Path
+from src.utils.webhooks import send_symlink_creation_notification
 
 def create_directory_structure(base_path, directory_structure=None, mode=0o755):
     """
@@ -207,6 +208,15 @@ def create_symlinks(source_path, destination_base, is_anime=False, content_type=
             
             # Create symlink
             os.symlink(source_path, dest_path)
+            
+            send_symlink_creation_notification(
+                title=metadata.get('title', ''),
+                year=metadata.get('year', ''),
+                poster=metadata.get('poster', ''),
+                description=metadata.get('description', ''),
+                symlink_path=dest_path
+            )
+            
             return True, f"Created symlink: {dest_path}"
     except Exception as e:
         return False, f"Error creating link: {e}"
