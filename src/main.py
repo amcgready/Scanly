@@ -538,25 +538,35 @@ class DirectoryProcessor:
                         # Treat the last valid year as the release year
                         year = potential_year
             
-                # Special case: If the title starts with a 4-digit number that could be a year
-                # (like "2001: A Space Odyssey"), keep it in the title
-                if year_matches[0] == year and re.match(r'^' + year + r'[^0-9]', folder_name):
-                    # This is likely a title that starts with a year, look for another year
-                    if len(year_matches) > 1:
-                        for potential_year in year_matches[1:]:
-                            year_int = int(potential_year)
-                            if 1900 <= year_int <= current_year + 5:
-                                year = potential_year
-                                break
-                    else:
-                        # Only one year found and it's at the start, consider it part of the title
-                        year = None
+                # Remove everything after SxxExx (episode pattern) to cut off episode names
+                # This will keep only the part before SxxExx for the title
+                ep_match = re.search(r'(?i)\bS\d{1,2}E\d{1,2}\b', clean_title)
+                if ep_match:
+                    clean_title = clean_title[:ep_match.start()].strip()
+
+
+            # Special case: If the title starts with a 4-digit number that could be a year
+            # (like "2001: A Space Odyssey"), keep it in the title
+            if year_matches[0] == year and re.match(r'^' + year + r'[^0-9]', folder_name):
+                # This is likely a title that starts with a year, look for another year
+                if len(year_matches) > 1:
+                    for potential_year in year_matches[1:]:
+                        year_int = int(potential_year)
+                        if 1900 <= year_int <= current_year + 5:
+                            year = potential_year
+                            break
+                else:
+                    # Only one year found and it's at the start, consider it part of the title
+                    year = None
     
         clean_title = folder_name
 
         # Remove year ranges and single years in parentheses (with or without spaces)
         clean_title = re.sub(r'\(\s*\d{4}\s*-\s*\d{4}\s*\)', '', clean_title)
         clean_title = re.sub(r'\(\s*\d{4}\s*\)', '', clean_title)
+
+        # Remove everything after SxxExx (episode pattern) to cut off episode names
+        clean_title = re.sub(r'(?i)(S\d{1,2}E\d{1,2}).*', r'\1', clean_title)
 
         # First level of cleaning - remove common patterns
         clean_title = folder_name
@@ -580,7 +590,7 @@ class DirectoryProcessor:
             r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',  # Quality tags
             r'(?i)\b\d{2,4}p\b',  # Remove any 2-4 digit number followed by 'p' (e.g., 80p, 1080p)
             r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|AV1|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
+            r'(?i)[\s._-]*(AMZN|AV1|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',                             # Remove anything in brackets
             r'[-_,]',                               # Remove stray dashes, underscores, commas
             # Updated language patterns with Russian
@@ -1771,7 +1781,7 @@ def handle_webhook_settings():
                 _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', url)
                 print("\nSymlink deletion webhook URL updated.")
             else:
-                               print("\nSymlink deletion webhook URL set to use default.")
+                print("\nSymlink deletion webhook URL set to use default.")
         elif choice == "5":
             print("\nEnter the symlink repair Discord webhook URL (leave blank to use default):")
             url = input().strip()
