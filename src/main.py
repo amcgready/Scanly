@@ -3,6 +3,7 @@
 
 This module is the main entry point for the Scanly application.
 """
+import argparse
 import datetime
 import logging
 import os
@@ -11,6 +12,7 @@ import json
 import time
 import re
 import difflib
+import subprocess
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries 
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
@@ -1616,6 +1618,9 @@ def handle_monitor_management(monitor_manager):
             for idx, (dir_path, files) in enumerate(dir_list, 1):
                 print(f"{idx}. {dir_path} ({len(files)} new)")
             print("0. Return to Monitor Management")
+            sel = input("\nEnter number: ")
+
+
             sel = input("\nEnter number: ").strip()
             if sel == "0":
                 continue
@@ -1911,7 +1916,16 @@ def trigger_plex_refresh():
 
 # Ensure main function also properly clears screen between menus
 def main():
-    """Main function to run the Scanly application."""
+    parser = argparse.ArgumentParser(description="Scanly Media Scanner")
+    parser.add_argument('--monitor', action='store_true', help='Run monitor scan only (no menu)')
+    args = parser.parse_args()
+
+    if args.monitor:
+        # Start monitor manager directly, no menu or input
+        monitor_manager = get_monitor_manager()
+        monitor_manager.run_forever()  # or whatever method starts the monitor loop
+        return
+
     # Make sure the screen is clear before we start
     clear_screen()
     
@@ -1945,12 +1959,9 @@ def main():
         print("  2. Multi Scan")
         print("  3. Monitor Management")
         print("  4. Settings")
-        print("  5. Help")
         print("  0. Quit")
-        print()
-        
-        choice = input("Select option: ")
-        
+        choice = input("Select option: ").strip()
+            
         if choice == "1":
             individual_scan_menu()
             clear_screen()  # Explicitly clear screen when returning to main menu
@@ -1990,7 +2001,6 @@ def main():
             clear_screen()  # Explicitly clear screen on invalid option
 
 if __name__ == "__main__":
-    from src.utils.scan_logic import find_scanner_matches, get_movie_folder_name, get_series_folder_name
     main()
 
     # Determine content type string for scanner logic
