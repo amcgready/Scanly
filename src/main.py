@@ -1057,6 +1057,7 @@ class DirectoryProcessor:
                             if new_year:
                                 year = new_year
                             continue  # Re-check scanner list with new search term and yearelif action_choice == "3":
+                            # Prompt for new content type and update variables
                             print("\nSelect new content type:")
                             print("1. Movie")
                             print("2. TV Series")
@@ -1141,7 +1142,8 @@ class DirectoryProcessor:
                             search_term = new_search
                         if new_year:
                             year = new_year
-                        continue  # Re-check scanner list with new search term and yearelif choice == "3":
+                        continue  # Re-check scanner list with new search term and year
+                    elif choice == "3":
                         # Prompt for new content type and update variables
                         print("\nSelect new content type:")
                         print("1. Movie")
@@ -1176,8 +1178,7 @@ class DirectoryProcessor:
                         else:
                             print("Invalid type. Returning to previous menu.")
                             continue
-                        # After changing type, re-run the scanner with new type
-                        continue
+                        continue  # After changing type, re-run the scanner with new type
                     elif choice == "4":
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                         if new_tmdb_id:
@@ -1762,7 +1763,6 @@ def handle_webhook_settings():
         elif choice == "6":
             new_state = 'false' if notifications_enabled else 'true'
             _update_env_var('ENABLE_DISCORD_NOTIFICATIONS', new_state)
-
             print(f"\nDiscord notifications {'enabled' if new_state == 'true' else 'disabled'}.")
         elif choice == "7":
             print("\nTesting webhook...")
