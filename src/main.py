@@ -577,9 +577,10 @@ class DirectoryProcessor:
             r'(?i)\bComplete\s*TV\s*Series\b',      # "Complete TV Series"
             r'(?i)\bComplete\b',                    # "Complete"
             r'(?i)\bTV\s*Series\b',                 # "TV Series"
-            r'(?i)\b(720p|1080p|2160p|480p|576p|4K|UHD|HD|FHD|QHD)\b',
+            r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',  # Quality tags
+            r'(?i)\b\d{2,4}p\b',  # Remove any 2-4 digit number followed by 'p' (e.g., 80p, 1080p)
             r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
+            r'(?i)[\s._-]*(AMZN|AV1|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',                             # Remove anything in brackets
             r'[-_,]',                               # Remove stray dashes, underscores, commas
             # Updated language patterns with Russian
@@ -1745,7 +1746,6 @@ def handle_webhook_settings():
             if url:
                 _update_env_var('DEFAULT_DISCORD_WEBHOOK_URL', url)
                 os.environ['DISCORD_WEBHOOK_URL'] = url
-                print("\nDefault webhook URL updated.")
             else:
                 print("\nWebhook URL not changed.")
         elif choice == "2":
