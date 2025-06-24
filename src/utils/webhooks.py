@@ -94,23 +94,14 @@ def send_symlink_deletion_notification(title, year, poster, description, symlink
     Returns:
         bool: True if notification was sent successfully, False otherwise
     """
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or os.environ.get("DEFAULT_DISCORD_WEBHOOK_URL")
+    webhook_url = get_webhook_url("SYMLINK_DELETION")
     if not webhook_url:
-        logger.warning("Webhook URL not set, cannot send deletion notification.")
+        logger.warning("No webhook URL configured for symlink deletion")
         return False
-    embed = {
-        "title": f"Symlink Deleted: {title} ({year})",
-        "description": description or "",
-        "fields": [
-            {"name": "Symlink Path", "value": symlink_path, "inline": False}
-        ],
-        "image": {"url": poster} if poster else None
-    }
-    # Remove None values
-    embed = {k: v for k, v in embed.items() if v is not None}
-    data = {"embeds": [embed]}
+    embed = _symlink_embed("Deleted", title, year, poster, description, symlink_path)
+    payload = {"embeds": [embed]}
     try:
-        response = requests.post(webhook_url, json=data)
+        response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
         logger.info("Sent symlink deletion webhook for %s", title)
         return True
@@ -131,23 +122,14 @@ def send_symlink_repair_notification(title, year, poster, description, symlink_p
     Returns:
         bool: True if notification was sent successfully, False otherwise
     """
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or os.environ.get("DEFAULT_DISCORD_WEBHOOK_URL")
+    webhook_url = get_webhook_url("SYMLINK_REPAIR")
     if not webhook_url:
-        logger.warning("Webhook URL not set, cannot send repair notification.")
+        logger.warning("No webhook URL configured for symlink repair")
         return False
-    embed = {
-        "title": f"Symlink Repaired: {title} ({year})",
-        "description": description or "",
-        "fields": [
-            {"name": "Symlink Path", "value": symlink_path, "inline": False}
-        ],
-        "image": {"url": poster} if poster else None
-    }
-    # Remove None values
-    embed = {k: v for k, v in embed.items() if v is not None}
-    data = {"embeds": [embed]}
+    embed = _symlink_embed("Repaired", title, year, poster, description, symlink_path)
+    payload = {"embeds": [embed]}
     try:
-        response = requests.post(webhook_url, json=data)
+        response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
         logger.info("Sent symlink repair webhook for %s", title)
         return True

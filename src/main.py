@@ -558,6 +558,9 @@ class DirectoryProcessor:
             # Format patterns
             r'(?i)\b(BluRay|Blu Ray|Blu-ray|BD|REMUX|BDRemux|BDRip|DVDRip|HDTV|WebRip|WEB-DL|WEBRip|Web|HDRip|DVD|DVDR)\b',
             
+            # Season and Episode patterns
+            r'(?i)\bS\d{1,2}E\d{1,2}\b',
+            
             # Codec patterns
             r'(?i)\b(xvid|divx|x264|x265|hevc|h264|h265|HEVC|avc|vp9|av1)\b',
             
@@ -568,7 +571,7 @@ class DirectoryProcessor:
             r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
 
             # Common release group names
-            r'(?i)\b(AMZN|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
+            r'(?i)\b(AMZN|MeGusta|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
             
             # Other common patterns
             r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV)\b'

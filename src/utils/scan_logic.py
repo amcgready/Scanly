@@ -120,3 +120,28 @@ def get_series_folder_name(title, year, tmdb_id, season_number):
     else:
         base = f"{title} ({year})"
     return os.path.join(base, f"S{season_number:02d}")
+
+def _extract_folder_metadata(folder_name):
+    clean_title = folder_name  # Only assign once
+
+    # Remove SxxExx or sxxexx patterns (season/episode)
+    clean_title = re.sub(r'\b[Ss](\d{1,2})[Ee](\d{1,2})\b', '', clean_title)
+
+    # Remove release group and bracketed tags at the end
+    clean_title = re.sub(r'[-\s\[]?[A-Za-z0-9]+(\[.*\])?$', '', clean_title)
+
+    # Remove quality, codecs, etc.
+    patterns_to_remove = [
+        r'(?i)\b(720p|1080p|2160p|480p|576p|4K|UHD|HD|FHD|QHD)\b',
+        r'(?i)\b(BluRay|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX)\b',
+        r'(?i)\b(x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
+        r'(?i)\b(AMZN|NF|DSNP|MeGusta|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)\b',
+        r'\[.*?\]',  # Remove anything in brackets
+    ]
+    for pattern in patterns_to_remove:
+        clean_title = re.sub(pattern, '', clean_title)
+
+    # Replace dots, underscores, and dashes with spaces
+    clean_title = re.sub(r'[._\-]+', ' ', clean_title)
+    clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+    return clean_title
