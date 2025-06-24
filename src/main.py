@@ -286,27 +286,6 @@ def display_ascii_art():
         print("SCANLY")  # Fallback if art file can't be loaded
     print()  # Add extra line after ASCII art
 
-# Display help information
-def display_help():
-    """Display help information."""
-    clear_screen()
-    display_ascii_art()
-    print("=" * 84)
-    print("HELP".center(84))
-    print("=" * 84)
-    print("\nScanly is a media file scanner and organizer.")
-    print("\nOptions:")
-    print("  1. Individual Scan - Scan a single directory for media files")
-    print("  2. Multi Scan     - Scan multiple directories")
-    print("  3. Monitor Management - Add/remove directories for continuous monitoring")
-    print("  4. Settings       - Configure application settings")
-    print("  5. Help           - Display this help information")
-    print("  0. Quit           - Exit the application")
-    print("\nPress Enter to continue...")
-    input()
-    clear_screen()  # Clear screen after leaving help
-    display_ascii_art()  # Show ASCII art when returning to main menu
-
 # Function to review skipped items
 def review_skipped_items():
     """Review and process previously skipped items."""
@@ -1893,10 +1872,6 @@ def monitor_management_menu(monitor_manager):
 def settings_menu():
     handle_settings()
 
-def help_menu():
-    """Handle the Help submenu."""
-    display_help()
-
 def trigger_plex_refresh():
     """Refresh only the applicable Plex libraries after a scan."""
     PLEX_URL = os.getenv("PLEX_URL")
@@ -1923,7 +1898,13 @@ def main():
     if args.monitor:
         # Start monitor manager directly, no menu or input
         monitor_manager = get_monitor_manager()
-        monitor_manager.run_forever()  # or whatever method starts the monitor loop
+        monitor_manager.start_monitoring()  # <-- Use the correct method
+        # Optionally, keep the process alive if needed:
+        try:
+            while True:
+                time.sleep(60)
+        except KeyboardInterrupt:
+            pass
         return
 
     # Make sure the screen is clear before we start
@@ -1977,10 +1958,6 @@ def main():
         
         elif choice == "4":
             settings_menu()
-            clear_screen()  # Explicitly clear screen when returning to main menu
-        
-        elif choice == "5":
-            help_menu()
             clear_screen()  # Explicitly clear screen when returning to main menu
         
         elif choice == "0":
