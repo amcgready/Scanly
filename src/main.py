@@ -567,6 +567,7 @@ class DirectoryProcessor:
     
         # Remove common quality/format indicators
         patterns_to_remove = [
+            r'(?i)S\d{1,2}E\d{1,2}[-_\. ]?(?:E?\d{1,2})',  # Remove S05E04-09, S05E04-E09, S05E04_09, etc.
             r'\(\s*\d{4}\s*-\s*\d{4}\s*\)',         # Year ranges like (2013-2015)
             r'\(\s*\d{4}\s*\)',                     # Single year in parentheses, e.g. (2015) or ( 2015 )
             r'(?i)\bS\d{1,2}E\d{1,2}\b',            # Season+Episode (e.g. S01E02)
@@ -1770,7 +1771,7 @@ def handle_webhook_settings():
                 _update_env_var('DISCORD_WEBHOOK_URL_SYMLINK_DELETION', url)
                 print("\nSymlink deletion webhook URL updated.")
             else:
-                print("\nSymlink deletion webhook URL set to use default.")
+                               print("\nSymlink deletion webhook URL set to use default.")
         elif choice == "5":
             print("\nEnter the symlink repair Discord webhook URL (leave blank to use default):")
             url = input().strip()
