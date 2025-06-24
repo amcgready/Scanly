@@ -13,6 +13,7 @@ import time
 import re
 import difflib
 import subprocess
+import csv
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries 
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
@@ -409,6 +410,17 @@ except Exception as e:
     def send_symlink_repair_notification(media_name, year, poster, description, original_path, symlink_path):
         logger.error("Webhook functionality is not available")
         return False
+
+FLAGGED_CSV = os.path.join(os.path.dirname(__file__), "flagged_paths.csv")
+FLAGGED_HEADER = ["File Path", "Cleaned Title", "Year", "Content Type"]
+
+def write_flag_to_csv(flagged_row):
+    file_exists = os.path.isfile(FLAGGED_CSV)
+    with open(FLAGGED_CSV, 'a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=FLAGGED_HEADER)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(flagged_row)
 
 class DirectoryProcessor:
     """Process a directory of media files."""
@@ -1118,6 +1130,7 @@ class DirectoryProcessor:
                     print("3. Change content type")
                     print("4. Manual TMDB ID")
                     print("5. Skip (save for later review)")
+                    print("6. Flag this item")
                     print("0. Quit")
 
                     choice = input("\nSelect option: ").strip()
@@ -1192,6 +1205,19 @@ class DirectoryProcessor:
                         clear_screen()
                         display_ascii_art()
                         break
+                    elif choice == "6":
+                        # FLAGGING LOGIC
+                        write_flag_to_csv({
+                            "File Path": subfolder_path,
+                            "Cleaned Title": title,
+                            "Year": year if year else "",
+                            "Content Type": content_type
+                        })
+                        print(f"\nItem flagged and saved to {FLAGGED_CSV}.")
+                        input("\nPress Enter to continue...")
+                        clear_screen()
+                        display_ascii_art()
+                        break  # Move to next item, do NOT process
                     elif choice == "0":
                         if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                             print("Scan cancelled.")
@@ -1206,19 +1232,17 @@ class DirectoryProcessor:
                         input("\nPress Enter to continue...")
                         clear_screen()
                         display_ascii_art()
-        
             print(f"\nFinished processing {len(subdirs)} subdirectories.")
             input("\nPress Enter to continue...")
-            clear_screen()  # Make sure we clear screen here before returning
-            display_ascii_art()  # Show ASCII art
+            clear_screen()
+            display_ascii_art()
             return processed
-            
         except Exception as e:
             self.logger.error(f"Error processing media files: {e}")
             print(f"Error: {e}")
             input("\nPress Enter to continue...")
-            clear_screen()  # Clear screen after error
-            display_ascii_art()  # Show ASCII art
+            clear_screen()
+            display_ascii_art()
 
     def _has_existing_symlink(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None):
         """
@@ -1821,8 +1845,6 @@ def handle_settings():
             return
         else:
             print(f"\nInvalid option: {choice}")
-            print("\nPress Enter to continue...")
-            input()
 
 def handle_tmdb_test():
     clear_screen()
