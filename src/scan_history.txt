@@ -11,3 +11,8 @@
 /mnt/pd_zurg/shows/1923.S01.1080p.BluRay.REMUX.AVC.TrueHD.5.1-TRiToN
 /mnt/pd_zurg/shows/1923.s02e01.1080p.web.h264-successfulcrab[EZTVx.to]
 /mnt/pd_zurg/shows/9-1-1.Lone.Star.S01.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/2 Star Trek Następne pokolenie - Star Trek The Next Generation 1987-1994 [S01-S07] [1080p.WEB-DL.H264-FT] [Lektor PL] [Alusia]
+/mnt/pd_zurg/shows/3 Star Trek Stacja kosmiczna - Star Trek Deep Space Nine 1993-1999  [S01-S07] [1080p.WEB-DL.H264-FT] [Lektor PL] [Alusia]
+/mnt/pd_zurg/shows/9-1-1.Lone.Star.S02.1080p.AMZN.WEB-DL.Rus.Eng-NTb_TeamHD
+/mnt/pd_zurg/shows/9-1-1.Lone.Star.S03.1080p.AMZN.WEB-DL.DDP5.1.H.264-KiNGS
+/mnt/pd_zurg/shows/9-1-1.Lone.Star.S04.1080p.AMZN.WEB-DL.DDP5.1.H.264-KiNGS
