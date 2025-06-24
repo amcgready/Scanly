@@ -47,3 +47,10 @@
 /mnt/pd_zurg/shows/Abbott Elementary S04E10 Testing 1080p AMZN WEB-DL DDP5 1 H 264-NTb[TGx]
 /mnt/pd_zurg/shows/Abbott Elementary S04E11 Strike 1080p AMZN WEB-DL DDP5 1 H 264-NTb[TGx]
 /mnt/pd_zurg/shows/Abbott Elementary S04E12 Girard Creek 1080p AMZN WEB-DL DDP5 1 H 264-Kitsune[EZTVx.to]
+/mnt/pd_zurg/shows/Abbott.Elementary.S02.WEBDL.1080p.Rus.Eng
+/mnt/pd_zurg/shows/Abbott.Elementary.S03.1080p.WEBRip.x265-KONTRAST
+/mnt/pd_zurg/shows/Abbott.Elementary.S04E07.Winter.Show.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb[EZTVx.to]
+/mnt/pd_zurg/shows/Abbott.Elementary.S04E08.Winter.Break.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb[EZTVx.to]
+/mnt/pd_zurg/shows/Abbott.Elementary.S04E13.1080p.WEB.h264-ETHEL[EZTVx.to]
+/mnt/pd_zurg/shows/Abbott.Elementary.S04E14.1080p.WEB.H264-SuccessfulCrab[TGx]
+/mnt/pd_zurg/shows/Abbott.Elementary.S04E18.1080p.WEB.h264-ETHEL[EZTVx.to]

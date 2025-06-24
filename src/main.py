@@ -1049,11 +1049,14 @@ class DirectoryProcessor:
                                 display_ascii_art()
                             break
                         elif action_choice == "2":
+                            # Prompt for new search term and year
                             new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                            new_year = input(f"Enter year (optional) [{year if year else ''}]: ").strip()
                             if new_search:
                                 search_term = new_search
-                            continue  # Re-check scanner list with new search term
-                        elif action_choice == "3":
+                            if new_year:
+                                year = new_year
+                            continue  # Re-check scanner list with new search term and yearelif action_choice == "3":
                             print("\nSelect new content type:")
                             print("1. Movie")
                             print("2. TV Series")
@@ -1131,11 +1134,14 @@ class DirectoryProcessor:
                             display_ascii_art()
                         break
                     elif choice == "2":
+                        # Prompt for new search term and year
                         new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                        new_year = input(f"Enter year (optional) [{year if year else ''}]: ").strip()
                         if new_search:
                             search_term = new_search
-                        continue  # Re-check scanner list with new search term
-                    elif choice == "3":
+                        if new_year:
+                            year = new_year
+                        continue  # Re-check scanner list with new search term and yearelif choice == "3":
                         # Prompt for new content type and update variables
                         print("\nSelect new content type:")
                         print("1. Movie")
