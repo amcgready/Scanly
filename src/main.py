@@ -578,13 +578,13 @@ class DirectoryProcessor:
             r'(?i)\bTV\s*Series\b',                 # "TV Series"
             r'(?i)\b(720p|1080p|2160p|480p|576p|4K|UHD|HD|FHD|QHD)\b',
             r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)\b(AMZN|MeGusta|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)\b',
+            r'(?i)[\s._-]*(AMZN|MeGusta|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',                             # Remove anything in brackets
             r'[-_,]',                               # Remove stray dashes, underscores, commas
             # Updated language patterns with Russian
             r'\[\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\]',  # [EN], [FRENCH], [RU], [РУС], etc.
             r'\(\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\)',  # (EN), (French), (RU), (РУС), etc.
-            r'[-_. ]+(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\b',  # - French, - ENG, - RU, - РУС, etc.
+            r'[-_. ]+(en|eng|Eng|Rus|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\b',  # - French, - ENG, - RU, - РУС, etc.
         ]
         
         # Apply all patterns
@@ -593,6 +593,7 @@ class DirectoryProcessor:
         
         # Replace dots, underscores, and dashes with spaces
         clean_title = re.sub(r'\.|\-|_', ' ', clean_title)
+        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
         
         # Remove the FGT pattern explicitly
         clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
@@ -1777,6 +1778,7 @@ def handle_webhook_settings():
         elif choice == "6":
             new_state = 'false' if notifications_enabled else 'true'
             _update_env_var('ENABLE_DISCORD_NOTIFICATIONS', new_state)
+
             print(f"\nDiscord notifications {'enabled' if new_state == 'true' else 'disabled'}.")
         elif choice == "7":
             print("\nTesting webhook...")
