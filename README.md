@@ -8,8 +8,8 @@
 
 # Scanly
 
-Version: 1.4.0
-Last Updated: 2025-05-30
+Version: 1.5.0
+Last Updated: 2025-06-24
 
 # What is Scanly?
 
