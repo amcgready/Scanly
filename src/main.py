@@ -515,16 +515,13 @@ class DirectoryProcessor:
         return normalize_title(title1) == normalize_title(title2)
 
     def _extract_folder_metadata(self, folder_name):
-        """Extract title and year from a folder name."""
         title = folder_name
         year = None
-        
-        # Check for explicit year pattern with parentheses like "Movie Title (2021)"
+
+        # Extract year from (YYYY) or (YYYY-YYYY)
         parentheses_year = re.search(r'\((\d{4})\)', folder_name)
         if parentheses_year:
             year = parentheses_year.group(1)
-            # Remove the (year) from the title
-            clean_title = re.sub(r'\s*\(\d{4}\)\s*', ' ', folder_name).strip()
         else:
             # Look for 4-digit sequences that could be years
             current_year = datetime.datetime.now().year
@@ -555,6 +552,12 @@ class DirectoryProcessor:
                         # Only one year found and it's at the start, consider it part of the title
                         year = None
     
+        clean_title = folder_name
+
+        # Remove year ranges and single years in parentheses (with or without spaces)
+        clean_title = re.sub(r'\(\s*\d{4}\s*-\s*\d{4}\s*\)', '', clean_title)
+        clean_title = re.sub(r'\(\s*\d{4}\s*\)', '', clean_title)
+
         # First level of cleaning - remove common patterns
         clean_title = folder_name
     
@@ -564,29 +567,20 @@ class DirectoryProcessor:
     
         # Remove common quality/format indicators
         patterns_to_remove = [
-            # Resolution patterns
-            r'(?i)\b(720p|1080p|1440p|2160p|4320p|480p|576p|8K|4K|UHD|HD|FHD|QHD)\b',
-            
-            # Format patterns
-            r'(?i)\b(BluRay|Blu Ray|Blu-ray|BD|REMUX|BDRemux|BDRip|DVDRip|HDTV|WebRip|WEB-DL|WEBRip|Web|HDRip|DVD|DVDR)\b',
-            
-            # Season and Episode patterns
-            r'(?i)\bS\d{1,2}E\d{1,2}\b',
-            
-            # Codec patterns
-            r'(?i)\b(xvid|divx|x264|x265|hevc|h264|h265|HEVC|avc|vp9|av1)\b',
-            
-            # Audio patterns
-            r'(?i)\b(DTS[-\.]?(HD|ES|X)?|DD5\.1|AAC|AC3|TrueHD|Atmos|MA|5\.1|7\.1|2\.0|opus)\b',
-            
-            # Release group patterns (in brackets or after hyphen)
-            r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
-
-            # Common release group names
-            r'(?i)\b(AMZN|MeGusta|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
-            
-            # Other common patterns
-            r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV)\b'
+            r'\(\s*\d{4}\s*-\s*\d{4}\s*\)',         # Year ranges like (2013-2015)
+            r'\(\s*\d{4}\s*\)',                     # Single year in parentheses, e.g. (2015) or ( 2015 )
+            r'(?i)\bS\d{1,2}E\d{1,2}\b',            # Season+Episode (e.g. S01E02)
+            r'(?i)\bS\d{1,2}\b',                    # Season only (e.g. S01)
+            r'(?i)\bS\d{1,2}-S\d{1,2}\b',           # Season ranges (e.g. S01-S02)
+            r'(?i)\bSeason\s*\d+(-\d+)?\b',         # "Season 1", "Season 1-2"
+            r'(?i)\bComplete\s*TV\s*Series\b',      # "Complete TV Series"
+            r'(?i)\bComplete\b',                    # "Complete"
+            r'(?i)\bTV\s*Series\b',                 # "TV Series"
+            r'(?i)\b(720p|1080p|2160p|480p|576p|4K|UHD|HD|FHD|QHD)\b',
+            r'(?i)\b(BluRay|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
+            r'(?i)\b(AMZN|MeGusta|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)\b',
+            r'\[.*?\]',                             # Remove anything in brackets
+            r'[-_,]',                               # Remove stray dashes, underscores, commas
         ]
         
         # Apply all patterns
@@ -601,12 +595,16 @@ class DirectoryProcessor:
         
         # Remove empty parentheses
         clean_title = re.sub(r'\(\s*\)', '', clean_title)
-        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
         
-        # If the title is empty after cleaning, use the original folder name
+        # Remove trailing numbers, punctuation, and whitespace
+        clean_title = re.sub(r'\s+\d+(\s*-\s*\d+)?\s*$', '', clean_title)  # Remove trailing numbers/ranges
+        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+        clean_title = re.sub(r'\(\s*\)', '', clean_title)  # Remove empty parentheses
+        clean_title = clean_title.title()  # Optional: Title-case for aesthetics
+
         if not clean_title:
             clean_title = folder_name
-    
+
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year
 
@@ -982,10 +980,17 @@ class DirectoryProcessor:
                     if tmdb_id:
                         print(f"  TMDB ID: {tmdb_id}")
 
-                    # --- NEW: Use shared scanner logic and always re-check ---
+                    # ADD THIS BLOCK HERE:
+                    media_exts = ('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv')
+                    media_files = [
+                        f for f in os.listdir(subfolder_path)
+                        if os.path.isfile(os.path.join(subfolder_path, f)) and f.lower().endswith(media_exts)
+                    ]
+
                     from src.utils.scan_logic import find_scanner_matches
 
                     scanner_matches = find_scanner_matches(search_term, content_type)
+                    print(f"  Media files detected: {len(media_files)}")
                     print(f"  Scanner Matches: {len(scanner_matches)}")
 
                     # Prompt user if multiple scanner matches
@@ -1060,7 +1065,6 @@ class DirectoryProcessor:
                                 processed += 1
                                 append_to_scan_history(subfolder_path)  # <--- Add this line
                                 trigger_plex_refresh()  # Trigger Plex refresh after symlink creation
-                                input("\nPress Enter to continue...")
                                 clear_screen()
                                 display_ascii_art()
                             break
@@ -1214,7 +1218,6 @@ class DirectoryProcessor:
                             "Content Type": content_type
                         })
                         print(f"\nItem flagged and saved to {FLAGGED_CSV}.")
-                        input("\nPress Enter to continue...")
                         clear_screen()
                         display_ascii_art()
                         break  # Move to next item, do NOT process
@@ -2018,6 +2021,7 @@ if __name__ == "__main__":
         content_type = "Movie"
 
     scanner_matches = find_scanner_matches(search_term, content_type)
+    print(f"  Media files detected: {len(media_files)}")
     print(f"  Scanner Matches: {len(scanner_matches)}")
 
     # Folder naming logic (for later use in symlink creation)
