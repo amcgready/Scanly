@@ -562,7 +562,7 @@ class DirectoryProcessor:
             r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',
             r'(?i)\b\d{2,4}p\b',
             r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Flux|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
+            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Flux|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',
             r'[-_,]',
             r'(?i)\[\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\]',
@@ -1160,12 +1160,66 @@ class DirectoryProcessor:
                                 print("Invalid selection. Please try again.")
                             break
                         elif (tmdb_choices and action_choice == "3") or (not tmdb_choices and action_choice == "2"):
-                            # Change search term
-                            new_search = input(f"Enter new search term [{search_term}]: ").strip()
-                            if new_search:
-                                search_term = new_search
-                            continue
-                        elif (tmdb_choices and action_choice == "4") or (not tmdb_choices and action_choice == "3"):
+                            # Change search term and re-run TMDB search
+                            while True:
+                                new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                                if new_search:
+                                    search_term = new_search
+                                else:
+                                    # If user presses enter, keep previous term
+                                    new_search = search_term
+
+                                # Run new TMDB search
+                                try:
+                                    tmdb = TMDB()
+                                    if content_type in ("TV Series", "Anime Series"):
+                                        tmdb_results = tmdb.search_tv(search_term)
+                                    else:
+                                        tmdb_results = tmdb.search_movie(search_term)
+                                except Exception:
+                                    tmdb_results = []
+
+                                if tmdb_results:
+                                    print(f"\nTMDB Search Results for '{search_term}':")
+                                    tmdb_choices = []
+                                    for idx, result in enumerate(tmdb_results[:5], 1):
+                                        t_title = result.get('name') or result.get('title')
+                                        t_year = (result.get('first_air_date') or result.get('release_date') or '')[:4]
+                                        t_id = result.get('id')
+                                        print(f"{idx}. {t_title} ({t_year}) [tmdb-{t_id}]")
+                                        tmdb_choices.append({
+                                            'title': t_title,
+                                            'year': t_year,
+                                            'tmdb_id': str(t_id)
+                                        })
+                                    print("0. Enter a new search term")
+                                    print("9. Skip and return to previous menu")
+                                    while True:
+                                        tmdb_pick = input("\nSelect TMDB result [1-5], 0 for new search, 9 to skip: ").strip()
+                                        if tmdb_pick == "0":
+                                            # Prompt for new search term again
+                                            new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                                            if new_search:
+                                                search_term = new_search
+                                            continue
+                                        elif tmdb_pick == "9":
+                                            break  # Return to previous menu
+                                        elif tmdb_pick.isdigit() and 1 <= int(tmdb_pick) <= len(tmdb_choices):
+                                            pick = tmdb_choices[int(tmdb_pick)-1]
+                                            title = pick['title']
+                                            year = pick['year']
+                                            tmdb_id = pick['tmdb_id']
+                                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                                processed += 1
+                                                append_to_scan_history(subfolder_path)
+                                                trigger_plex_refresh()
+                                                clear_screen()
+                                                display_ascii_art()
+                                            break  # Exit the TMDB selection loop after processing
+                                        else:
+                                            print("Invalid selection. Please try again.")
+                            break  # After TMDB selection, break out of the main loop for this folder
+                        elif action_choice == "4":
                             # Change content type
                             print("\nSelect new content type:")
                             print("1. Movie")
@@ -1273,7 +1327,68 @@ class DirectoryProcessor:
                         new_search = input(f"Enter new search term [{search_term}]: ").strip()
                         if new_search:
                             search_term = new_search
-                        continue  # Re-check scanner list with new search term and year
+                        # Immediately run TMDB search and present results
+                        try:
+                            tmdb = TMDB()
+                            if content_type in ("TV Series", "Anime Series"):
+                                tmdb_results = tmdb.search_tv(search_term)
+                            else:
+                                tmdb_results = tmdb.search_movie(search_term)
+                        except Exception:
+                            tmdb_results = []
+
+                        if tmdb_results:
+                            print(f"\nTMDB Search Results for '{search_term}':")
+                            tmdb_choices = []
+                            for idx, result in enumerate(tmdb_results[:5], 1):
+                                t_title = result.get('name') or result.get('title')
+                                t_year = (result.get('first_air_date') or result.get('release_date') or '')[:4]
+                                t_id = result.get('id')
+                                print(f"{idx}. {t_title} ({t_year}) [tmdb-{t_id}]")
+                                tmdb_choices.append({
+                                    'title': t_title,
+                                    'year': t_year,
+                                    'tmdb_id': str(t_id)
+                                })
+                            print("0. Enter a new search term")
+                            print("9. Skip and return to previous menu")
+                            while True:
+                                tmdb_pick = input("\nSelect TMDB result [1-5], 0 for new search, 9 to skip: ").strip()
+                                if tmdb_pick == "0":
+                                    # Prompt for new search term again
+                                    new_search = input(f"Enter new search term [{search_term}]: ").strip()
+                                    if new_search:
+                                        search_term = new_search
+                                    continue
+                                elif tmdb_pick == "9":
+                                    break  # Return to previous menu
+                                elif tmdb_pick.isdigit() and 1 <= int(tmdb_pick) <= len(tmdb_choices):
+                                    pick = tmdb_choices[int(tmdb_pick)-1]
+                                    title = pick['title']
+                                    year = pick['year']
+                                    tmdb_id = pick['tmdb_id']
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                        processed += 1
+                                        append_to_scan_history(subfolder_path)
+                                        trigger_plex_refresh()
+                                        clear_screen()
+                                        display_ascii_art()
+                                    break  # Exit the TMDB selection loop after processing
+                                else:
+                                    print("Invalid selection. Please try again.")
+                            break  # After TMDB selection, break out of the main loop for this folder
+                        else:
+                            print("\nNo TMDB results found. Try another search term or skip.")
+                            print("0. Enter a new search term")
+                            print("9. Skip and return to previous menu")
+                            tmdb_pick = input("\nSelect option: ").strip()
+                            if tmdb_pick == "0":
+                                continue  # Prompt for new search term again
+                            elif tmdb_pick == "9":
+                                break  # Return to previous menu
+                            else:
+                                print("Invalid selection. Please try again.")
+                        continue  # After handling search term, return to main folder menu
                     elif choice == "3":
                         # Prompt for new content type and update variables
                         print("\nSelect new content type:")
@@ -1630,61 +1745,6 @@ def handle_monitor_management(monitor_manager):
                 input("\nPress Enter to continue...")
                 continue
                 
-            name = input("\nEnter a name for this directory: ").strip() or os.path.basename(new_dir)
-            monitor_manager.add_monitored_directory(new_dir, name)
-            print(f"\nAdded {name} ({new_dir}) to monitored directories.")
-            input("\nPress Enter to continue...")
-            
-        elif choice == "2":
-            # Remove directory handling
-            if not directories:
-                print("\nNo directories to remove.")
-                input("\nPress Enter to continue...")
-                continue
-                
-            dir_num = input("\nEnter number of directory to remove: ")
-
-
-            dir_num = input("\nEnter number of directory to remove: ").strip()
-            try:
-                dir_num = int(dir_num)
-                if 1 <= dir_num <= len(directories):
-                    # Get the key and directory info
-                    key, directory_info = directories[dir_num-1]
-                    
-                    # Extract path based on type
-                    if isinstance(directory_info, dict):
-                        dir_path = directory_info.get('path', '')
-                    else:
-                        dir_path = str(directory_info)
-                    
-                    # Some monitor managers might need the key instead of path
-                    try:
-                        monitor_manager.remove_monitored_directory(dir_path)
-                    except:
-                        # If that fails, try with the key
-                        try:
-                            monitor_manager.remove_monitored_directory(key)
-                        except Exception as e:
-                            print(f"\nError removing directory: {e}")
-                            input("\nPress Enter to continue...")
-                            continue
-                    
-                    print(f"\nRemoved directory from monitoring.")
-                else:
-                    print("\nInvalid directory number.")
-            except ValueError:
-                print("\nInvalid input. Please enter a number.")
-            except Exception as e:
-                print(f"\nError: {e}")
-            
-            input("\nPress Enter to continue...")
-            
-        elif choice == "3":
-            # Toggle active state
-            if not directories:
-                print("\nNo directories to toggle.")
-                input("\nPress Enter to continue...")
                 continue
             dir_num = input("\nEnter number of directory to toggle: ")
 
@@ -1749,9 +1809,6 @@ def handle_monitor_management(monitor_manager):
             for idx, (dir_path, files) in enumerate(dir_list, 1):
                 print(f"{idx}. {dir_path} ({len(files)} new)")
             print("0. Return to Monitor Management")
-            sel = input("\nEnter number: ")
-
-
             sel = input("\nEnter number: ").strip()
             if sel == "0":
                 continue
