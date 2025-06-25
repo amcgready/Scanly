@@ -57,3 +57,6 @@
 /mnt/pd_zurg/shows/Acapulco (2021) S01 [PACK][APTV WEB-DL 2160p HEVC HDR10 ES-EN DD+ 5.1 Atmos Subs][HDO]
 /mnt/pd_zurg/shows/Acapulco.2021.S02.2160p.ATVP.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-NTb[rartv]
 /mnt/pd_zurg/shows/Acapulco.2021.S03.2160p.ATVP.WEB-DL.DDP5.1.H.265-NTb
+/mnt/pd_zurg/shows/Adam Ruins Everything Season 1 S01 1080p AMZN WEB-DL DD+2.0 H.264-CtrlHD [RiCK]
+/mnt/pd_zurg/shows/Adam.Ruins.Everything.S02.1080p.AMZN.WEB-DL.DD+2.0.H.264-SiGMA
+/mnt/pd_zurg/shows/Adam.Ruins.Everything.S03.1080p.AMZN.WEBRip.DDP2.0.x264-FLUX
