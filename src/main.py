@@ -14,6 +14,7 @@ import re
 import difflib
 import subprocess
 import csv
+import sqlite3
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries 
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
@@ -128,6 +129,285 @@ except ImportError as e:
 
 # Get destination directory from environment variables
 DESTINATION_DIRECTORY = os.environ.get('DESTINATION_DIRECTORY', '')
+
+# Clean directory path
+def _clean_directory_path(path):
+    """Clean up the directory path."""
+    # Remove quotes and whitespace
+    path = path.strip()
+    if path.startswith('"') and path.endswith('"'):
+        path = path[1:-1]
+    elif path.startswith("'") and path.endswith("'"):
+        path = path[1:-1]
+    
+    # Convert to absolute path if needed
+    if path and not os.path.isabs(path):
+        path = os.path.abspath(path)
+    
+    return path
+
+# Import utility functions for scan history
+SCAN_HISTORY_FILE = os.path.join(os.path.dirname(__file__), 'scan_history.txt')
+SCAN_HISTORY_DB = os.path.join(os.path.dirname(__file__), 'scan_history.db')
+
+def _init_scan_history_db():
+    """Initialize the scan history database if it doesn't exist."""
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS archived_scan_history (
+            path TEXT PRIMARY KEY,
+            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def archive_scan_history_txt_to_db():
+    """Move first 100 items from scan_history.txt to the database and remove them from the file."""
+    if not os.path.exists(SCAN_HISTORY_FILE):
+        return
+    with open(SCAN_HISTORY_FILE, 'r') as f:
+        lines = [line.strip() for line in f if line.strip()]
+    if len(lines) < 100:
+        return
+    _init_scan_history_db()
+    to_archive = lines[:100]
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    for path in to_archive:
+        try:
+            c.execute('INSERT OR IGNORE INTO archived_scan_history (path) VALUES (?)', (path,))
+        except Exception as e:
+            logger.error(f"Error archiving scan history path to DB: {e}")
+    conn.commit()
+    conn.close()
+    # Write back only the remaining lines
+    with open(SCAN_HISTORY_FILE, 'w') as f:
+        for line in lines[100:]:
+            f.write(line + '\n')
+
+def is_path_in_archived_history(path):
+    """Check if a path is in the archived scan history database."""
+    _init_scan_history_db()
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    c.execute('SELECT 1 FROM archived_scan_history WHERE path=?', (path,))
+    result = c.fetchone()
+    conn.close()
+    return result is not None
+
+# Update load_scan_history_set to check both txt and db
+def load_scan_history_set():
+    """Load processed file paths from scan_history.txt and archived DB as a set."""
+    paths = set()
+    if os.path.exists(SCAN_HISTORY_FILE):
+        with open(SCAN_HISTORY_FILE, 'r') as f:
+            paths.update(line.strip() for line in f if line.strip())
+    # Add archived paths from DB
+    _init_scan_history_db()
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    c.execute('SELECT path FROM archived_scan_history')
+    db_paths = c.fetchall()
+    conn.close()
+    paths.update(row[0] for row in db_paths)
+    return paths
+
+# Ensure parent directory is in path for imports
+parent_dir = os.path.dirname(os.path.dirname(__file__))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+# ======================================================================
+# CRITICAL FIX: Silence problematic loggers BEFORE any imports
+# ======================================================================
+for logger_name in ['discord_webhook', 'urllib3', 'requests', 'websocket']:
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.CRITICAL)
+    logger.propagate = False
+
+# Import dotenv to load environment variables
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+
+# Import the logger utility
+from src.utils.logger import get_logger
+# IMPORTANT: All scan logic (title/year/content type extraction, etc.) must be imported from src/utils/scan_logic.py.
+# Do not duplicate or modify scan logic in this file.
+
+# Create log directory if it doesn't exist
+log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
+# Configure file handler to capture all logs regardless of console visibility
+file_handler = logging.FileHandler(os.path.join(log_dir, 'scanly.log'), mode='w')  # Overwrite log each session
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# Configure root logger WITHOUT a console handler
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[file_handler],
+    force=True  # <--- Add this line
+)
+
+# Get logger for this module
+logger = get_logger(__name__)
+
+# Add this function as a standalone function, outside of any class
+def _update_env_var(name, value):
+    """Update an environment variable both in memory and in .env file."""
+    # Update in memory
+    os.environ[name] = value
+    
+    # Update in .env file
+    try:
+        env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+        
+        # Read existing content
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                lines = f.readlines()
+        else:
+            lines = []
+        
+        # Check if the variable already exists in the file
+        var_exists = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"{name}="):
+                lines[i] = f"{name}={value}\n"
+                var_exists = True
+                break
+        
+        # Add the variable if it doesn't exist
+        if not var_exists:
+            lines.append(f"{name}={value}\n")
+        
+        # Write the updated content back to the file
+        with open(env_path, 'w') as f:
+            f.writelines(lines)
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error updating environment variable: {e}")
+        return False
+
+# Try to load the TMDB API 
+try:
+    from src.api.tmdb import TMDB
+    from src.config import TMDB_API_KEY, TMDB_BASE_URL
+except ImportError as e:
+    logger.error(f"Error importing TMDB API: {e}. TMDB functionality will be disabled.")
+    
+    # Define a stub TMDB class
+    class TMDB:
+        def __init__(self):
+            pass
+        
+        def search_movie(self, query):
+            logger.error("TMDB API not available. Cannot search for movies.")
+            return []
+        
+        def search_tv(self, query):
+            logger.error("TMDB API not available. Cannot search for TV shows.")
+            return []
+        
+        def get_movie_details(self, movie_id):
+            logger.error("TMDB API not available. Cannot get movie details.")
+            return {}
+        
+        def get_tv_details(self, tv_id):
+            logger.error("TMDB API not available. Cannot get TV details.")
+            return {}
+
+# Get destination directory from environment variables
+DESTINATION_DIRECTORY = os.environ.get('DESTINATION_DIRECTORY', '')
+
+# Clean directory path
+def _clean_directory_path(path):
+    """Clean up the directory path."""
+    # Remove quotes and whitespace
+    path = path.strip()
+    if path.startswith('"') and path.endswith('"'):
+        path = path[1:-1]
+    elif path.startswith("'") and path.endswith("'"):
+        path = path[1:-1]
+    
+    # Convert to absolute path if needed
+    if path and not os.path.isabs(path):
+        path = os.path.abspath(path)
+    
+    return path
+
+# Import utility functions for scan history
+SCAN_HISTORY_FILE = os.path.join(os.path.dirname(__file__), 'scan_history.txt')
+SCAN_HISTORY_DB = os.path.join(os.path.dirname(__file__), 'scan_history.db')
+
+def _init_scan_history_db():
+    """Initialize the scan history database if it doesn't exist."""
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS archived_scan_history (
+            path TEXT PRIMARY KEY,
+            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def archive_scan_history_txt_to_db():
+    """Move first 100 items from scan_history.txt to the database and remove them from the file."""
+    if not os.path.exists(SCAN_HISTORY_FILE):
+        return
+    with open(SCAN_HISTORY_FILE, 'r') as f:
+        lines = [line.strip() for line in f if line.strip()]
+    if len(lines) < 100:
+        return
+    _init_scan_history_db()
+    to_archive = lines[:100]
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    for path in to_archive:
+        try:
+            c.execute('INSERT OR IGNORE INTO archived_scan_history (path) VALUES (?)', (path,))
+        except Exception as e:
+            logger.error(f"Error archiving scan history path to DB: {e}")
+    conn.commit()
+    conn.close()
+    # Write back only the remaining lines
+    with open(SCAN_HISTORY_FILE, 'w') as f:
+        for line in lines[100:]:
+            f.write(line + '\n')
+
+def is_path_in_archived_history(path):
+    """Check if a path is in the archived scan history database."""
+    _init_scan_history_db()
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    c.execute('SELECT 1 FROM archived_scan_history WHERE path=?', (path,))
+    result = c.fetchone()
+    conn.close()
+    return result is not None
+
+# Update load_scan_history_set to check both txt and db
+def load_scan_history_set():
+    """Load processed file paths from scan_history.txt and archived DB as a set."""
+    paths = set()
+    if os.path.exists(SCAN_HISTORY_FILE):
+        with open(SCAN_HISTORY_FILE, 'r') as f:
+            paths.update(line.strip() for line in f if line.strip())
+    # Add archived paths from DB
+    _init_scan_history_db()
+    conn = sqlite3.connect(SCAN_HISTORY_DB)
+    c = conn.cursor()
+    c.execute('SELECT path FROM archived_scan_history')
+    db_paths = c.fetchall()
+    conn.close()
+    paths.update(row[0] for row in db_paths)
+    return paths
 
 # Clean directory path
 def _clean_directory_path(path):
@@ -562,7 +842,7 @@ class DirectoryProcessor:
             r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',
             r'(?i)\b\d{2,4}p\b',
             r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Flux|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
+            r'(?i)[\s._-]*(AMZN|AV1|Dd+|AKTEP|Panda|EDGE2020|Redrussian1337|Flux|Dovi|Hybrid|P8|Nf|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',
             r'[-_,]',
             r'(?i)\[\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\]',
@@ -851,6 +1131,9 @@ class DirectoryProcessor:
     def _process_media_files(self):
         """Process media files in the directory."""
         global skipped_items_registry
+
+        # --- Archive scan_history.txt if needed ---
+        archive_scan_history_txt_to_db()
 
         # --- Load scan history at the start ---
         processed_paths = load_scan_history_set()
@@ -1249,12 +1532,7 @@ class DirectoryProcessor:
                                 is_tv = False
                                 is_anime = False
                                 is_wrestling = True
-                            elif type_choice == "0":
-                                continue
-                            else:
-                                print("Invalid type. Returning to previous menu.")
-                                continue
-                            continue
+                            continue  # Re-check scanner lists with new content type
                         elif (tmdb_choices and action_choice == "5") or (not tmdb_choices and action_choice == "4"):
                             # Manual TMDB ID
                             new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
