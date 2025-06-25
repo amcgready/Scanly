@@ -1002,6 +1002,17 @@ class DirectoryProcessor:
                     print(f"  Media files detected: {len(media_files)}")
                     print(f"  Scanner Matches: {len(scanner_matches)}")
 
+                    # --- Show current item count and progress bar ---
+                    current_index = subdirs.index(subfolder_name) + 1
+                    total_items = len(subdirs)
+                    bar_len = 30
+                    filled_len = int(bar_len * current_index // total_items)
+                    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+                    percent = int(100 * current_index / total_items)
+                    print(f"\nItem {current_index} of {total_items} [{bar}] {percent}%")
+                    print("=" * 84)  # Add a separator for clarity
+                    # --- End progress bar ---
+
                     # Prompt user if multiple scanner matches
                     selected_match = None
                     if len(scanner_matches) > 1:
