@@ -6,7 +6,7 @@
 
 **Version:** 1.5.0  
 **Last Updated:** 2025-06-24
-
+**NOTICE: As of 2025-06-24, Docker deployment is not complete or recommended. It is recommended to run the script (main.py) on it's own**
 ---
 
 ## What is Scanly?
