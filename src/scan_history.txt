@@ -1,38 +1,50 @@
-/mnt/pd_zurg/shows/Bob's.Burgers.S14.1080p.WebRip.Opus51.x265.10bit-CAIRN
-/mnt/pd_zurg/shows/Bobs Burgers S06 1080p WEB-DL DD5.1 H264
-/mnt/pd_zurg/shows/Bobs Burgers S09 1080p DSNP WEB-DL DD+ 5.1 x264-PHOENIX
-/mnt/pd_zurg/shows/Bobs Burgers S11 1080p DSNP WEB-DL DD+ 5.1 x264-FLUX
-
-/mnt/pd_zurg/shows/Bobs.Burgers.S08.1080p.DSNP.WEB-DL.DDP5.1.H.264-PHOENiX
-/mnt/pd_zurg/shows/Bobs.Burgers.S10.1080p.DSNP.WEB-DL.DDP5.1.H.264-PHOENiX
-/mnt/pd_zurg/shows/Bobs.Burgers.S15E12.1080p.WEB.h264-ETHEL[EZTVx.to]
-/mnt/pd_zurg/shows/Bobs.Burgers.S15E13.1080p.WEB.h264-ETHEL[EZTVx.to]
-/mnt/pd_zurg/shows/Bobs.Burgers.S15E14.1080p.WEB.h264-ETHEL[EZTVx.to]
-/mnt/pd_zurg/shows/Bobs.Burgers.Season.15.COMPLETE.1080p.DSNP.WEB-DL.x264.ESubs.[3GB].[MP4].[S15.Full]-[y2flix]
-/mnt/pd_zurg/shows/Boku no Hero Academia S02
-/mnt/pd_zurg/shows/Breaking Bad COMPLETE S01-S05 2160p WEB-DL Rus Ukr Eng DTS-HD MA5.1 x264-TrollUHD [RiCK]
-/mnt/pd_zurg/shows/Calls.S01.2160p.ATVP.WEB-DL.DDP5.1.Atmos.DV.HEVC-FLUX
-/mnt/pd_zurg/shows/Central.Park.S01.2160p.ATVP.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-MIXED[rartv]
-/mnt/pd_zurg/shows/Central.Park.S02.2160p.ATVP.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-NOSiViD[rartv]
-/mnt/pd_zurg/shows/Central.Park.S03.2160p.ATVP.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-NTb[rartv]
-/mnt/pd_zurg/shows/Central.Park.S03.2160p.ATVP.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-NTb[rartv]
-/mnt/pd_zurg/shows/Bobs Burgers S12 1080p DSNP WEB-DL DD+ 5.1 x264-NTb
-/mnt/pd_zurg/shows/Bobs Burgers S13 1080p DSNP WEB-DL DD+ 5.1 x264-NTb
-/mnt/pd_zurg/shows/Bobs.Burgers.S07.1080p.WEB-DL.DD5.1.H.264
-/mnt/pd_zurg/shows/Cheers (1982-1993 Complete Series) 193GB 1080p H.264 (Ted Danson - Shelley Long - Kirstie Alley) (moviesbyrizzo)
-/mnt/pd_zurg/shows/Chimp.Crazy.S01.COMPLETE.1080p.WEB.h264-EDITH[TGx]
-/mnt/pd_zurg/shows/Chucky.S01.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]
-/mnt/pd_zurg/shows/Chucky.S02.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]
-/mnt/pd_zurg/shows/Chucky.S03.1080p.Blu-ray.Remux.AVC.DTS-HD.MA.5.1-SiCFoI
-/mnt/pd_zurg/shows/Clarksons.Farm.S01.2160p.AMZN.WEB-DL.x265.10bit.HDR10Plus.DDP5.1-BIGDOC[rartv]
-/mnt/pd_zurg/shows/Cobra Kai 2018-2025 [S01-S06] [10Bit HDR-SDR] [1080p.WEB-DL.H265.EAC3.5.1-AS76-FT] [ENG-Lektor PL] [Alusia]
-/mnt/pd_zurg/shows/Cobra.Kai.S01.1080p.BluRay.REMUX.AVC.DTS-HD MA 5.1.SHD13
-/mnt/pd_zurg/shows/Cobra.Kai.S02.1080p.Blu-ray.Remux.AVC.DTS-HD.MA 5.1.SHD13
-/mnt/pd_zurg/shows/Cobra.Kai.S03.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]
-/mnt/pd_zurg/shows/Cobra.Kai.S04.2160p.WEBDL.HDR.DoVi.Rus.Eng
-/mnt/pd_zurg/shows/Cobra.Kai.S05.2160p.WEBDL.HDR.DoVi.Rus.Eng
-/mnt/pd_zurg/shows/Cobra.Kai.S06.2160p.NF.WEB-DL.DV.HDR.H.265
-/mnt/pd_zurg/shows/Constantine.S01.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]
-/mnt/pd_zurg/shows/Constellation.S01.Eng.Fre.Ger.Ita.Por.Spa.2160p.WEBMux.DV.HDR.HEVC.Atmos-SGF
-/mnt/pd_zurg/shows/Creature Commandos (Season 1) WEB-DL 1080p
-/mnt/pd_zurg/shows/Criminal.Minds.S01.1080p.WEB.H264-DEFLATE
+/mnt/pd_zurg/shows/Doctors.2024.S01.1080p.Hindi.WEB.HDRip.DDP.5.1.x264.ESubs.Full4Movies
+/mnt/pd_zurg/shows/Dr.Brain.S01.KOREAN.2160p.ATVP.WEB-DL.DDP5.1.Atmos.x265-NOSiViD[rartv]
+/mnt/pd_zurg/shows/Dreaming Whilst Black 2023 S01 720p WEB-DL H264 BONE
+/mnt/pd_zurg/shows/Drops.of.God.2023.S01.2160p.ATVP.WEB-DL.DV.HDR.H.265
+/mnt/pd_zurg/shows/Dune.Prophecy.S01.2160p.MAX.WEB-DL.DDP5.1.DoVi.x265-Rutracker
+/mnt/pd_zurg/shows/Criminal.Minds.S04.1080p.AMZN.WEBRip.DD5.1.x264-DEFLATE[rartv]
+/mnt/pd_zurg/shows/Dune.S01.COMPLETE.720p.BluRay.x264-GalaxyTV[TGx]
+/mnt/pd_zurg/shows/ER (1994) Season 1-15 S01-S15 (1080p AMZN WEB-DL x265 HEVC 10bit EAC3 2.0 MONOLITH)
+/mnt/pd_zurg/shows/Echo.3.S01.2160p.ATVP.WEB-DL.DDP5.1.DoVi.H.265-NTb
+/mnt/pd_zurg/shows/Empire.Strikes.Back.4K80.2160p.UHD.no-DNR.35mm.x264-v1.0
+/mnt/pd_zurg/shows/English.Teacher.S01.1080p.WEB-DL.2xRus.Eng-alekartem
+/mnt/pd_zurg/shows/Eric.S01.2024.2160p.NF.WEB-DL.DDP5.1.HDR.H.265-HHWEB-RGzsRutracker
+/mnt/pd_zurg/shows/Euphoria (2019) S01 (2160p MAX WEB-DL Hybrid H265 DV HDR DDP 5.1 English - HONE)
+/mnt/pd_zurg/shows/Euphoria.US.S02.2160p.MAX.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-WDYM[rartv]
+/mnt/pd_zurg/shows/Everybody.Loves.Raymond.S01-S09.Complete.720p.WEB-DL.AAC2.0.H.264-BS
+/mnt/pd_zurg/shows/Extracted.S01E02.1080p.WEB.h264-EDITH[EZTVx.to]
+/mnt/pd_zurg/shows/Extracted.S01E05.Burn.Before.2024.Reading.720p.HEVC.x265-MeGusta[EZTVx.to]
+/mnt/pd_zurg/shows/Extracted.S01E06.The.Game.Has.Changed.720p.HEVC.x265-MeGusta[EZTVx.to]
+/mnt/pd_zurg/shows/Extracted.S01E07.720p.HEVC.x265-MeGusta[EZTVx.to]
+/mnt/pd_zurg/shows/Extracted.S01E08.Mystery.Box.720p.HEVC.x265-MeGusta[EZTVx.to]
+/mnt/pd_zurg/shows/FBI.Most.Wanted.S01.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb
+/mnt/pd_zurg/shows/FBI.Most.Wanted.S02.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.Most.Wanted.S03.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.Most.Wanted.S04.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.Most.Wanted.S05.COMPLETE.1080p.AMZN.WEB-DL.DDP5.1.H.264-FLUX[TGx]
+/mnt/pd_zurg/shows/FBI.S01.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.S02.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.S03.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.S04.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.S05.1080p.AMZN.WEBRip.DDP5.1.x264-NTb[rartv]
+/mnt/pd_zurg/shows/FBI.S06.COMPLETE.1080p.AMZN.WEB-DL.DDP5.1.H.264-FLUX[TGx]
+/mnt/pd_zurg/shows/FBI.S07.1080p.TVShows
+/mnt/pd_zurg/shows/Fallout.2024.S01.MULTI.2160p.WEB-DL.HDR.H265-AOC
+/mnt/pd_zurg/shows/Family.Guy.S23.1080p.WEBRip.Omskbird
+/mnt/pd_zurg/shows/Family.Guy.S23E02.1080p.WEB.h264-EDITH[EZTVx.to]
+/mnt/pd_zurg/shows/Fancy.Nancy.S01.1080p.DSNP.WEBRip.AAC2.0.x264-LAZY[rartv]
+/mnt/pd_zurg/shows/Fargo (Season 4) WEB-DL 1080p
+/mnt/pd_zurg/shows/Fargo.S02.2015.BluRay.1080p.DTS-HD.MA.5.1.AVC.REMUX-FraMeSToR
+/mnt/pd_zurg/shows/Fargo.S03.1080p.WEBRip.X264.DD.5.1.Ru.En
+/mnt/pd_zurg/shows/Fargo.S05.2160p.HULU.WEB-DL.DDP5.1.H.265
+/mnt/pd_zurg/shows/Fear the Walking Dead S01-S06 br 10bit dts hevc-d3g (remux)
+/mnt/pd_zurg/shows/Fear the Walking Dead S04 (WEB-DL 1080p; MVO LostFilm, orig; Sub ru, en)
+/mnt/pd_zurg/shows/Fear.the.Walking.Dead.S03.1080p.BluRay.REMUX.AVC.TrueHD.5.1-NOGRP[rartv]
+/mnt/pd_zurg/shows/Fear.the.Walking.Dead.S07.1080p.Blu-ray.Remux.AVC.DTS-HD.MA.5.1-SiCFoI
+/mnt/pd_zurg/shows/Fear.the.Walking.Dead.S08.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb
+/mnt/pd_zurg/shows/Five.Days.at.Memorial.S01.HDR.2160P.WEB-DL.H265.HEVC
+/mnt/pd_zurg/shows/For.All.Mankind.2023.S04.2160p.WEB-DL.DDP5.1.Atmos.HDR.DoVi.HP8.by.DVT
+/mnt/pd_zurg/shows/For.All.Mankind.S01.BluRay.1080p.DTS-HD.MA.5.1.AVC.REMUX-FraMeSToR
+/mnt/pd_zurg/shows/For.All.Mankind.S02.BluRay.1080p.DTS-HD.MA.5.1.AVC.REMUX-FraMeSToR
+/mnt/pd_zurg/shows/For.All.Mankind.S03.1080p.Blu-ray.Remux.AVC.DTS-HD.MA.5.1-SiCFoI
