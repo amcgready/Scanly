@@ -514,6 +514,22 @@ def write_flag_to_csv(flagged_row):
             writer.writeheader()
         writer.writerow(flagged_row)
 
+def get_default_content_type_for_path(path):
+    """
+    Return (is_tv, is_anime, is_wrestling) defaults based on parent directory.
+    """
+    path = os.path.abspath(path).lower()
+    mapping = {
+        '/movies':      (False, False, False),  # Movies
+        '/shows':       (True,  False, False),  # TV Series
+        '/anime':       (True,  True,  False),  # Anime Series
+        '/wrestling':   (False, False, True),   # Wrestling
+    }
+    for key, flags in mapping.items():
+        if path.endswith(key):
+            return flags
+    return None  # No default
+
 class DirectoryProcessor:
     """Process a directory of media files."""
     def __init__(self, directory_path, resume=False, auto_mode=False):
@@ -655,8 +671,8 @@ class DirectoryProcessor:
             r'(?i)\bTV\s*Series\b',
             r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',
             r'(?i)\b\d{2,4}p\b',
-            r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|AV1|Dd+|AKTEP|Panda|EDGE2020|Redrussian1337|Flux|Dovi|Hybrid|P8|Nf|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
+            r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Bdremux|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
+            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Trolluhd|MA|MA 5.1|Ma5|Boxedpotatoes|Deflate|Master5|Yellowbird|Silence|Nogrp|Shortbrehd|Dirtyhippie|60fps|Upscaled|Pcock|Sdr|Opus|Zerobuild|AKTEP|Panda|EDGE2020|Redrussian1337|Flux|Dovi|Hybrid|P8|Nf|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',
             r'[-_,]',
             r'(?i)\[\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\]',
@@ -1029,6 +1045,15 @@ class DirectoryProcessor:
 
                 # Initialize search_term before using it
                 search_term = title
+                
+                # --- Apply default content type logic based on parent directory ---
+                default_flags = get_default_content_type_for_path(self.directory_path)
+                if default_flags:
+                    is_tv, is_anime, is_wrestling = default_flags
+                else:
+                    is_tv = self._detect_if_tv_show(subfolder_name)
+                    is_anime = self._detect_if_anime(subfolder_name)
+                    is_wrestling = False
 
                 # Loop for processing the current folder with different options
                 while True:
@@ -1220,7 +1245,7 @@ class DirectoryProcessor:
                             print("4. Manual TMDB ID")
                             print("5. Flag this item")
                             print("6. Skip this folder")
-                            print("0. Quit")
+                            "0. Quit"
 
                         action_choice = input("\nSelect option: ").strip()
 
@@ -1346,6 +1371,16 @@ class DirectoryProcessor:
                                 is_tv = False
                                 is_anime = False
                                 is_wrestling = True
+                            
+                            # --- Apply default content type logic based on parent directory ---
+                            default_flags = get_default_content_type_for_path(self.directory_path)
+                            if default_flags:
+                                is_tv, is_anime, is_wrestling = default_flags
+                            else:
+                                is_tv = self._detect_if_tv_show(subfolder_name)
+                                is_anime = self._detect_if_anime(subfolder_name)
+                                is_wrestling = False
+
                             continue  # Re-check scanner lists with new content type
                         elif (tmdb_choices and action_choice == "5") or (not tmdb_choices and action_choice == "4"):
                             # Manual TMDB ID
@@ -1747,6 +1782,7 @@ def handle_monitor_management(monitor_manager):
             
         # Get all directories - this might be a dictionary with timestamp keys
         monitor_dirs = monitor_manager.get_monitored_directories()
+        
         
         # Convert to a list of tuples for easier enumeration
         if isinstance(monitor_dirs, dict):
