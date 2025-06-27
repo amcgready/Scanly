@@ -1,0 +1,134 @@
+2025-06-12 19:04:31,356 - src.core.monitor - INFO - No monitored directories file found, creating a new one
+2025-06-12 19:04:31,357 - src.core.monitor - INFO - Saved 0 monitored directories
+2025-06-12 19:04:31,357 - src.core.monitor - INFO - Started monitoring 0 active directories
+2025-06-12 19:04:37,382 - src.core.monitor - INFO - Loaded 0 monitored directories
+2025-06-12 19:04:47,889 - src.core.monitor - INFO - Saved 1 monitored directories
+2025-06-12 19:04:47,891 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 19:04:47,891 - src.core.monitor - INFO - Saved 1 monitored directories
+2025-06-12 19:04:59,133 - src.core.monitor - INFO - Loaded 1 monitored directories
+2025-06-12 19:05:14,092 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-12 19:05:14,092 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 19:05:14,093 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-12 19:05:22,427 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:03:51,788 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:03:51,791 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:03:51,792 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:03:51,792 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:03:53,479 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:07:56,348 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:07:56,350 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:07:56,351 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:07:56,351 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:12:13,107 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:12:13,109 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:12:13,110 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:12:13,110 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:15:52,361 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:15:52,364 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:15:52,365 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:15:52,365 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:19:48,853 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:19:48,856 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:19:48,857 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:19:48,857 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:25:02,089 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:25:02,091 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:25:02,092 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:25:02,092 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:33:15,974 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:33:15,977 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:33:15,979 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:33:15,979 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-12 21:38:18,244 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-12 21:38:18,246 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-12 21:38:18,247 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-12 21:38:18,247 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 08:09:56,627 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 08:09:56,632 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 08:09:56,633 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 08:09:56,633 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 08:17:41,899 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 08:17:41,908 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 08:17:41,909 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 08:17:41,909 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 10:41:55,443 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 10:41:55,456 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 10:41:55,457 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 10:41:55,457 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 11:16:55,719 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 11:16:55,720 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 11:16:55,721 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 11:16:55,721 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 11:19:58,839 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 11:19:58,841 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 11:19:58,842 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 11:19:58,842 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 11:21:35,985 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 11:21:35,987 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 11:21:35,988 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 11:21:35,988 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-13 11:26:08,387 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-13 11:26:08,389 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/movies
+2025-06-13 11:26:08,390 - src.core.monitor - INFO - Started monitoring directory: /mnt/pd_zurg/shows
+2025-06-13 11:26:08,390 - src.core.monitor - INFO - Started monitoring 2 active directories
+2025-06-15 14:10:10,637 - src.core.monitor - INFO - Loaded 2 monitored directories
+2025-06-15 14:10:10,638 - src.core.monitor - INFO - Using RclonePoller for /mnt/pd_zurg/movies (rclone mount detected)
+2025-06-15 14:10:10,658 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT/12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT.mkv
+2025-06-15 14:10:10,658 - src.core.monitor - INFO - Adding file to pending list: 12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT.mkv in directory movies
+2025-06-15 14:10:10,658 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:11,043 - src.core.monitor - INFO - Webhook notification sent for 12.Angry.Men.1957.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.2.0-FGT.mkv
+2025-06-15 14:10:11,044 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay/12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay.mkv
+2025-06-15 14:10:11,045 - src.core.monitor - INFO - Adding file to pending list: 12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay.mkv in directory movies
+2025-06-15 14:10:11,045 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:11,249 - src.core.monitor - INFO - Webhook notification sent for 12.Years.A.Slave.2013.BDRemux.1080p.ExKinoRay.mkv
+2025-06-15 14:10:11,250 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer/12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer.mp4
+2025-06-15 14:10:11,250 - src.core.monitor - INFO - Adding file to pending list: 12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer.mp4 in directory movies
+2025-06-15 14:10:11,251 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:11,544 - src.core.monitor - INFO - Webhook notification sent for 12th.Fail.2023.2160p.WEB-DL.HYBRID.HDR.DV-TheEqualizer.mp4
+2025-06-15 14:10:11,545 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/1883 The Road West (2022) [720p] [WEBRip] [YTS.MX]/1883.The.Road.West.2022.720p.WEBRip.x264.AAC-[YTS.MX].mp4
+2025-06-15 14:10:11,545 - src.core.monitor - INFO - Adding file to pending list: 1883.The.Road.West.2022.720p.WEBRip.x264.AAC-[YTS.MX].mp4 in directory movies
+2025-06-15 14:10:11,545 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:11,942 - src.core.monitor - INFO - Webhook notification sent for 1883.The.Road.West.2022.720p.WEBRip.x264.AAC-[YTS.MX].mp4
+2025-06-15 14:10:11,943 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/1917.2019.UHD.Blu-Ray.Remux.2160p/1917.2019.UHD.Blu-Ray.Remux.2160p.mkv
+2025-06-15 14:10:11,943 - src.core.monitor - INFO - Adding file to pending list: 1917.2019.UHD.Blu-Ray.Remux.2160p.mkv in directory movies
+2025-06-15 14:10:11,944 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:12,310 - src.core.monitor - INFO - Webhook notification sent for 1917.2019.UHD.Blu-Ray.Remux.2160p.mkv
+2025-06-15 14:10:12,311 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT/2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT.mkv
+2025-06-15 14:10:12,311 - src.core.monitor - INFO - Adding file to pending list: 2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT.mkv in directory movies
+2025-06-15 14:10:12,311 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:12,568 - src.core.monitor - INFO - Webhook notification sent for 2001.A.Space.Odyssey.1968.BDREMUX.2160p.HDR.DV.by.DVT.mkv
+2025-06-15 14:10:12,569 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR/2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR.mkv
+2025-06-15 14:10:12,569 - src.core.monitor - INFO - Adding file to pending list: 2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR.mkv in directory movies
+2025-06-15 14:10:12,569 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:12,785 - src.core.monitor - INFO - Webhook notification sent for 2010.The.Year.We.Make.Contact.1984.BluRay.1080p.DTS-HD.MA.5.1.VC-1.REMUX-FraMeSToR.mkv
+2025-06-15 14:10:12,786 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo/3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo.mkv
+2025-06-15 14:10:12,786 - src.core.monitor - INFO - Adding file to pending list: 3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo.mkv in directory movies
+2025-06-15 14:10:12,786 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:13,028 - src.core.monitor - INFO - Webhook notification sent for 3 Idiots 2009 Repack 1080p Blu-ray Remux AVC DTS-HD MA 5.1 - KRaLiMaRKo.mkv
+2025-06-15 14:10:13,030 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR.mkv
+2025-06-15 14:10:13,030 - src.core.monitor - INFO - Adding file to pending list: 9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR.mkv in directory movies
+2025-06-15 14:10:13,030 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:13,300 - src.core.monitor - INFO - Webhook notification sent for 9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR.mkv
+2025-06-15 14:10:13,301 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/?????????? ??????? (1938) BDRemux 1080p/Íàáåðåæíàÿ òóìàíîâ (1938) BDRemux 1080p.mkv
+2025-06-15 14:10:13,301 - src.core.monitor - INFO - Adding file to pending list: Íàáåðåæíàÿ òóìàíîâ (1938) BDRemux 1080p.mkv in directory movies
+2025-06-15 14:10:13,302 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:13,529 - src.core.monitor - INFO - Webhook notification sent for Íàáåðåæíàÿ òóìàíîâ (1938) BDRemux 1080p.mkv
+2025-06-15 14:10:13,530 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/A.Beautiful.Mind.2001.BDRemux.1080p/A.Beautiful.Mind.2001.BDRemux.1080p.mkv
+2025-06-15 14:10:13,530 - src.core.monitor - INFO - Adding file to pending list: A.Beautiful.Mind.2001.BDRemux.1080p.mkv in directory movies
+2025-06-15 14:10:13,530 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:13,739 - src.core.monitor - INFO - Webhook notification sent for A.Beautiful.Mind.2001.BDRemux.1080p.mkv
+2025-06-15 14:10:13,740 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/A.Boy.Named.Charlie.Brown.1969.PROPER.1080p.BluRay.x264-SPRiNTER[rarbg]/a.boy.named.charlie.brown.1969.proper.1080p.bluray.x264-sprinter.mkv
+2025-06-15 14:10:13,740 - src.core.monitor - INFO - Adding file to pending list: a.boy.named.charlie.brown.1969.proper.1080p.bluray.x264-sprinter.mkv in directory movies
+2025-06-15 14:10:13,741 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:13,960 - src.core.monitor - INFO - Webhook notification sent for a.boy.named.charlie.brown.1969.proper.1080p.bluray.x264-sprinter.mkv
+2025-06-15 14:10:13,961 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/A.Carpool.Karaoke.Christmas.2024.1080p.WEB.H264-EfficientNeatChachalacaOfOpportunity[TGx]/a.carpool.karaoke.christmas.2024.1080p.web.h264-efficientneatchachalacaofopportunity.mkv
+2025-06-15 14:10:13,962 - src.core.monitor - INFO - Adding file to pending list: a.carpool.karaoke.christmas.2024.1080p.web.h264-efficientneatchachalacaofopportunity.mkv in directory movies
+2025-06-15 14:10:13,962 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:14,218 - src.core.monitor - INFO - Webhook notification sent for a.carpool.karaoke.christmas.2024.1080p.web.h264-efficientneatchachalacaofopportunity.mkv
+2025-06-15 14:10:14,219 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv
+2025-06-15 14:10:14,219 - src.core.monitor - INFO - Adding file to pending list: A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv in directory movies
+2025-06-15 14:10:14,219 - src.core.monitor - INFO - Saved 2 monitored directories
+2025-06-15 14:10:14,362 - src.core.monitor - WARNING - Failed to send webhook notification: No response
+2025-06-15 14:10:14,363 - src.core.monitor - INFO - New file detected by RclonePoller: /mnt/pd_zurg/movies/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv
+2025-06-15 14:10:14,364 - src.core.monitor - INFO - Adding file to pending list: A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv in directory movies
+2025-06-15 14:10:14,364 - src.core.monitor - INFO - Saved 2 monitored directories

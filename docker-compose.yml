@@ -81,6 +81,7 @@ services:
       - ./data:/app/data
       - ${MEDIA_SOURCE_DIR:-/path/to/your/media}:/media/source:ro
       - ${MEDIA_LIBRARY_DIR:-/path/to/your/library}:/media/library
+      - /mnt:/mnt
     stdin_open: true  # Keep STDIN open
     tty: true         # Allocate a pseudo-TTY
     restart: unless-stopped

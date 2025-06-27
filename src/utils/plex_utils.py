@@ -101,3 +101,40 @@ def check_plex_connection(base_url, token):
     except Exception as e:
         logger.error(f"Error connecting to Plex server: {str(e)}")
         return False
+
+def refresh_selected_plex_libraries(base_url, token, library_names):
+    """
+    Refresh only the specified Plex libraries.
+    
+    Args:
+        base_url: Plex server base URL
+        token: Plex authentication token
+        library_names: List of library names to refresh
+        
+    Returns:
+        Dict of {library_name: True/False} for refresh status
+    """
+    logger = logging.getLogger(__name__)
+    results = {}
+    
+    try:
+        # Connect to the Plex server
+        plex = PlexServer(base_url, token)
+        
+        # Refresh each specified library
+        for name in library_names:
+            try:
+                section = plex.library.section(name)
+                logger.info(f"Refreshing Plex library: {name}")
+                section.refresh()
+                results[name] = True
+                logger.info(f"Successfully refreshed Plex library: {name}")
+            except Exception as e:
+                logger.error(f"Failed to refresh Plex library '{name}': {e}")
+                results[name] = False
+                
+        return results
+            
+    except Exception as e:
+        logger.error(f"Error connecting to Plex server: {e}")
+        return {name: False for name in library_names}

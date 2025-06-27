@@ -20,6 +20,7 @@ try:
     from src.core.file_monitor import FileMonitor
     from src.utils.discord_utils import send_discord_notification
     from src.utils.logger import get_logger
+    from src.utils.scan_history_utils import is_path_in_scan_history
 except ImportError:
     # Define fallback logger if imports fail
     import logging
@@ -549,6 +550,20 @@ class MonitorManager:
         # Update active status
         directory_info['active'] = bool(active_status)
         
+        # Start or stop monitoring as needed
+        if active_status:
+            # Start monitoring for this directory if not already monitored
+            if hasattr(self, 'start_monitoring_for_directory'):
+                self.start_monitoring_for_directory(directory_id)
+            else:
+                self.logger.warning("start_monitoring_for_directory method not implemented.")
+        else:
+            # Stop monitoring for this directory if currently monitored
+            if hasattr(self, 'stop_monitoring_for_directory'):
+                self.stop_monitoring_for_directory(directory_id)
+            else:
+                self.logger.warning("stop_monitoring_for_directory method not implemented.")
+
         # Save the updated information
         self._save_monitored_directories()
         
