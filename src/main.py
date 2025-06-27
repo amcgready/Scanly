@@ -19,6 +19,10 @@ from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
+def sanitize_filename(name):
+    """Replace problematic characters for cross-platform compatibility."""
+    return re.sub(r'[:/\\]', '-', name)
+
 # Ensure parent directory is in path for imports
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 if parent_dir not in sys.path:
@@ -807,7 +811,11 @@ class DirectoryProcessor:
 
             base_name = f"{title} ({year})" if year and not is_wrestling else title
             folder_name = f"{base_name} [tmdb-{tmdb_id}]" if tmdb_id else base_name
-
+            
+            # Sanitize for filesystem safety
+            safe_base_name = sanitize_filename(base_name)
+            safe_folder_name = sanitize_filename(folder_name)
+            
             if is_wrestling:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
             elif is_anime and is_tv:
@@ -819,7 +827,7 @@ class DirectoryProcessor:
             else:
                 dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
 
-            target_dir_path = os.path.join(dest_subdir, folder_name)
+            target_dir_path = os.path.join(dest_subdir, safe_folder_name)
             os.makedirs(target_dir_path, exist_ok=True)
 
             use_symlinks = os.environ.get('USE_SYMLINKS', 'true').lower() == 'true'
@@ -916,7 +924,7 @@ class DirectoryProcessor:
                             continue
 
                         file_ext = os.path.splitext(file)[1]
-                        dest_file_name = f"{base_name}{file_ext}"
+                        dest_file_name = f"{safe_base_name}{file_ext}"
                         dest_file_path = os.path.join(target_dir_path, dest_file_name)
                         if os.path.islink(dest_file_path) or os.path.exists(dest_file_path):
                             os.remove(dest_file_path)
@@ -1656,14 +1664,14 @@ class DirectoryProcessor:
         else:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
 
-        target_dir_path = os.path.join(dest_subdir, folder_name)
+        target_dir_path = os.path.join(dest_subdir, safe_folder_name)
         if not os.path.exists(target_dir_path):
             return False
 
         # Check for any symlinked files in the target directory
         for file in os.listdir(subfolder_path):
             file_ext = os.path.splitext(file)[1]
-            dest_file_name = f"{base_name}{file_ext}"
+            dest_file_name = f"{safe_base_name}{file_ext}"
             dest_file_path = os.path.join(target_dir_path, dest_file_name)
             if os.path.islink(dest_file_path):
                 return True

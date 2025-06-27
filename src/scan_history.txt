@@ -1,79 +1,30 @@
-/mnt/pd_zurg/shows/www.UIndex.org    -    Hacks 2021 S04E08 Witch of the Week 2160p MAX WEB-DL DD 5 1 DoVi HDR H 265-playWEB
-/mnt/pd_zurg/shows/www.UIndex.org    -    Hacks 2021 S04E09 A Slippery Slope 2160p MAX WEB-DL DD 5 1 DoVi HDR H 265-playWEB
-/mnt/pd_zurg/shows/www.UIndex.org    -    Hacks 2021 S04E10 Heaven 2160p MAX WEB-DL DD 5 1 DoVi HDR H 265-playWEB
-/mnt/pd_zurg/shows/www.UIndex.org    -    Love Is Blind S08E14 The Reunion 1080p NF WEB-DL DDP5 1 H 264-Kitsune
-/mnt/pd_zurg/shows/www.UIndex.org    -    Married.At.First.Sight.S18E19.1080p.WEB.h264-EDITH
-/mnt/pd_zurg/shows/www.UIndex.org    -    Married.At.First.Sight.S18E20.1080p.WEB.h264-EDITH
-/mnt/pd_zurg/shows/www.UIndex.org    -    Murderbot S01E03 Risk Assessment 2160p ATVP WEB-DL DD 5 1 Atmos DoVi HDR H 265-playWEB
-/mnt/pd_zurg/shows/www.UIndex.org    -    Mythic Quest S04E08 Rebrand 2160p ATVP WEB-DL DDP5 1 Atmos H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    Mythic Quest S04E09 Telephone 2160p ATVP WEB-DL DDP5 1 Atmos H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    Mythic Quest S04E10 Heaven and Hell 2160p ATVP WEB-DL DDP5 1 Atmos H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E02 Last Looks 2160p PCOK WEB-DL DDP5 1 HDR H 265-Kitsune
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E03 Whack-A-Mole 2160p PCOK WEB-DL DDP5 1 HDR H 265-Kitsune
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E04 The Taste of Human Blood 2160p PCOK WEB-DL DDP5 1 HDR H 265-Kitsune
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E05 Hometown Hero 2160p PCOK WEB-DL DD5 1 HDR H 265-playWEB
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E06 Sloppy Joseph 2160p PCOK WEB-DL DDP5 1 HDR x265-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E07 One Last Job 2160p PCOK WEB-DL DDP5 1 HDR x265-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E08 The Sleazy Georgian 2160p PCOK WEB-DL DDP5 1 HDR x265-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    Poker Face 2023 S02E09 A New Lease on Death 2160p PCOK WEB-DL DDP5 1 HDR x265-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    Taskmaster S13E01 1080p ALL4 WEB-DL AAC2 0 x264-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Four Seasons 2025 S01E04 Beach Bar 2160p NF WEB-DL DDP5 1 Atmos DV HDR H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Four Seasons 2025 S01E05 Family Weekend 2160p NF WEB-DL DDP5 1 Atmos DV HDR H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Four Seasons 2025 S01E06 Ultimate Frisbee 2160p NF WEB-DL DDP5 1 Atmos DV HDR H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Four Seasons 2025 S01E07 Ski Trip 2160p NF WEB-DL DDP5 1 Atmos DV HDR H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Four Seasons 2025 S01E08 Fun 2160p NF WEB-DL DDP5 1 Atmos DV HDR H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Last of Us S02E02 Through the Valley 2160p MAX WEB-DL DDP5 1 Atmos DV HDR H 265-FLUX
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Righteous Gemstones S04E02 You Hurled Me Into 2160p MAX WEB-DL DDP5 1 DV HDR x265-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    The Righteous Gemstones S04E06 Interlude IV 2160p MAX WEB-DL DDP5 1 DV HDR x265-NTb
-/mnt/pd_zurg/shows/www.UIndex.org    -    The.Masked.Singer.S13E07.1080p.WEB.h264-EDITH
-/mnt/pd_zurg/shows/www.UIndex.org    -    The.Masked.Singer.S13E08.1080p.WEB.h264-EDITH
-/mnt/pd_zurg/shows/www.UIndex.org    -    The.Masked.Singer.S13E13.1080p.WEB.h264-EDITH
-/mnt/pd_zurg/shows/www.UIndex.org    -    The.Righteous.Gemstones.S04E03.DV.HDR.2160p.WEB.H265-SuccessfulCrab
-/mnt/pd_zurg/shows/www.UIndex.org    -    The.Righteous.Gemstones.S04E05.1080p.WEB.H264-SuccessfulCrab
-/mnt/pd_zurg/shows/Звездные врата (Атлантида) (2004-2009) BDRemux (1080p) [NNM-Club]
-/mnt/pd_zurg/shows/Медведь. 2 сезон. 2023 (HEVC.SDR.WEB-DL 2160p)
-/mnt/pd_zurg/shows/Новобранец. 4 сезон. 2021. EniaHD (WEB-DL 1080p)
-/mnt/pd_zurg/shows/Психиатр по соседству.S01.WEB-DL.2160.HDR
-/mnt/pd_zurg/anime/Pokemon Destiny Deoxys (2005 BD-Remux AVC)[55998181]
-/mnt/pd_zurg/anime/Pokemon.Origins.S01.1080p.WEB-DL.AAC2.0.H.264-Pikanet128[rartv]
-/mnt/pd_zurg/anime/Star.Trek.The.Next.Generation.S01-07.1080p.BluRay.x264
-/mnt/pd_zurg/anime/[Arid] Sword Art Online Alternative - Gun Gale Online [Dual-Audio][BDRip 1080p HEVC FLAC]
-/mnt/pd_zurg/anime/[Beanosubs] Magical Shopping Arcade Abenobashi (1080p)
-/mnt/pd_zurg/anime/[RaptoR] Sword Art Online the Movie -Progressive- Aria of a Starless Night [BDRemux 1080p AVC TrueHD Atmos] [6D3D30BF]
-/mnt/pd_zurg/anime/[sam] Sword Art Online [BD 1080p FLAC]
-/mnt/pd_zurg/shows/Las.Azules.S01.1080p.WEB-DL.3xRus.Spa.Subs-alekartem
-/mnt/pd_zurg/shows/Primeval.New.World.S01.1080p.Bluray.x265-HiQVE
-/mnt/pd_zurg/shows/www.UIndex.org    -    Taskmaster S13E02 1080p ALL4 WEB-DL AAC2 0 x264-NTb
-/mnt/pd_zurg/anime/[Datte13] Naruto Shippuuden - Road to Ninja [BD 1080p Hi10] [Dual-Audio FLAC] [DFD9BD67]
-/mnt/pd_zurg/shows/Law.and.Order.Special.Victims.Unit.S24.1080p.TVShows
-/mnt/pd_zurg/shows/Lego.Masters.US.S04.1080p.WEB.h264-BAE
-/mnt/pd_zurg/shows/Manhunt.2024.S01.COMPLETE.1080p.WEB-DL.H.264.Dual.YG
-/mnt/pd_zurg/shows/Married.At.First.Sight.S18E10.1080p.WEB.h264-EDITH[EZTVx.to]
-/mnt/pd_zurg/shows/My.Adventures.with.Superman.S01.1080p.WEB-DL.Rus.Eng.TeamHD
-/mnt/pd_zurg/shows/Ren Faire (2024) Season 1 S01 (1080p AMZN WEB-DL x265 HEVC 10bit EAC3 5.1 r00t)
-/mnt/pd_zurg/shows/Rick.and.Morty.The.Anime.S01.WEBDL.1080p
-/mnt/pd_zurg/shows/Scooby-Doo, Where Are You! (1969) Season 1-2 S01-S02 + Extras (1080p BluRay x265 HEVC 10bit AC3 2.0 Ghost)
-/mnt/pd_zurg/shows/Taskmaster.S12E09.1080p.WEB.h264-EDITH[EZTVx.to]
-/mnt/pd_zurg/shows/Ted.2024.S01.2160p.PCOK.WEB-DL.H.265
-/mnt/pd_zurg/shows/Tehran (Season 2) DV HDR10 WEB-DL 2160p
-/mnt/pd_zurg/shows/The.Big.Bang.Theory.S10.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-EPSiLON
-/mnt/pd_zurg/shows/The.Breakthrough.S01.1080p.NF.WEB-DL.DDP5.1.H.264-PrimeFix
-/mnt/pd_zurg/shows/The.Walking.Dead.S08.1080p.BluRay.REMUX.AVC.TrueHD.7.1-EPSiLON
-/mnt/pd_zurg/shows/Truth.Be.Told.S01.2160p.ATVP.WEB-DL.DD+5.1.Atmos.DoVi.HEVC-TRUTH[rartv]
-/mnt/pd_zurg/shows/Trying.S01.2160p.ATVP.WEB-DL.DD+5.1.Atmos.DoVi.HEVC-ACE[eztv.re]
-/mnt/pd_zurg/shows/[Ex-torrenty.org]The.Office.UK.S01.MULTi.1080p.HMAX.WEB-DL.DD2.0.H264-Ralf
-/mnt/pd_zurg/shows/LEGO.Masters.US.S01.1080p.HULU.WEBRip.DDP5.1.x264-AJP69[rartv]
-/mnt/pd_zurg/shows/Ozzy.&.Drix.S01-S02.DVDRip.DD2.0.x264-R40
-/mnt/pd_zurg/shows/Solo Leveling S01 1080p Dual Audio BD Remux FLAC-TTGA
-/mnt/pd_zurg/shows/The Office UK (2001) S02 - Temporada 2 [HDTV-1080p][Castellano] The Office UK (2001) - Season 2 - Spanish
-/mnt/pd_zurg/shows/Last.Week.Tonight.with.John.Oliver.S12E16.1080p.HEVC.x265-MeGusta[EZTVx.to]/Last.Week.Tonight.with.John.Oliver.S12E16.1080p.HEVC.x265-MeGusta[EZTVx.to].mkv
-/mnt/pd_zurg/shows/Last.Week.Tonight.with.John.Oliver.S12E16.1080p.HEVC.x265-MeGusta[EZTVx.to]
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e01.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e02.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e03.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e04.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e05.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e06.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e07.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm/The.River.s01e08.rus.eng.LostFilm.avi
-/mnt/pd_zurg/shows/The.River.s01.rus.eng.LostFilm
+/mnt/pd_zurg/movies/Amores.Perros.2000.SPANISH.2160p.WEB-DL.DTS-HD.MA.5.1.DV.MKV.x265-TEPES/Amores.Perros.2000.2160p.WEB-DL.DTS-HD.MA.5.1.DV.HEVC-TEPES.mkv
+/mnt/pd_zurg/movies/Amores.Perros.2000.SPANISH.2160p.WEB-DL.DTS-HD.MA.5.1.DV.MKV.x265-TEPES
+/mnt/pd_zurg/movies/And.God.Created.Woman.1956.1080p.BluRay.x264-USURY[rarbg]/and.god.created.woman.1956.1080p.bluray.x264-usury.mkv
+/mnt/pd_zurg/movies/And.God.Created.Woman.1956.1080p.BluRay.x264-USURY[rarbg]
+/mnt/pd_zurg/movies/Andhadhun.2018.BluRay.1080p.DTS-HD.MA.5.1.AVC.REMUX-FraMeSToR/Andhadhun.2018.BluRay.1080p.DTS-HD.MA.5.1.AVC.REMUX-FraMeSToR.mkv
+/mnt/pd_zurg/movies/Andhadhun.2018.BluRay.1080p.DTS-HD.MA.5.1.AVC.REMUX-FraMeSToR
+/mnt/pd_zurg/movies/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR.mkv
+/mnt/pd_zurg/movies/9.11.Inside.The.Presidents.War.Room.2021.REPACK.HDR.2160p.WEB.h265-RUMOUR
+/mnt/pd_zurg/movies/A.Carpool.Karaoke.Christmas.2024.1080p.WEB.H264-EfficientNeatChachalacaOfOpportunity[TGx]/a.carpool.karaoke.christmas.2024.1080p.web.h264-efficientneatchachalacaofopportunity.mkv
+/mnt/pd_zurg/movies/A.Carpool.Karaoke.Christmas.2024.1080p.WEB.H264-EfficientNeatChachalacaOfOpportunity[TGx]
+/mnt/pd_zurg/movies/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv
+/mnt/pd_zurg/movies/A.Charlie.Brown.Christmas.1965.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT
+/mnt/pd_zurg/movies/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv
+/mnt/pd_zurg/movies/A.Charlie.Brown.Thanksgiving.1973.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT
+/mnt/pd_zurg/movies/A.Charlie.Brown.Valentine.2002.1080p.ATVP.WEB-DL.DD5.1.H.264-EniaHD/A.Charlie.Brown.Valentine.2002.1080p.ATVP.WEB-DL.DD5.1.H.264-EniaHD.mkv
+/mnt/pd_zurg/movies/A.Charlie.Brown.Valentine.2002.1080p.ATVP.WEB-DL.DD5.1.H.264-EniaHD
+/mnt/pd_zurg/movies/A.Clockwork.Orange.1971.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT/A.Clockwork.Orange.1971.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv
+/mnt/pd_zurg/movies/A.Clockwork.Orange.1971.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT
+/mnt/pd_zurg/movies/A.Different.Man.2024.REMUX/A.Different.Man.2024.REMUX.mkv
+/mnt/pd_zurg/movies/A.Different.Man.2024.REMUX
+/mnt/pd_zurg/movies/A.Good.Day.to.Die.Hard.2013.Theatrical.Cut.REPACK.2160p.MA.WEB-DL.DTS-HD.MA.7.1.DV.HDR.H.265-FLUX/A.Good.Day.to.Die.Hard.2013.Theatrical.Cut.REPACK.2160p.MA.WEB-DL.DTS-HD.MA.7.1.DV.HDR.H.265-FLUX.mkv
+/mnt/pd_zurg/movies/A.Good.Day.to.Die.Hard.2013.Theatrical.Cut.REPACK.2160p.MA.WEB-DL.DTS-HD.MA.7.1.DV.HDR.H.265-FLUX
+/mnt/pd_zurg/movies/A.Man.Escaped.1956.1080p.BluRay.REMUX.AVC.FLAC.1.0-EPSiLON/A.Man.Escaped.1956.1080p.BluRay.REMUX.AVC.FLAC.1.0-EPSiLON.mkv
+/mnt/pd_zurg/movies/A.Man.Escaped.1956.1080p.BluRay.REMUX.AVC.FLAC.1.0-EPSiLON
+/mnt/pd_zurg/movies/A.Minecraft.Movie.2025.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.HDR-DVT/A.Minecraft.Movie.2025.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.HDR-DVT.mkv
+/mnt/pd_zurg/movies/A.Minecraft.Movie.2025.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.HDR-DVT
+/mnt/pd_zurg/movies/A.Nous.La.Liberte.1931.FRENCH.ENSUBBED.1080p.WEBRip.AAC2.0.x264-KUCHU/A.Nous.La.Liberte.1931.1080p.CRIT.WEB-DL.AAC.2.0.H.264-KUCHU.mkv
+/mnt/pd_zurg/movies/A.Nous.La.Liberte.1931.FRENCH.ENSUBBED.1080p.WEBRip.AAC2.0.x264-KUCHU
+/mnt/pd_zurg/movies/A.Propos.de.Nice.1930.1080p.BluRay.x264-BiPOLAR[rarbg]/a.propos.de.nice.1930.1080p.bluray.x264-bipolar.mkv
+/mnt/pd_zurg/movies/A.Propos.de.Nice.1930.1080p.BluRay.x264-BiPOLAR[rarbg]
