@@ -20,6 +20,7 @@ try:
     from src.core.file_monitor import FileMonitor
     from src.utils.discord_utils import send_discord_notification
     from src.utils.logger import get_logger
+    from src.utils.scan_history_utils import is_path_in_scan_history
 except ImportError:
     # Define fallback logger if imports fail
     import logging

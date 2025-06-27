@@ -16,7 +16,7 @@ import subprocess
 import csv
 import sqlite3
 from pathlib import Path
-from utils.plex_utils import refresh_selected_plex_libraries 
+from utils.plex_utils import refresh_selected_plex_libraries
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
 # Ensure parent directory is in path for imports
@@ -672,7 +672,7 @@ class DirectoryProcessor:
             r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',
             r'(?i)\b\d{2,4}p\b',
             r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Bdremux|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Trolluhd|Rutracker|Sgf|Webmux|Hhweb|Rgzs|Omskbird|Alekartem|2Xrus|Galaxytv|TgX|Eac3|Monolith|MA|MA 5.1|Ma5|Boxedpotatoes|Deflate|Master5|Yellowbird|Silence|Nogrp|Shortbrehd|Dirtyhippie|60fps|Upscaled|Pcock|Sdr|Opus|Zerobuild|AKTEP|Panda|EDGE2020|Redrussian1337|Flux|Dovi|Hybrid|P8|Nf|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
+            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Trolluhd|Rutracker|Mixed Bugsfunny|STAN|Thebiscuit|Sgf|Webmux|@EniaHD|Hhweb|Rgzs|Omskbird|Alekartem|2Xrus|Galaxytv|TgX|Eac3|Monolith|MA|MA 5.1|Ma5|Boxedpotatoes|Deflate|Master5|Yellowbird|Silence|Nogrp|Shortbrehd|Dirtyhippie|60fps|Upscaled|Pcock|Sdr|Opus|Zerobuild|AKTEP|Panda|EDGE2020|Redrussian1337|Flux|Dovi|Hybrid|P8|Nf|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
             r'\[.*?\]',
             r'[-_,]',
             r'(?i)\[\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\]',
@@ -792,6 +792,8 @@ class DirectoryProcessor:
         For TV/Anime Series, creates a symlink for each episode in the format:
         'MEDIA TITLE (YEAR) [tmdb-TMDB_ID]' / 'Season X' / 'MEDIA TITLE (YEAR) - SXXEXX.ext'
         Sends one webhook per subfolder processed.
+
+        CRITICAL FIX: Only process files that are NOT in scan history.
         """
         try:
             if not DESTINATION_DIRECTORY:
@@ -824,11 +826,18 @@ class DirectoryProcessor:
 
             episode_symlinks = []
 
+            # --- CRITICAL FIX: Only process files not in scan history ---
+            processed_any = False
+
             if is_tv and not is_wrestling:
                 for root, dirs, files in os.walk(subfolder_path):
-                    # Sort files for consistent episode numbering fallback
                     media_files = [f for f in files if f.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv'))]
                     for idx, file in enumerate(sorted(media_files), 1):
+                        source_file_path = os.path.join(root, file)
+                        # SKIP if already in scan history
+                        if source_file_path in GLOBAL_SCAN_HISTORY_SET:
+                            continue
+
                         # Match SXXEYY, SXX.EYY, or just EYY (with or without season)
                         ep_match = re.search(r'(?:[sS](\d{1,2}))?[\. _-]*[eE](\d{1,2})', file)
                         if ep_match:
@@ -843,7 +852,6 @@ class DirectoryProcessor:
                         season_folder = f"Season {s_num}"
                         season_dir = os.path.join(target_dir_path, season_folder)
                         os.makedirs(season_dir, exist_ok=True)
-                        source_file_path = os.path.join(root, file)
                         dest_file_path = os.path.join(season_dir, ep_symlink_name)
 
                         if os.path.islink(dest_file_path) or os.path.exists(dest_file_path):
@@ -856,50 +864,57 @@ class DirectoryProcessor:
                             self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
 
                         episode_symlinks.append(dest_file_path)
+                        append_to_scan_history(source_file_path)
+                        processed_any = True
 
                 # Send one webhook for the whole subfolder (first symlink as reference)
-                metadata = {}
-                try:
-                    tmdb = TMDB()
-                    details = {}
-                    if tmdb_id:
-                        details = tmdb.get_tv_details(tmdb_id)
-                    else:
-                        results = tmdb.search_tv(title)
-                        details = results[0] if results else {}
-                    metadata['title'] = details.get('name') or title
-                    metadata['year'] = (details.get('first_air_date') or str(year or ""))[:4]
-                    metadata['description'] = details.get('overview', '')
-                    poster_path = details.get('poster_path')
-                    if poster_path:
-                        metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                    else:
-                        metadata['poster'] = None
-                    metadata['tmdb_id'] = details.get('id') or tmdb_id
-                except Exception as e:
-                    self.logger.warning(f"Could not fetch TMDB metadata: {e}")
-                    metadata = {
-                        'title': title,
-                        'year': year,
-                        'description': '',
-                        'poster': None,
-                        'tmdb_id': tmdb_id
-                    }
-                symlink_path = episode_symlinks[0] if episode_symlinks else target_dir_path
-                send_symlink_creation_notification(
-                    metadata['title'],
-                    metadata['year'],
-                    metadata['poster'],
-                    metadata['description'],
-                    symlink_path,
-                    metadata['tmdb_id']
-                )
+                if processed_any and episode_symlinks:
+                    metadata = {}
+                    try:
+                        tmdb = TMDB()
+                        details = {}
+                        if tmdb_id:
+                            details = tmdb.get_tv_details(tmdb_id)
+                        else:
+                            results = tmdb.search_tv(title)
+                            details = results[0] if results else {}
+                        metadata['title'] = details.get('name') or title
+                        metadata['year'] = (details.get('first_air_date') or str(year or ""))[:4]
+                        metadata['description'] = details.get('overview', '')
+                        poster_path = details.get('poster_path')
+                        if poster_path:
+                            metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
+                        else:
+                            metadata['poster'] = None
+                        metadata['tmdb_id'] = details.get('id') or tmdb_id
+                    except Exception as e:
+                        self.logger.warning(f"Could not fetch TMDB metadata: {e}")
+                        metadata = {
+                            'title': title,
+                            'year': year,
+                            'description': '',
+                            'poster': None,
+                            'tmdb_id': tmdb_id
+                        }
+                    symlink_path = episode_symlinks[0] if episode_symlinks else target_dir_path
+                    send_symlink_creation_notification(
+                        metadata['title'],
+                        metadata['year'],
+                        metadata['poster'],
+                        metadata['description'],
+                        symlink_path,
+                        metadata['tmdb_id']
+                    )
 
             else:
-                # Movie/Anime Movie/Wrestling logic (unchanged)
+                # Movie/Anime Movie/Wrestling logic
                 for root, dirs, files in os.walk(subfolder_path):
                     for file in files:
                         source_file_path = os.path.join(root, file)
+                        # SKIP if already in scan history
+                        if source_file_path in GLOBAL_SCAN_HISTORY_SET:
+                            continue
+
                         file_ext = os.path.splitext(file)[1]
                         dest_file_name = f"{base_name}{file_ext}"
                         dest_file_path = os.path.join(target_dir_path, dest_file_name)
@@ -912,52 +927,60 @@ class DirectoryProcessor:
                             shutil.copy2(source_file_path, dest_file_path)
                             self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
 
-                # Send one webhook for the movie folder
-                metadata = {}
-                try:
-                    tmdb = TMDB()
-                    details = {}
-                    if tmdb_id:
-                        details = tmdb.get_movie_details(tmdb_id)
-                    else:
-                        results = tmdb.search_movie(title)
-                        details = results[0] if results else {}
-                    metadata['title'] = details.get('title') or title
-                    metadata['year'] = (details.get('release_date') or str(year or ""))[:4]
-                    metadata['description'] = details.get('overview', '')
-                    poster_path = details.get('poster_path')
-                    if poster_path:
-                        metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
-                    else:
-                        metadata['poster'] = None
-                    metadata['tmdb_id'] = details.get('id') or tmdb_id
-                except Exception as e:
-                    self.logger.warning(f"Could not fetch TMDB metadata: {e}")
-                    metadata = {
-                        'title': title,
-                        'year': year,
-                        'description': '',
-                        'poster': None,
-                        'tmdb_id': tmdb_id
-                    }
-                send_symlink_creation_notification(
-                    metadata['title'],
-                    metadata['year'],
-                    metadata['poster'],
-                    metadata['description'],
-                    target_dir_path,
-                    metadata['tmdb_id']
-                )
+                        append_to_scan_history(source_file_path)
+                        processed_any = True
 
-            self.logger.info(f"Successfully created links in: {target_dir_path}")
-            print(f"\nSuccessfully created links in: {target_dir_path}")
-            return True
+                # Send one webhook for the movie folder
+                if processed_any:
+                    metadata = {}
+                    try:
+                        tmdb = TMDB()
+                        details = {}
+                        if tmdb_id:
+                            details = tmdb.get_movie_details(tmdb_id)
+                        else:
+                            results = tmdb.search_movie(title)
+                            details = results[0] if results else {}
+                        metadata['title'] = details.get('title') or title
+                        metadata['year'] = (details.get('release_date') or str(year or ""))[:4]
+                        metadata['description'] = details.get('overview', '')
+                        poster_path = details.get('poster_path')
+                        if poster_path:
+                            metadata['poster'] = f"https://image.tmdb.org/t/p/w500{poster_path}"
+                        else:
+                            metadata['poster'] = None
+                        metadata['tmdb_id'] = details.get('id') or tmdb_id
+                    except Exception as e:
+                        self.logger.warning(f"Could not fetch TMDB metadata: {e}")
+                        metadata = {
+                            'title': title,
+                            'year': year,
+                            'description': '',
+                            'poster': None,
+                            'tmdb_id': tmdb_id
+                        }
+                    send_symlink_creation_notification(
+                        metadata['title'],
+                        metadata['year'],
+                        metadata['poster'],
+                        metadata['description'],
+                        target_dir_path,
+                        metadata['tmdb_id']
+                    )
+
+            if processed_any:
+                self.logger.info(f"Successfully created links in: {target_dir_path}")
+                print(f"\nSuccessfully created links in: {target_dir_path}")
+            else:
+                self.logger.info(f"No new files to process in: {subfolder_path}")
+                print(f"\nNo new files to process in: {subfolder_path}")
+            return processed_any
 
         except Exception as e:
             self.logger.error(f"Error creating symlinks: {e}")
             print(f"\nError creating links: {e}")
             return False
-
+    
     def _process_media_files(self):
         """Process media files in the directory."""
         global skipped_items_registry
@@ -1248,7 +1271,8 @@ class DirectoryProcessor:
                             "0. Quit"
 
                         action_choice = input("\nSelect option: ").strip()
-
+                        if action_choice == "":
+                            action_choice = "1"
                         if action_choice == "1":
                             # Accept Scanner match
                             title = match_title
@@ -1872,11 +1896,16 @@ def handle_monitor_management(monitor_manager):
                 print(f"\nDirectory {new_dir} does not exist.")
                 input("\nPress Enter to continue...")
                 continue
-                
-                continue
-            dir_num = input("\nEnter number of directory to toggle: ")
 
+            try:
+                monitor_manager.add_directory(new_dir)
+                print(f"\nDirectory {new_dir} added to monitoring.")
+            except Exception as e:
+                print(f"\nFailed to add directory: {e}")
+            input("\nPress Enter to continue...")
+            continue
 
+        elif choice == "3":
             dir_num = input("\nEnter number of directory to toggle: ").strip()
             try:
                 dir_num = int(dir_num)
