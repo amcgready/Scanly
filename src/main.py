@@ -218,6 +218,19 @@ def load_scan_history_set():
     paths.update(row[0] for row in db_paths)
     return paths
 
+def is_any_media_file_in_scan_history(folder_path, scan_history_set):
+    """
+    Returns True if any media file in the given folder (recursively) is present in scan_history_set.
+    """
+    media_exts = ('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv')
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.lower().endswith(media_exts):
+                full_path = os.path.join(root, file)
+                if full_path in scan_history_set:
+                    return True
+    return False
+
 # Clean directory path
 def _clean_directory_path(path):
     """Clean up the directory path."""
@@ -1019,8 +1032,8 @@ class DirectoryProcessor:
             for subfolder_name in subdirs:
                 subfolder_path = os.path.join(self.directory_path, subfolder_name)
 
-                # --- SKIP if already in scan history ---
-                if subfolder_path in processed_paths:
+                # --- SKIP if any media file in subfolder is in scan history ---
+                if is_any_media_file_in_scan_history(subfolder_path, processed_paths):
                     self.logger.info(f"Skipping already processed (scan_history): {subfolder_path}")
                     continue
 
