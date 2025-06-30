@@ -1182,8 +1182,10 @@ class DirectoryProcessor:
                     # Prompt user if multiple scanner matches
                     selected_match = None
                     if len(scanner_matches) > 1:
+                        # Limit to top 3 matches
+                        limited_matches = scanner_matches[:3]
                         print("\nMultiple scanner matches found. Please select the correct one:")
-                        for idx, entry in enumerate(scanner_matches, 1):
+                        for idx, entry in enumerate(limited_matches, 1):  # <-- Use limited_matches here
                             match = re.match(r'^(.+?)\s+\((\d{4})\)', entry)
                             if match:
                                 display_title = match.group(1)
@@ -1198,13 +1200,13 @@ class DirectoryProcessor:
                             print(f"{idx}. {display_title} ({display_year}){id_str}")
                         print("0. Additional options")
                         while True:
-                            match_choice = input(f"\nSelect [1-{len(scanner_matches)}] or 0 for options: ").strip()
+                            match_choice = input(f"\nSelect [1-{len(limited_matches)}] or 0 for options: ").strip()
                             if match_choice == "":
                                 match_choice = "1"
                             if match_choice.isdigit():
                                 match_idx = int(match_choice)
-                                if 1 <= match_idx <= len(scanner_matches):
-                                    selected_entry = scanner_matches[match_idx - 1]
+                                if 1 <= match_idx <= len(limited_matches):
+                                    selected_entry = limited_matches[match_idx - 1]  # <-- Use limited_matches here
                                     # Parse title, year, tmdb_id from entry
                                     match = re.match(r'^(.+?)\s+\((\d{4})\)', selected_entry)
                                     if match:
@@ -1216,8 +1218,8 @@ class DirectoryProcessor:
                                     # Proceed to symlink creation
                                     if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                         processed += 1
-                                        append_to_scan_history(subfolder_path)  # <--- Add this line
-                                        trigger_plex_refresh()  # Trigger Plex refresh after symlink creation
+                                        append_to_scan_history(subfolder_path)
+                                        trigger_plex_refresh()
                                         input("\nPress Enter to continue...")
                                         clear_screen()
                                         display_ascii_art()
@@ -1229,6 +1231,7 @@ class DirectoryProcessor:
                             print("Invalid selection. Please try again.")
                         if match_idx != 0:
                             break  # Only break if a match was selected
+                    # ...existing code...
 
                     elif len(scanner_matches) == 1:
                         selected_entry = scanner_matches[0]
