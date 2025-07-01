@@ -18,7 +18,7 @@ import sqlite3
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
 from utils.cleaning_patterns import patterns_to_remove
-from utils.scan_logic import normalize_title
+from utils.scan_logic import normalize_title, normalize_unicode
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
 def sanitize_filename(name):
@@ -640,22 +640,25 @@ class DirectoryProcessor:
         return normalize_title(title1) == normalize_title(title2)
 
     def _extract_folder_metadata(self, folder_name):
-        title = folder_name
         year = None
-    
-        # Extract year from (YYYY) or (YYYY-YYYY)
-        parentheses_year = re.search(r'\((\d{4})\)', folder_name)
-        if parentheses_year:
-            year = parentheses_year.group(1)
-        else:
-            # Look for 4-digit sequences that could be years
-            current_year = datetime.datetime.now().year
-            year_matches = re.findall(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', folder_name)
-            if year_matches:
-                for potential_year in year_matches:
-                    year_int = int(potential_year)
-                    if 1900 <= year_int <= current_year + 5:
-                        year = potential_year
+        clean_title = folder_name
+
+        # Use imported patterns_to_remove
+        for pattern in patterns_to_remove:
+            clean_title = re.sub(pattern, ' ', clean_title, flags=re.IGNORECASE)
+
+        clean_title = clean_title.strip()
+        clean_title = re.sub(r'\s+', ' ', clean_title)
+        clean_title = clean_title.title()
+
+        # Normalize unicode to ASCII
+        clean_title = normalize_unicode(clean_title)
+
+        if not clean_title:
+            clean_title = folder_name
+
+        self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
+        return clean_title, year
     
         clean_title = folder_name
 

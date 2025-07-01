@@ -172,3 +172,9 @@ def _extract_folder_metadata(folder_name):
     clean_title = re.sub(r'[._\-]+', ' ', clean_title)
     clean_title = re.sub(r'\s+', ' ', clean_title).strip()
     return clean_title
+
+def normalize_unicode(text):
+    """Normalize unicode characters to closest ASCII equivalent."""
+    if not isinstance(text, str):
+        return text
+    return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('ASCII')
