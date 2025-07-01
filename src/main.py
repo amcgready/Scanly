@@ -1396,6 +1396,19 @@ class DirectoryProcessor:
                             new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                             if new_tmdb_id:
                                 tmdb_id = new_tmdb_id
+                                try:
+                                    tmdb = TMDB()
+                                    if content_type in ("TV Series", "Anime Series"):
+                                        details = tmdb.get_tv_details(tmdb_id)
+                                        title = details.get('name', title)
+                                        year = (details.get('first_air_date') or str(year or ""))[:4]
+                                    else:
+                                        details = tmdb.get_movie_details(tmdb_id)
+                                        title = details.get('title', title)
+                                        year = (details.get('release_date') or str(year or ""))[:4]
+                                    print(f"\nTMDB lookup successful: {title} ({year}) [tmdb-{tmdb_id}]")
+                                except Exception as e:
+                                    print(f"\nError fetching TMDB details: {e}")
                             continue
                         elif (tmdb_choices and action_choice == "6") or (not tmdb_choices and action_choice == "5"):
                             # Flag this item
