@@ -94,6 +94,15 @@ def load_scanner_list(content_type):
     with open(scanner_path, encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
+def _split_words(text):
+    return set(re.findall(r'\w+', text.lower()))
+
+def partial_scanner_match(search_term, scanner_title, min_overlap=3):
+    search_words = _split_words(search_term)
+    scanner_words = _split_words(scanner_title)
+    overlap = search_words & scanner_words
+    return len(overlap) >= min_overlap
+
 def find_scanner_matches(search_term, content_type):
     scanner_list = load_scanner_list(content_type)
     norm_search = normalize_title(search_term)
@@ -104,7 +113,7 @@ def find_scanner_matches(search_term, content_type):
         if not title_match:
             continue
         scanner_title = title_match.group(1)
-        if normalize_title(scanner_title) == norm_search:
+        if partial_scanner_match(search_term, scanner_title):
             matches.append(entry)
     return matches
 
@@ -128,7 +137,7 @@ def _extract_folder_metadata(folder_name):
     clean_title = re.sub(r'\b[Ss](\d{1,2})[Ee](\d{1,2})\b', '', clean_title)
 
     # Remove release group and bracketed tags at the end
-    clean_title = re.sub(r'[-\s\[]?[A-Za-z0-9]+(\[.*\])?$', '', clean_title)
+    clean_title = re.sub(r'[-\s\[]?[A-ZaZ0-9]+(\[.*\])?$', '', clean_title)
 
     # Remove quality, codecs, etc.
     patterns_to_remove = [

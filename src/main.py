@@ -17,6 +17,7 @@ import csv
 import sqlite3
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
+from utils.cleaning_patterns import patterns_to_remove
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
 def sanitize_filename(name):
@@ -644,7 +645,7 @@ class DirectoryProcessor:
     def _extract_folder_metadata(self, folder_name):
         title = folder_name
         year = None
-
+    
         # Extract year from (YYYY) or (YYYY-YYYY)
         parentheses_year = re.search(r'\((\d{4})\)', folder_name)
         if parentheses_year:
@@ -658,63 +659,23 @@ class DirectoryProcessor:
                     year_int = int(potential_year)
                     if 1900 <= year_int <= current_year + 5:
                         year = potential_year
-
+    
         clean_title = folder_name
 
-        # Remove year ranges and single years in parentheses (with or without spaces)
-        clean_title = re.sub(r'\(\s*\d{4}\s*-\s*\d{4}\s*\)', '', clean_title)
-        clean_title = re.sub(r'\(\s*\d{4}\s*\)', '', clean_title)
-
-        # --- CRITICAL FIX: Remove everything after SxxExx (episode pattern) ---
-        ep_match = re.search(r'(?i)\bS\d{1,2}E\d{1,2}\b', clean_title)
-        if ep_match:
-            clean_title = clean_title[:ep_match.start()].strip()
-
-        # Remove the year if found (but not if it's at the start of the title)
-        if year and not re.match(r'^' + year + r'[^0-9]', folder_name):
-            clean_title = re.sub(r'\.?' + year + r'\.?', ' ', clean_title)
-
-        # Remove common quality/format indicators
-        patterns_to_remove = [
-            r'(?i)S\d{1,2}E\d{1,2}[-_\. ]?(?:E?\d{1,2})',
-            r'\(\s*\d{4}\s*-\s*\d{4}\s*\)',
-            r'\(\s*\d{4}\s*\)',
-            r'(?i)\bS\d{1,2}E\d{1,2}\b',
-            r'(?i)\bS\d{1,2}\b',
-            r'(?i)\bS\d{1,2}-S\d{1,2}\b',
-            r'(?i)\bSeason\s*\d+(-\d+)?\b',
-            r'(?i)\bComplete\s*TV\s*Series\b',
-            r'(?i)\bComplete\b',
-            r'(?i)\bTV\s*Series\b',
-            r'(?i)\b(720p|1080p|2160p|480p|576p|4k|uhd|hd|fhd|qhd)\b',
-            r'(?i)\b\d{2,4}p\b',
-            r'(?i)\b(BluRay|Blu|Ray|Dl|Web|Bdremux|Blu Ray|DDp5|Ntb|BDRip|WEBRip|WEB-DL|HDRip|DVDRip|HDTV|DVD|REMUX|x264|x265|h264|h265|HEVC|AVC|AAC|AC3|DTS|TrueHD|Atmos|5\.1|7\.1|2\.0|10bit|8bit)\b',
-            r'(?i)[\s._-]*(AMZN|AV1|Dd+|Trolluhd|Rutracker|Mixed Bugsfunny|STAN|Thebiscuit|Sgf|Webmux|@EniaHD|Hhweb|Rgzs|Omskbird|Alekartem|2Xrus|Galaxytv|TgX|Eac3|Monolith|MA|MA 5.1|Ma5|Boxedpotatoes|Deflate|Master5|Yellowbird|Silence|Nogrp|Shortbrehd|Dirtyhippie|60fps|Upscaled|Pcock|Sdr|Opus|Zerobuild|AKTEP|Panda|EDGE2020|Redrussian1337|Flux|Dovi|Hybrid|P8|Nf|Hdhweb|Framestor|P2|Ctrlhd|Sigma|Atvp|WEBDL|Dlmux|SUBS|Kitsune|E-AC3|Hdr|f79|DDP5.1|Dv|MeGusta|Dsnp|G66|KiNGS|H.264|Ntb|Teamhd|Successfulcrab|Triton|Sicfoi|YIFY|RARBG|EVO|NTG|YTS|SPARKS|GHOST|SCREAM|ExKinoRay|EZTVx)[\s._-]*',
-            r'\[.*?\]',
-            r'[-_,]',
-            r'(?i)\[\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\]',
-            r'(?i)\(\s*(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\s*\)',
-            r'(?i)[-_. ]+(en|eng|english|fr|fre|french|es|spa|spanish|de|ger|german|ita|it|italian|pt|por|portuguese|nl|dut|dutch|jp|jpn|japanese|kr|kor|korean|cn|chi|chinese|ru|rus|russian|рус|русский)\b',
-        ]
-
+        # Use imported patterns_to_remove
         for pattern in patterns_to_remove:
-            clean_title = re.sub(pattern, ' ', clean_title)
+            clean_title = re.sub(pattern, ' ', clean_title, flags=re.IGNORECASE)
 
-        clean_title = re.sub(r'\.|\-|_', ' ', clean_title)
-        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
-        clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
-        clean_title = re.sub(r'\(\s*\)', '', clean_title)
-        clean_title = re.sub(r'\s+\d+(\s*-\s*\d+)?\s*$', '', clean_title)
-        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
-        clean_title = re.sub(r'\(\s*\)', '', clean_title)
+        clean_title = clean_title.strip()
+        clean_title = re.sub(r'\s+', ' ', clean_title)
         clean_title = clean_title.title()
-
+    
         if not clean_title:
             clean_title = folder_name
-
+    
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year
-
+    
     def _detect_if_tv_show(self, folder_name):
         """Detect if a folder contains a TV show based on its name and content."""
         # Simple TV show detection based on folder name patterns
