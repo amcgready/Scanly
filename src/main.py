@@ -1407,6 +1407,15 @@ class DirectoryProcessor:
                                         title = details.get('title', title)
                                         year = (details.get('release_date') or str(year or ""))[:4]
                                     print(f"\nTMDB lookup successful: {title} ({year}) [tmdb-{tmdb_id}]")
+                                    # Proceed to symlink creation or next step
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                        processed += 1
+                                        append_to_scan_history(subfolder_path)
+                                        trigger_plex_refresh()
+                                        input("\nPress Enter to continue...")
+                                        clear_screen()
+                                        display_ascii_art()
+                                    break
                                 except Exception as e:
                                     print(f"\nError fetching TMDB details: {e}")
                             continue
@@ -1578,6 +1587,28 @@ class DirectoryProcessor:
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                         if new_tmdb_id:
                             tmdb_id = new_tmdb_id
+                            try:
+                                tmdb = TMDB()
+                                if content_type in ("TV Series", "Anime Series"):
+                                    details = tmdb.get_tv_details(tmdb_id)
+                                    title = details.get('name', title)
+                                    year = (details.get('first_air_date') or str(year or ""))[:4]
+                                else:
+                                    details = tmdb.get_movie_details(tmdb_id)
+                                    title = details.get('title', title)
+                                    year = (details.get('release_date') or str(year or ""))[:4]
+                                print(f"\nTMDB lookup successful: {title} ({year}) [tmdb-{tmdb_id}]")
+                                # Proceed to symlink creation or next step
+                                if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                    processed += 1
+                                    append_to_scan_history(subfolder_path)
+                                    trigger_plex_refresh()
+                                    input("\nPress Enter to continue...")
+                                    clear_screen()
+                                    display_ascii_art()
+                                break
+                            except Exception as e:
+                                print(f"\nError fetching TMDB details: {e}")
                         continue
                     elif choice == "5":
                         print(f"Skipping subfolder: {subfolder_name}")
@@ -1731,10 +1762,6 @@ def perform_multi_scan():
         input("\nPress Enter to continue...")
         clear_screen()
         display_ascii_art()
-        return
-    # Confirm directories before scanning
-    clear_screen()
-    display_ascii_art()
     print("=" * 84)
     print("CONFIRM DIRECTORIES".center(84))
     print("=" * 84)
