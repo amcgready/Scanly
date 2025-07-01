@@ -2,6 +2,7 @@ import re
 import datetime
 import unicodedata
 import os
+import difflib
 
 def extract_folder_metadata(folder_name):
     # ...copy the logic from DirectoryProcessor._extract_folder_metadata...
@@ -70,11 +71,9 @@ def get_content_type(folder_name):
             return "Anime Movie"
     return "Unknown"
 
-def normalize_title(name):
-    name = name.lower()
-    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
-    name = re.sub(r'[^a-z0-9]', '', name)
-    return name
+def normalize_title(title):
+    # Replace dots and underscores with spaces, remove extra spaces, lowercase
+    return re.sub(r'[\W_]+', ' ', title).strip().lower()
 
 SCANNER_FILES = {
     "Anime Movie": "anime_movies.txt",
@@ -103,18 +102,47 @@ def partial_scanner_match(search_term, scanner_title, min_overlap=3):
     overlap = search_words & scanner_words
     return len(overlap) >= min_overlap
 
-def find_scanner_matches(search_term, content_type):
-    scanner_list = load_scanner_list(content_type)
-    norm_search = normalize_title(search_term)
+def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
+    """
+    Return a list of scanner matches that closely match the search_term and year.
+    Uses fuzzy matching and substring checks for more flexible matching.
+    """
+    scanner_file = SCANNER_FILES.get(content_type, "movies.txt")
+    scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
+    scanner_path = os.path.join(scanners_dir, scanner_file)
     matches = []
-    for entry in scanner_list:
-        # Extract just the title (before year or [tmdb-...])
-        title_match = re.match(r'^(.+?)(?:\s+\(\d{4}\))?(?:\s+\[.*\])?$', entry)
-        if not title_match:
-            continue
-        scanner_title = title_match.group(1)
-        if partial_scanner_match(search_term, scanner_title):
-            matches.append(entry)
+
+    if not os.path.exists(scanner_path):
+        return matches
+
+    norm_search = normalize_title(search_term)
+
+    with open(scanner_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            match = re.match(r'^(.+?)(?:\s+\((\d{4})\))?(?:\s+\[tmdb-\d+\])?$', line)
+            if not match:
+                continue
+            scan_title = match.group(1).strip()
+            scan_year = match.group(2)
+            norm_scan = normalize_title(scan_title)
+            ratio = difflib.SequenceMatcher(None, norm_search, norm_scan).ratio()
+
+            # Accept if normalized titles are substrings of each other
+            if norm_search in norm_scan or norm_scan in norm_search:
+                if year and scan_year and str(year) != str(scan_year):
+                    continue
+                matches.append(line)
+            # Accept if fuzzy ratio is above threshold
+            elif ratio >= threshold:
+                if year and scan_year and str(year) != str(scan_year):
+                    continue
+                matches.append(line)
+            # Accept if year matches and ratio is close (e.g., 0.65+)
+            elif year and scan_year and str(year) == str(scan_year) and ratio >= (threshold - 0.1):
+                matches.append(line)
     return matches
 
 def get_movie_folder_name(title, year, tmdb_id):

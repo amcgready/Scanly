@@ -604,7 +604,7 @@ class DirectoryProcessor:
                         continue
 
                     # Parse the line (format: "Title (Year)" or just "Title")
-                    match = re.match(r'(.+?)(?:\s+\((\d{4})\))?$', line)
+                    match = re.match(r'(.+?)(?:\s+\((\d{4})\))?(?:\s+\[tmdb-\d+\])?$', line)
                     if not match:
                         continue
 
@@ -1142,6 +1142,7 @@ class DirectoryProcessor:
 
                     # Prompt user if multiple scanner matches
                     selected_match = None
+                    tmdb_processed = False  # <-- Add this line before the loop
                     if len(scanner_matches) > 1:
                         # Limit to top 3 matches
                         limited_matches = scanner_matches[:3]
@@ -1177,13 +1178,13 @@ class DirectoryProcessor:
                                     tmdb_id = tmdb_id_match.group(1) if tmdb_id_match else None
                                     print(f"\nSelected: {title} ({year}) [tmdb-{tmdb_id}]")
                                     # Proceed to symlink creation
-                                    if self._create_symlinks(...):
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                         processed += 1
                                         append_to_scan_history(subfolder_path)
                                         trigger_plex_refresh()
                                         clear_screen()
                                         display_ascii_art()
-                                        tmdb_processed = True
+                                        tmdb_processed = True  # <-- Set this to True after processing
                                         break  # Exit the TMDB selection loop
                                     break
                                 elif match_idx == 0:
@@ -1194,8 +1195,6 @@ class DirectoryProcessor:
                             break
                         if match_idx != 0:
                             break  # Only break if a match was selected
-                    # ...existing code...
-
                     elif len(scanner_matches) == 1:
                         selected_entry = scanner_matches[0]
                         match = re.match(r'^(.+?)\s+\((\d{4})\)', selected_entry)
@@ -1265,7 +1264,7 @@ class DirectoryProcessor:
                             title = match_title
                             year = match_year
                             tmdb_id = match_tmdb_id
-                            if self._create_symlinks(...):
+                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                 processed += 1
                                 append_to_scan_history(subfolder_path)
                                 trigger_plex_refresh()
@@ -1285,7 +1284,7 @@ class DirectoryProcessor:
                                     title = pick['title']
                                     year = pick['year']
                                     tmdb_id = pick['tmdb_id']
-                                    if self._create_symlinks(...):
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                         processed += 1
                                         append_to_scan_history(subfolder_path)
                                         trigger_plex_refresh()
@@ -1335,10 +1334,39 @@ class DirectoryProcessor:
                                     while True:
                                         tmdb_pick = input("\nSelect TMDB result [1-5], 0 for new search, 9 to skip: ").strip()
                                         if tmdb_pick == "0":
-                                            # Prompt for new search term again
+                                            # Prompt for new search term and re-run TMDB search
                                             new_search = input(f"Enter new search term [{search_term}]: ").strip()
                                             if new_search:
                                                 search_term = new_search
+                                            # Re-run TMDB search with the new term
+                                            try:
+                                                tmdb = TMDB()
+                                                if content_type in ("TV Series", "Anime Series"):
+                                                    tmdb_results = tmdb.search_tv(search_term)
+                                                else:
+                                                    tmdb_results = tmdb.search_movie(search_term)
+                                            except Exception:
+                                                tmdb_results = []
+                                            # Redisplay results
+                                            if tmdb_results:
+                                                print(f"\nTMDB Search Results for '{search_term}':")
+                                                tmdb_choices = []
+                                                for idx, result in enumerate(tmdb_results[:5], 1):
+                                                    t_title = result.get('name') or result.get('title')
+                                                    t_year = (result.get('first_air_date') or result.get('release_date') or '')[:4]
+                                                    t_id = result.get('id')
+                                                    print(f"{idx}. {t_title} ({t_year}) [tmdb-{t_id}]")
+                                                    tmdb_choices.append({
+                                                        'title': t_title,
+                                                        'year': t_year,
+                                                        'tmdb_id': str(t_id)
+                                                    })
+                                                print("0. Enter a new search term")
+                                                print("9. Skip and return to previous menu")
+                                            else:
+                                                print("\nNo TMDB results found. Try another search term or skip.")
+                                                print("0. Enter a new search term")
+                                                print("9. Skip and return to previous menu")
                                             continue
                                         elif tmdb_pick == "9":
                                             break  # Return to previous menu
@@ -1347,7 +1375,7 @@ class DirectoryProcessor:
                                             title = pick['title']
                                             year = pick['year']
                                             tmdb_id = pick['tmdb_id']
-                                            if self._create_symlinks(...):
+                                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                                                 processed += 1
                                                 append_to_scan_history(subfolder_path)
                                                 trigger_plex_refresh()
@@ -1482,9 +1510,8 @@ class DirectoryProcessor:
                     if choice == "1":
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
                             processed += 1
-                            append_to_scan_history(subfolder_path)  # <--- Add this line
-                            trigger_plex_refresh()  # Trigger Plex refresh after symlink creation
-                            input("\nPress Enter to continue...")
+                            append_to_scan_history(subfolder_path)
+                            trigger_plex_refresh()
                             clear_screen()
                             display_ascii_art()
                         break
@@ -1521,10 +1548,39 @@ class DirectoryProcessor:
                             while True:
                                 tmdb_pick = input("\nSelect TMDB result [1-5], 0 for new search, 9 to skip: ").strip()
                                 if tmdb_pick == "0":
-                                    # Prompt for new search term again
+                                    # Prompt for new search term and re-run TMDB search
                                     new_search = input(f"Enter new search term [{search_term}]: ").strip()
                                     if new_search:
                                         search_term = new_search
+                                    # Re-run TMDB search with the new term
+                                    try:
+                                        tmdb = TMDB()
+                                        if content_type in ("TV Series", "Anime Series"):
+                                            tmdb_results = tmdb.search_tv(search_term)
+                                        else:
+                                            tmdb_results = tmdb.search_movie(search_term)
+                                    except Exception:
+                                        tmdb_results = []
+                                    # Redisplay results
+                                    if tmdb_results:
+                                        print(f"\nTMDB Search Results for '{search_term}':")
+                                        tmdb_choices = []
+                                        for idx, result in enumerate(tmdb_results[:5], 1):
+                                            t_title = result.get('name') or result.get('title')
+                                            t_year = (result.get('first_air_date') or result.get('release_date') or '')[:4]
+                                            t_id = result.get('id')
+                                            print(f"{idx}. {t_title} ({t_year}) [tmdb-{t_id}]")
+                                            tmdb_choices.append({
+                                                'title': t_title,
+                                                'year': t_year,
+                                                'tmdb_id': str(t_id)
+                                            })
+                                        print("0. Enter a new search term")
+                                        print("9. Skip and return to previous menu")
+                                    else:
+                                        print("\nNo TMDB results found. Try another search term or skip.")
+                                        print("0. Enter a new search term")
+                                        print("9. Skip and return to previous menu")
                                     continue
                                 elif tmdb_pick == "9":
                                     break  # Return to previous menu
@@ -1540,6 +1596,10 @@ class DirectoryProcessor:
                                         clear_screen()
                                         display_ascii_art()
                                     break  # Exit the TMDB selection loop
+    
+                                else:
+                                    print("Invalid selection. Please try again.")
+                            break  # After TMDB selection, break out of the main loop for this folder
                         else:
                             print("\nNo TMDB results found. Try another search term or skip.")
                             print("0. Enter a new search term")
@@ -1647,8 +1707,6 @@ class DirectoryProcessor:
                             clear_screen()
                             display_ascii_art()
                             return -1
-                        clear_screen()
-                        display_ascii_art()
                     else:
                         print("Invalid option. Please try again.")
                         input("\nPress Enter to continue...")
@@ -1781,6 +1839,7 @@ def perform_multi_scan():
         display_ascii_art()
         return
     # Process each directory
+
     total_processed = 0
     for i, directory in enumerate(directories):
         clear_screen()
@@ -1856,7 +1915,7 @@ def handle_monitor_management(monitor_manager):
             if isinstance(file, dict) and 'directory_path' in file:
                 dir_path = file['directory_path']
             elif isinstance(file, str):
-                # Try to extract directory path from file path
+                # Try to extract directory path from file path:
                 dir_path = os.path.dirname(file)
             else:
                 continue
