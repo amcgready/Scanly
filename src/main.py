@@ -1177,19 +1177,21 @@ class DirectoryProcessor:
                                     tmdb_id = tmdb_id_match.group(1) if tmdb_id_match else None
                                     print(f"\nSelected: {title} ({year}) [tmdb-{tmdb_id}]")
                                     # Proceed to symlink creation
-                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                    if self._create_symlinks(...):
                                         processed += 1
                                         append_to_scan_history(subfolder_path)
                                         trigger_plex_refresh()
-                                        input("\nPress Enter to continue...")
                                         clear_screen()
                                         display_ascii_art()
-                                        break  # Exit loop for this subfolder
+                                        tmdb_processed = True
+                                        break  # Exit the TMDB selection loop
                                     break
                                 elif match_idx == 0:
                                     print("\nProceeding with manual identification...")
                                     break
                             print("Invalid selection. Please try again.")
+                        if tmdb_processed:
+                            break
                         if match_idx != 0:
                             break  # Only break if a match was selected
                     # ...existing code...
@@ -1263,13 +1265,15 @@ class DirectoryProcessor:
                             title = match_title
                             year = match_year
                             tmdb_id = match_tmdb_id
-                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                            if self._create_symlinks(...):
                                 processed += 1
                                 append_to_scan_history(subfolder_path)
                                 trigger_plex_refresh()
                                 clear_screen()
                                 display_ascii_art()
-                            break
+                                tmdb_processed = True
+                                break  # Exit the TMDB selection loop
+    
                         elif tmdb_choices and action_choice == "2":
                             # Let user pick from TMDB results
                             while True:
@@ -1281,13 +1285,16 @@ class DirectoryProcessor:
                                     title = pick['title']
                                     year = pick['year']
                                     tmdb_id = pick['tmdb_id']
-                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                    if self._create_symlinks(...):
                                         processed += 1
                                         append_to_scan_history(subfolder_path)
                                         trigger_plex_refresh()
                                         clear_screen()
                                         display_ascii_art()
-                                    break
+                                        tmdb_processed = True
+                                        break  # Exit the TMDB selection loop
+                            if tmdb_processed:
+                                break  # Exit the main loop for this folder
                                 print("Invalid selection. Please try again.")
                             break
                         elif (tmdb_choices and action_choice == "3") or (not tmdb_choices and action_choice == "2"):
@@ -1340,13 +1347,15 @@ class DirectoryProcessor:
                                             title = pick['title']
                                             year = pick['year']
                                             tmdb_id = pick['tmdb_id']
-                                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                            if self._create_symlinks(...):
                                                 processed += 1
                                                 append_to_scan_history(subfolder_path)
                                                 trigger_plex_refresh()
                                                 clear_screen()
                                                 display_ascii_art()
-                                            break  # Exit the TMDB selection loop after processing
+                                                tmdb_processed = True
+                                                break  # Exit the TMDB selection loop
+    
                                         else:
                                             print("Invalid selection. Please try again.")
                             break  # After TMDB selection, break out of the main loop for this folder
