@@ -1353,8 +1353,7 @@ class DirectoryProcessor:
                                                 trigger_plex_refresh()
                                                 clear_screen()
                                                 display_ascii_art()
-                                                tmdb_processed = True
-                                                break  # Exit the TMDB selection loop
+                                            break  # Exit the TMDB selection loop
     
                                         else:
                                             print("Invalid selection. Please try again.")
@@ -1540,10 +1539,7 @@ class DirectoryProcessor:
                                         trigger_plex_refresh()
                                         clear_screen()
                                         display_ascii_art()
-                                    break  # Exit the TMDB selection loop after processing
-                                else:
-                                    print("Invalid selection. Please try again.")
-                            break  # After TMDB selection, break out of the main loop for this folder
+                                    break  # Exit the TMDB selection loop
                         else:
                             print("\nNo TMDB results found. Try another search term or skip.")
                             print("0. Enter a new search term")
@@ -1936,6 +1932,43 @@ def handle_monitor_management(monitor_manager):
                 print(f"\nDirectory {new_dir} added to monitoring.")
             except Exception as e:
                 print(f"\nFailed to add directory: {e}")
+            input("\nPress Enter to continue...")
+            continue
+
+        elif choice == "2":
+            # Remove directory handling
+            if not directories:
+                print("\nNo directories to remove.")
+                input("\nPress Enter to continue...")
+                continue
+            print("\nSelect a directory to remove:")
+            for i, (key, directory_info) in enumerate(directories, 1):
+                if isinstance(directory_info, dict):
+                    dir_path = directory_info.get('path', '')
+                    dir_name = directory_info.get('name', 'Unnamed')
+                    if not dir_name or dir_name == 'Unnamed':
+                        dir_name = os.path.basename(dir_path) if dir_path else f"Directory {i}"
+                elif isinstance(directory_info, str):
+                    dir_path = directory_info
+                    dir_name = os.path.basename(dir_path)
+                else:
+                    dir_path = str(directory_info) if directory_info else "Unknown"
+                    dir_name = "Unknown Directory"
+                print(f"{i}. {dir_name}: {dir_path}")
+            print("0. Cancel")
+            sel = input("\nEnter number: ").strip()
+            if sel == "0":
+                continue
+            try:
+                sel_idx = int(sel) - 1
+                if 0 <= sel_idx < len(directories):
+                    key, _ = directories[sel_idx]
+                    monitor_manager.remove_directory(key)
+                    print("\nDirectory removed from monitoring.")
+                else:
+                    print("\nInvalid selection.")
+            except Exception as e:
+                print(f"\nError: {e}")
             input("\nPress Enter to continue...")
             continue
 
