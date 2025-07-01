@@ -96,7 +96,7 @@ def load_scanner_list(content_type):
 def _split_words(text):
     return set(re.findall(r'\w+', text.lower()))
 
-def partial_scanner_match(search_term, scanner_title, min_overlap=3):
+def partial_scanner_match(search_term, scanner_title, min_overlap=1):
     search_words = _split_words(search_term)
     scanner_words = _split_words(scanner_title)
     overlap = search_words & scanner_words
@@ -105,7 +105,7 @@ def partial_scanner_match(search_term, scanner_title, min_overlap=3):
 def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
     """
     Return a list of scanner matches that closely match the search_term and year.
-    Uses fuzzy matching and substring checks for more flexible matching.
+    Uses normalization and partial word overlap.
     """
     scanner_file = SCANNER_FILES.get(content_type, "movies.txt")
     scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
@@ -127,21 +127,11 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
                 continue
             scan_title = match.group(1).strip()
             scan_year = match.group(2)
-            norm_scan = normalize_title(scan_title)
-            ratio = difflib.SequenceMatcher(None, norm_search, norm_scan).ratio()
-
-            # Accept if normalized titles are substrings of each other
-            if norm_search in norm_scan or norm_scan in norm_search:
+            # DEBUG: Print what we're comparing
+            print(f"Comparing: '{search_term}' (year={year}) vs '{scan_title}' (year={scan_year})")
+            if partial_scanner_match(search_term, scan_title) or normalize_title(search_term) in normalize_title(scan_title):
                 if year and scan_year and str(year) != str(scan_year):
                     continue
-                matches.append(line)
-            # Accept if fuzzy ratio is above threshold
-            elif ratio >= threshold:
-                if year and scan_year and str(year) != str(scan_year):
-                    continue
-                matches.append(line)
-            # Accept if year matches and ratio is close (e.g., 0.65+)
-            elif year and scan_year and str(year) == str(scan_year) and ratio >= (threshold - 0.1):
                 matches.append(line)
     return matches
 

@@ -18,6 +18,7 @@ import sqlite3
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
 from utils.cleaning_patterns import patterns_to_remove
+from utils.scan_logic import normalize_title
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 
 def sanitize_filename(name):
@@ -618,11 +619,7 @@ class DirectoryProcessor:
                             continue
 
                         # Add to matches
-                        matches.append({
-                            'title': scan_title,
-                            'year': scan_year,
-                            'source': scanner_file
-                        })
+                        matches.append(line)
                     processed += 1
                     # Update progress bar
                     bar_len = 30
@@ -1043,11 +1040,7 @@ class DirectoryProcessor:
                 # --- NEW: Skip the skip prompt and always continue
                 # (No input, just proceed to scanner list check)
 
-                # --- Now check scanner lists ---
-                if self._check_scanner_lists(title, year, is_tv, is_anime):
-                    self.logger.info(f"Skipping {subfolder_name}: already in scanner lists.")
-                    continue
-
+                # --- Instead, just load scanner matches for identification ---
                 # Initialize search_term before using it
                 search_term = title
                 
@@ -1123,9 +1116,7 @@ class DirectoryProcessor:
                         if os.path.isfile(os.path.join(subfolder_path, f)) and f.lower().endswith(media_exts)
                     ]
 
-                    from src.utils.scan_logic import find_scanner_matches
-
-                    scanner_matches = find_scanner_matches(search_term, content_type)
+                    scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
                     print(f"  Media files detected: {len(media_files)}")
                     print(f"  Scanner Matches: {len(scanner_matches)}")
 
