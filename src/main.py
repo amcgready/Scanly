@@ -564,79 +564,62 @@ class DirectoryProcessor:
         self._detected_tmdb_id = None
     
     def _check_scanner_lists(self, title, year=None, is_tv=False, is_anime=False):
-        """Check appropriate scanner lists for matches based on content type, with a real progress bar."""
-        # Determine which scanner list to use based on content type
-        if is_anime and is_tv:
-            scanner_file = "anime_series.txt"
-        elif is_anime and not is_tv:
-            scanner_file = "anime_movies.txt"
-        elif is_tv and not is_anime:
-            scanner_file = "tv_series.txt"
-        else:
-            scanner_file = "movies.txt"
-        
-        # Get the full path to the scanner file
-        scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
-        scanner_path = os.path.join(scanners_dir, scanner_file)
-        
-        # Log which scanner we're checking
-        self.logger.info(f"Checking scanner list: {scanner_file} for title: '{title}' ({year if year else 'any year'})")
-        
-        # Check if scanner file exists
-        if not os.path.exists(scanner_path):
-            self.logger.warning(f"Scanner file not found: {scanner_path}")
-            return []
-        
+        """
+        Check if the given title (and optionally year) exists in the scanner lists.
+        Returns a list of matching entries.
+        """
+        from src.utils.scan_logic import normalize_title
+        import re
+
+        # Normalize year: treat None, "", "Unknown", "unknown" as no year
+        if not year or str(year).lower() == "unknown":
+            year = None
+
         matches = []
-        try:
-            # Count total lines for progress bar
-            with open(scanner_path, 'r', encoding='utf-8') as file:
-                lines = [line for line in file if line.strip() and not line.strip().startswith('#')]
-            total = len(lines)
-            if total == 0:
-                return []
-            print("\nChecking scanner lists:", end=" ", flush=True)
-            # Now process with progress bar
-            with open(scanner_path, 'r', encoding='utf-8') as file:
-                processed = 0
+        scanner_files = []
+
+        # Decide which scanner lists to check based on content type
+        if is_tv and is_anime:
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/anime_shows.txt'))
+        elif is_tv:
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/shows.txt'))
+        elif is_anime:
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/anime_movies.txt'))
+        else:
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/movies.txt'))
+
+        normalized_input_title = normalize_title(title)
+
+        for scanner_file in scanner_files:
+            if not os.path.exists(scanner_file):
+                continue
+            with open(scanner_file, 'r', encoding='utf-8') as file:
                 for line in file:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
+                    entry = line.strip()
+                    if not entry or entry.startswith('#'):
                         continue
 
-                    # Parse the line (format: "Title (Year)" or just "Title")
-                    match = re.match(r'(.+?)(?:\s+\((\d{4})\))?(?:\s+\[tmdb-\d+\])?$', line)
-                    if not match:
-                        continue
+                    # Remove TMDB ID
+                    entry_wo_tmdb = re.sub(r'\s*\[tmdb-\d+\]', '', entry)
+                    # Extract title and year
+                    m = re.match(r'^(.*?)\s+\((\d{4})\)$', entry_wo_tmdb)
+                    if m:
+                        scanner_title = m.group(1)
+                        scanner_year = m.group(2)
+                    else:
+                        scanner_title = entry_wo_tmdb.strip()
+                        scanner_year = None
 
-                    scan_title = match.group(1).strip()
-                    scan_year = match.group(2) if match.group(2) else None
+                    normalized_scanner_title = normalize_title(scanner_title)
+                    if normalized_input_title == normalized_scanner_title:
+                        if not year or not scanner_year or str(year) == str(scanner_year):
+                            matches.append(entry)
 
-                    # Normalize both titles before comparison
-                    if normalize_title(title) == normalize_title(scan_title):
-                        # If year is specified, check it too (normalize year as string)
-                        if year and scan_year and str(year) != str(scan_year):
-                            continue
-
-                        # Add to matches
-                        matches.append(line)
-                    processed += 1
-                    # Update progress bar
-                    bar_len = 30
-                    filled_len = int(bar_len * processed // total)
-                    bar = '=' * filled_len + '-' * (bar_len - filled_len)
-                    percent = int(100 * processed / total)
-                    print(f"\rChecking scanner lists: [{bar}] {percent}%", end='', flush=True)
-                print()  # Newline after progress bar
-            self.logger.info(f"Found {len(matches)} matches in {scanner_file}")
-            return matches
-            
-        except Exception as e:
-            self.logger.error(f"Error reading scanner file {scanner_path}: {e}")
-            return []
-
+        return matches
+    
     def _is_title_match(self, title1, title2):
         from src.utils.scan_logic import normalize_title
+        # Normalize and compare
         return normalize_title(title1) == normalize_title(title2)
 
     def _extract_folder_metadata(self, folder_name):
@@ -1118,7 +1101,9 @@ class DirectoryProcessor:
                         f for f in os.listdir(subfolder_path)
                         if os.path.isfile(os.path.join(subfolder_path, f)) and f.lower().endswith(media_exts)
                     ]
-
+                    
+                    if year == "Unknown":
+                        year = None
                     scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
                     print(f"  Media files detected: {len(media_files)}")
                     print(f"  Scanner Matches: {len(scanner_matches)}")

@@ -72,8 +72,19 @@ def get_content_type(folder_name):
     return "Unknown"
 
 def normalize_title(title):
-    # Replace dots and underscores with spaces, remove extra spaces, lowercase
-    return re.sub(r'[\W_]+', ' ', title).strip().lower()
+    import unicodedata
+    if not isinstance(title, str):
+        return title
+    # Normalize unicode to ASCII
+    title = unicodedata.normalize('NFKD', title).encode('ASCII', 'ignore').decode('ASCII')
+    # Replace hyphens, underscores, and dots with spaces
+    title = re.sub(r'[-_.]', ' ', title)
+    # Remove all other punctuation (except spaces)
+    title = re.sub(r'[^\w\s]', '', title)
+    # Collapse multiple spaces
+    title = re.sub(r'\s+', ' ', title)
+    # Lowercase and strip
+    return title.strip().lower()
 
 SCANNER_FILES = {
     "Anime Movie": "anime_movies.txt",

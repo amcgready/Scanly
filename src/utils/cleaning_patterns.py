@@ -2,7 +2,9 @@ patterns_to_remove = [
     # years
     r'\b(19|20)\d{2}\b', 
     # video quality and formats
-    r'(?i)\b(2160p|1080p|Qhd|v1|35mm|Blue Ray|R2|Special.Assembly|AI|Multi|Kc|Extended\.Version|480|720|1080|2160|720p|480p|576p|4k|Theatrical Cut|Theateatrical\.Cut|H.\265|uhd|hdr10|Atvp|Web-DL|H\.264|HDR|hd|Web|hd master|Hybrid|Remaster|plus|remux|bluray|BDRemux|blu-ray|web-dl|webdl|webrip|hdrip|dvdrip|hdtv|x264|x265|h264|h265|hevc|avc|extended|uncut|proper|repack|limited|internal|complete|season|s\d{1,2}e\d{1,2}|s\d{1,2}|e\d{1,2}|part\s?\d+|cd\d+|disc\d+|disk\d+|episode|ep\d+|vol\d+|volume|boxset|collection|special|edition|director.?s.?cut|criterion|imax|theatrical|remastered|restored|uncensored|unrated|bdrip|brrip|dvdscr|r5|cam|ts|tc|scr|workprint|sample|read.?nfo|nfo)\b',
+    r'(?i)\b(2160p|1080p|Qhd|NF|v1|35mm|DD|Upscaled|Blue Ray|R2|Special.Assembly|AI|Multi|Kc|Extended\.Version|480|720|1080|2160|720p|480p|576p|4k|Theatrical Cut|Theateatrical\.Cut|H.\265|uhd|hdr10|Atvp|Web-DL|H\.264|HDR|hd|Web|hd master|Hybrid|Remaster|plus|remux|bluray|BDRemux|blu-ray|web-dl|webdl|webrip|hdrip|dvdrip|hdtv|x264|x265|h264|h265|hevc|avc|extended|uncut|proper|repack|limited|internal|complete|season|s\d{1,2}e\d{1,2}|s\d{1,2}|e\d{1,2}|part\s?\d+|cd\d+|disc\d+|disk\d+|episode|ep\d+|vol\d+|volume|boxset|collection|special|edition|director.?s.?cut|criterion|imax|theatrical|remastered|restored|uncensored|unrated|bdrip|brrip|dvdscr|r5|cam|ts|tc|scr|workprint|sample|read.?nfo|nfo)\b',
+    # video file formats (new pattern)
+    r'(?i)\b(mkv|mp4|avi|mov|wmv|flv|m4v|ts|m2ts|webm|vob|mpg|mpeg|3gp|divx|xvid)\b',
     # audio patterns (expanded for channels like AAC2, AAC2.0, DDP5, etc.)
     r'(?i)\b(DD5\.1|MA|MA5\.1|GP|LC|H-264|H-265|DDP5(\.\d)?|FLAC|AAC(\d(\.\d)?)?|AC3|DTS|TrueHD|Atmos|DV|1\.0|2\.0|5\.1|7\.1|10bit|8bit|opus|dual|audio)\b',
     # language patterns
@@ -10,7 +12,7 @@ patterns_to_remove = [
     # subtitle/subbed patterns
     r'(?i)\b(subbed|ensubbed|engsub|Ingles|En|Es|engsubbed|sub|subs|subtitles|withsubs|withsubtitles)\b',
     # release groups and tags
-    r'(?i)\b(rarbg|yify|kuchu|Datphyr|UHDreescalado|Castellano|4k4U|evo|ntg|EniaHD|spark|ghost|nodlabs|EfficientNeatChachalacaOfOpportunity|scream|Theequalizer|Framestor|exkinoray|Sprinter|Rumour|Phobos|Zq|Bobropandavar|Kralimarko|seleZen|eztvx|ntb|tgx|fgt|tepes|usury|bipolar|epsilon|dvt|edge2020|master5i|yts\.mx|fgt|flux|leGi0n|apfelstrudel|ben\.the\.men|ben|the|men|ster|team|group|mux|rip|raw)\b',
+    r'(?i)\b(rarbg|yify|snake|kuchu|Datphyr|UHDreescalado|Castellano|4k4U|evo|ntg|EniaHD|spark|ghost|nodlabs|EfficientNeatChachalacaOfOpportunity|scream|Theequalizer|Framestor|exkinoray|Sprinter|Rumour|Phobos|Zq|Bobropandavar|Kralimarko|seleZen|eztvx|ntb|tgx|fgt|tepes|usury|bipolar|epsilon|dvt|edge2020|master5i|yts\.mx|fgt|flux|leGi0n|apfelstrudel|ster|team|group|mux|rip|raw)\b',
     # production/distribution companies
     r'(?i)\b(sony[\s\._-]*pictures|warner[\s\._-]*bros|universal[\s\._-]*pictures|paramount|columbia[\s\._-]*pictures|20th[\s\._-]*century[\s\._-]*fox|fox[\s\._-]*searchlight|lionsgate|mgm|walt[\s\._-]*disney|disney|pixar|dreamworks|new[\s\._-]*line[\s\._-]*cinema|focus[\s\._-]*features|miramax|tristar|legendary|a24|blumhouse|amazon[\s\._-]*studios|netflix|hbo|max|apple[\s\._-]*tv|apple[\s\._-]*originals|bbc|canal\+|gaumont|pathe|studio[\s\._-]*ghibli|toho|shout[\s\._-]*factory|criterion)\b',
     # season and episode formats
