@@ -81,8 +81,8 @@ def normalize_title(title):
     title = re.sub(r'\b(et|ET)\b', 'and', title)
     # Replace hyphens, underscores, and dots with spaces
     title = re.sub(r'[-_.]', ' ', title)
-    # Normalize ampersand and 'and' to ' & '
-    title = re.sub(r'\b(and|&)\b', ' & ', title, flags=re.IGNORECASE)
+    # Normalize all forms of 'and' and '&' (with or without spaces) to ' & '
+    title = re.sub(r'\s*(and|&)\s*', ' & ', title, flags=re.IGNORECASE)
     # Remove all other punctuation (except spaces and &)
     title = re.sub(r'[^\w\s&]', '', title)
     # Collapse multiple spaces
@@ -134,6 +134,10 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
     best_score = 0
     best_match = None
 
+    # Helper to get word set without "&"
+    def words_wo_and(text):
+        return set(w for w in text.split() if w != "&")
+
     with open(scanner_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
@@ -155,6 +159,9 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
             # Exact title match, year mismatch or missing
             elif norm_search == norm_scan:
                 score = 90
+            # Partial match (all words in search are in scanner title, ignoring "&")
+            elif words_wo_and(norm_search) == words_wo_and(norm_scan):
+                score = 80
             # Partial match (all words in search are in scanner title)
             elif set(norm_search.split()).issubset(set(norm_scan.split())):
                 score = 70
