@@ -118,7 +118,7 @@ def partial_scanner_match(search_term, scanner_title, min_overlap=1):
 def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
     """
     Return a list of scanner matches that closely match the search_term and year.
-    Uses normalization and partial word overlap.
+    Uses normalization and a weighted scoring system.
     """
     scanner_file = SCANNER_FILES.get(content_type, "movies.txt")
     scanners_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scanners')
@@ -129,29 +129,49 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
         return matches
 
     norm_search = normalize_title(search_term)
+    best_score = 0
+    best_match = None
+
     with open(scanner_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
-            match = re.match(r'^(.+?)(?:\s+\((\d{4})\))?(?:\s+\[tmdb-\d+\])?$', line)
+            # Extract title, year, and TMDB ID
+            match = re.match(r'^(.+?)(?:\s+\((\d{4})\))?(?:\s+\[tmdb-(\d+)\])?$', line)
             if not match:
                 continue
             scan_title = match.group(1).strip()
             scan_year = match.group(2)
+            scan_tmdb = match.group(3)
             norm_scan = normalize_title(scan_title)
-            print(f"DEBUG: norm_search='{norm_search}', norm_scan='{norm_scan}'")  # Add this line
 
-            # Compare normalized titles for equality
-            if norm_search == norm_scan:
-                if not year or str(year).lower() == "unknown" or (scan_year and str(year) == str(scan_year)):
-                    matches.append(line)
-                continue
+            score = 0
+            # Exact title and year match
+            if norm_search == norm_scan and (not year or (scan_year and str(year) == scan_year)):
+                score = 100
+            # Exact title match, year mismatch or missing
+            elif norm_search == norm_scan:
+                score = 90
+            # Partial match (all words in search are in scanner title)
+            elif set(norm_search.split()).issubset(set(norm_scan.split())):
+                score = 70
+            # Fuzzy/partial overlap
+            elif partial_scanner_match(norm_search, norm_scan, min_overlap=2):
+                score = 50
 
-            # Fallback: partial match or fuzzy match
-            if partial_scanner_match(search_term, scan_title) or norm_search in norm_scan:
-                if not year or str(year).lower() == "unknown" or (scan_year and str(year) == str(scan_year)):
-                    matches.append(line)
+            if score > best_score:
+                best_score = score
+                best_match = {
+                    "line": line,
+                    "title": scan_title,
+                    "year": scan_year,
+                    "tmdb_id": scan_tmdb,
+                    "score": score
+                }
+
+    if best_match:
+        matches.append(best_match)
     return matches
 
 def get_movie_folder_name(title, year, tmdb_id):
