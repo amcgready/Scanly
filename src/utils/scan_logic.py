@@ -77,6 +77,8 @@ def normalize_title(title):
         return title
     # Normalize unicode to ASCII
     title = unicodedata.normalize('NFKD', title).encode('ASCII', 'ignore').decode('ASCII')
+    # Replace French 'et' with English 'and' (word boundaries)
+    title = re.sub(r'\b(et|ET)\b', 'and', title)
     # Replace hyphens, underscores, and dots with spaces
     title = re.sub(r'[-_.]', ' ', title)
     # Remove all other punctuation (except spaces)
@@ -127,7 +129,6 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
         return matches
 
     norm_search = normalize_title(search_term)
-
     with open(scanner_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
@@ -138,12 +139,19 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
                 continue
             scan_title = match.group(1).strip()
             scan_year = match.group(2)
-            # DEBUG: Print what we're comparing
-            print(f"Comparing: '{search_term}' (year={year}) vs '{scan_title}' (year={scan_year})")
-            if partial_scanner_match(search_term, scan_title) or normalize_title(search_term) in normalize_title(scan_title):
-                if year and scan_year and str(year) != str(scan_year):
-                    continue
-                matches.append(line)
+            norm_scan = normalize_title(scan_title)
+            print(f"DEBUG: norm_search='{norm_search}', norm_scan='{norm_scan}'")  # Add this line
+
+            # Compare normalized titles for equality
+            if norm_search == norm_scan:
+                if not year or str(year).lower() == "unknown" or (scan_year and str(year) == str(scan_year)):
+                    matches.append(line)
+                continue
+
+            # Fallback: partial match or fuzzy match
+            if partial_scanner_match(search_term, scan_title) or norm_search in norm_scan:
+                if not year or str(year).lower() == "unknown" or (scan_year and str(year) == str(scan_year)):
+                    matches.append(line)
     return matches
 
 def get_movie_folder_name(title, year, tmdb_id):
