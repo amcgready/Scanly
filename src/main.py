@@ -20,6 +20,21 @@ from utils.plex_utils import refresh_selected_plex_libraries
 from utils.cleaning_patterns import patterns_to_remove
 from utils.scan_logic import normalize_title, normalize_unicode
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
+RESUME_TEMP_FILE = "/tmp/scanly_resume_path.txt"
+
+def save_resume_path(path):
+    """Save the resume path to a temp file."""
+    with open(RESUME_TEMP_FILE, "w") as f:
+        f.write(path)
+
+def load_resume_path():
+    """Load and clear the resume path from the temp file."""
+    if os.path.exists(RESUME_TEMP_FILE):
+        with open(RESUME_TEMP_FILE, "r") as f:
+            path = f.read().strip()
+        os.remove(RESUME_TEMP_FILE)
+        return path
+    return None
 
 def sanitize_filename(name):
     """Replace problematic characters for cross-platform compatibility."""
@@ -1211,6 +1226,7 @@ class DirectoryProcessor:
                             print("5. Manual TMDB ID")
                             print("6. Flag this item")
                             print("7. Skip this folder")
+                            print("8. Refresh Script (keep directory)")  # <-- Add here
                             print("0. Quit")
                         else:
                             print("2. Change search term")
@@ -1218,7 +1234,8 @@ class DirectoryProcessor:
                             print("4. Manual TMDB ID")
                             print("5. Flag this item")
                             print("6. Skip this folder")
-                            "0. Quit"
+                            print("7. Refresh Script (keep directory)")  # <-- Add here
+                            print("0. Quit")
 
                         action_choice = input("\nSelect option: ").strip()
                         if action_choice == "":
@@ -1444,6 +1461,12 @@ class DirectoryProcessor:
                             clear_screen()
                             display_ascii_art()
                             break
+                        elif (tmdb_choices and action_choice == "8") or (not tmdb_choices and action_choice == "7"):
+                            save_resume_path(self.directory_path)
+                            print("\nRefreshing script and resuming scan...")
+                            sys.stdout.flush()
+                            python = sys.executable
+                            os.execv(python, [python] + sys.argv)
                         elif action_choice == "0":
                             if input("\nAre you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                                 print("\nScan cancelled.")
@@ -1464,6 +1487,7 @@ class DirectoryProcessor:
                     print("4. Manual TMDB ID")
                     print("5. Skip (save for later review)")
                     print("6. Flag this item")
+                    print("7. Refresh Script (keep directory)")
                     print("0. Quit")
 
                     choice = input("\nSelect option: ").strip()
@@ -1638,7 +1662,8 @@ class DirectoryProcessor:
                                 print(f"\nError fetching TMDB details: {e}")
                         continue
                     elif choice == "5":
-                        print(f"Skipping subfolder: {subfolder_name}")
+                        # Skip this folder
+                        print(f"\nSkipping folder: {subfolder_name}")
                         skipped_items_registry.append({
                             'subfolder': subfolder_name,
                             'path': subfolder_path,
@@ -1662,6 +1687,12 @@ class DirectoryProcessor:
                         clear_screen()
                         display_ascii_art()
                         break  # Move to next item, do NOT process
+                    elif choice == "7":
+                        save_resume_path(self.directory_path)
+                        print("\nRefreshing script and resuming scan...")
+                        sys.stdout.flush()
+                        python = sys.executable
+                        os.execv(python, [python] + sys.argv)
                     elif choice == "0":
                         if input("Are you sure you want to quit the scan? (y/n): ").strip().lower() == 'y':
                             print("Scan cancelled.")
