@@ -623,39 +623,24 @@ class DirectoryProcessor:
         return normalize_title(title1) == normalize_title(title2)
 
     def _extract_folder_metadata(self, folder_name):
+        # Find the first 4-digit year (1900-2099) anywhere in the folder name
+        year_match = re.search(r'(19\d{2}|20\d{2})', folder_name)
         year = None
         clean_title = folder_name
-
-        # Use imported patterns_to_remove
+        if year_match:
+            year = year_match.group(1)
+            # Remove the year and any separators around it from the title
+            clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1)
+        # Remove patterns to clean up the title
         for pattern in patterns_to_remove:
             clean_title = re.sub(pattern, ' ', clean_title, flags=re.IGNORECASE)
-
         clean_title = clean_title.strip()
         clean_title = re.sub(r'\s+', ' ', clean_title)
         clean_title = clean_title.title()
-
         # Normalize unicode to ASCII
         clean_title = normalize_unicode(clean_title)
-
         if not clean_title:
             clean_title = folder_name
-
-        self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
-        return clean_title, year
-    
-        clean_title = folder_name
-
-        # Use imported patterns_to_remove
-        for pattern in patterns_to_remove:
-            clean_title = re.sub(pattern, ' ', clean_title, flags=re.IGNORECASE)
-
-        clean_title = clean_title.strip()
-        clean_title = re.sub(r'\s+', ' ', clean_title)
-        clean_title = clean_title.title()
-    
-        if not clean_title:
-            clean_title = folder_name
-    
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year
     
@@ -1126,7 +1111,7 @@ class DirectoryProcessor:
                         # Limit to top 3 matches
                         limited_matches = scanner_matches[:3]
                         print("\nMultiple scanner matches found. Please select the correct one:")
-                        for idx, entry in enumerate(limited_matches, 1):  # <-- Use limited_matches here
+                        for idx, entry in enumerate(limited_matches, 1):  # <-- Use limited_matches here:
                             match = re.match(r'^(.+?)\s+\((\d{4})\)', entry)
                             if match:
                                 display_title = match.group(1)
@@ -1430,7 +1415,6 @@ class DirectoryProcessor:
                                         input("\nPress Enter to continue...")
                                         clear_screen()
                                         display_ascii_art()
-                                    break
                                 except Exception as e:
                                     print(f"\nError fetching TMDB details: {e}")
                             continue
@@ -1650,7 +1634,6 @@ class DirectoryProcessor:
                                     input("\nPress Enter to continue...")
                                     clear_screen()
                                     display_ascii_art()
-                                break
                             except Exception as e:
                                 print(f"\nError fetching TMDB details: {e}")
                         continue
