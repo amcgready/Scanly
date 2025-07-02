@@ -2348,6 +2348,25 @@ def main():
     parser.add_argument('--monitor', action='store_true', help='Run monitor scan only (no menu)')
     args = parser.parse_args()
 
+    # --- ADD THIS BLOCK: Resume scan if temp file exists ---
+    resume_path = load_resume_path()
+    if resume_path and os.path.isdir(resume_path):
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        print("RESUMING INDIVIDUAL SCAN".center(84))
+        print("=" * 84)
+        print(f"\nResuming scan at: {resume_path}\n")
+        processor = DirectoryProcessor(resume_path)
+        result = processor._process_media_files()
+        if result is not None and result >= 0:
+            print(f"\nScan completed. Processed {result} items.")
+            trigger_plex_refresh()
+        else:
+            print("\nScan did not complete successfully.")
+        input("\nPress Enter to continue...")
+        clear_screen()
+
     if args.monitor:
         # Start monitor manager directly, no menu or input
         monitor_manager = get_monitor_manager()

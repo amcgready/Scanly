@@ -81,8 +81,10 @@ def normalize_title(title):
     title = re.sub(r'\b(et|ET)\b', 'and', title)
     # Replace hyphens, underscores, and dots with spaces
     title = re.sub(r'[-_.]', ' ', title)
-    # Remove all other punctuation (except spaces)
-    title = re.sub(r'[^\w\s]', '', title)
+    # Normalize ampersand and 'and' to ' & '
+    title = re.sub(r'\b(and|&)\b', ' & ', title, flags=re.IGNORECASE)
+    # Remove all other punctuation (except spaces and &)
+    title = re.sub(r'[^\w\s&]', '', title)
     # Collapse multiple spaces
     title = re.sub(r'\s+', ' ', title)
     # Lowercase and strip
