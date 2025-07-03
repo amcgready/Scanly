@@ -19,6 +19,18 @@ from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
 from utils.cleaning_patterns import patterns_to_remove
 from utils.scan_logic import normalize_title, normalize_unicode
+
+# --- Add this helper function for consistent cleaning ---
+def clean_title_with_patterns(title):
+    """Apply all cleaning patterns to a title string."""
+    for pattern in patterns_to_remove:
+        title = re.sub(pattern, ' ', title, flags=re.IGNORECASE)
+    title = title.strip()
+    title = re.sub(r'\s+', ' ', title)
+    title = title.title()
+    title = normalize_unicode(title)
+    return title
+
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 RESUME_TEMP_FILE = "/tmp/scanly_resume_path.txt"
 
@@ -647,13 +659,7 @@ class DirectoryProcessor:
             # Remove the year and any separators around it from the title
             clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1)
         # Remove patterns to clean up the title
-        for pattern in patterns_to_remove:
-            clean_title = re.sub(pattern, ' ', clean_title, flags=re.IGNORECASE)
-        clean_title = clean_title.strip()
-        clean_title = re.sub(r'\s+', ' ', clean_title)
-        clean_title = clean_title.title()
-        # Normalize unicode to ASCII
-        clean_title = normalize_unicode(clean_title)
+        clean_title = clean_title_with_patterns(clean_title)
         if not clean_title:
             clean_title = folder_name
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
@@ -1018,6 +1024,7 @@ class DirectoryProcessor:
 
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
+                title = clean_title_with_patterns(title)
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 is_wrestling = False
@@ -1126,7 +1133,7 @@ class DirectoryProcessor:
                         # Limit to top 3 matches
                         limited_matches = scanner_matches[:3]
                         print("\nMultiple scanner matches found. Please select the correct one:")
-                        for idx, entry in enumerate(limited_matches, 1):  # <-- Use limited_matches here:
+                        for idx, entry in enumerate(limited_matches, 1):  # <-- Use limited_matches here
                             match = re.match(r'^(.+?)\s+\((\d{4})\)', entry)
                             if match:
                                 display_title = match.group(1)
@@ -1282,10 +1289,10 @@ class DirectoryProcessor:
                             while True:
                                 new_search = input(f"Enter new search term [{search_term}]: ").strip()
                                 if new_search:
-                                    search_term = new_search
+                                    search_term = new_search  # Do NOT clean user-entered search term
                                 else:
                                     # If user presses enter, keep previous term
-                                    new_search = search_term
+                                    new_search = clean_title_with_patterns(search_term)
 
                                 # Run new TMDB search
                                 try:
@@ -1506,7 +1513,7 @@ class DirectoryProcessor:
                         # Prompt for new search term and year
                         new_search = input(f"Enter new search term [{search_term}]: ").strip()
                         if new_search:
-                            search_term = new_search
+                            search_term = new_search  # Do NOT clean user-entered search term
                         # Immediately run TMDB search and present results
                         try:
                             tmdb = TMDB()
@@ -1827,7 +1834,6 @@ def perform_multi_scan():
     confirm = input("\nProceed with scan? (y/n): ").strip().lower()
     if confirm != 'y':
         print("\nScan cancelled.")
-        input("\nPress Enter to continue...")
         clear_screen()
         display_ascii_art()
         return
