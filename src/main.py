@@ -590,7 +590,7 @@ class DirectoryProcessor:
         self._detected_content_type = None
         self._detected_tmdb_id = None
     
-    def _check_scanner_lists(self, title, year=None, is_tv=False, is_anime=False):
+    def _check_scanner_lists(self, title, year=None, is_tv=False, is_anime=False, is_wrestling=False):
         """
         Check if the given title (and optionally year) exists in the scanner lists.
         Returns a list of matching entries.
@@ -606,10 +606,12 @@ class DirectoryProcessor:
         scanner_files = []
 
         # Decide which scanner lists to check based on content type
-        if is_tv and is_anime:
-            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/anime_shows.txt'))
+        if is_wrestling:
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/wrestling.txt'))
+        elif is_tv and is_anime:
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/anime_series.txt'))
         elif is_tv:
-            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/shows.txt'))
+            scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/tv_series.txt'))
         elif is_anime:
             scanner_files.append(os.path.join(os.path.dirname(__file__), '../scanners/anime_movies.txt'))
         else:
@@ -1744,8 +1746,6 @@ class DirectoryProcessor:
         elif is_anime and not is_tv:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
         elif is_tv and not is_anime:
-            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
-        else:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
 
         target_dir_path = os.path.join(dest_subdir, safe_folder_name)

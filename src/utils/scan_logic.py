@@ -71,25 +71,6 @@ def get_content_type(folder_name):
             return "Anime Movie"
     return "Unknown"
 
-def normalize_title(title):
-    import unicodedata
-    if not isinstance(title, str):
-        return title
-    # Normalize unicode to ASCII
-    title = unicodedata.normalize('NFKD', title).encode('ASCII', 'ignore').decode('ASCII')
-    # Replace French 'et' with English 'and' (word boundaries)
-    title = re.sub(r'\b(et|ET)\b', 'and', title)
-    # Replace hyphens, underscores, and dots with spaces
-    title = re.sub(r'[-_.]', ' ', title)
-    # Normalize all forms of 'and' and '&' (with or without spaces) to ' & '
-    title = re.sub(r'\s*(and|&)\s*', ' & ', title, flags=re.IGNORECASE)
-    # Remove all other punctuation (except spaces and &)
-    title = re.sub(r'[^\w\s&]', '', title)
-    # Collapse multiple spaces
-    title = re.sub(r'\s+', ' ', title)
-    # Lowercase and strip
-    return title.strip().lower()
-
 SCANNER_FILES = {
     "Anime Movie": "anime_movies.txt",
     "Anime Series": "anime_series.txt",
@@ -158,7 +139,13 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
                 score = 100
             # Exact title match, year mismatch or missing
             elif norm_search == norm_scan:
-                score = 90
+                # For TV Series, ignore year mismatch
+                if content_type == "TV Series":
+                    score = 100
+                elif not year or (scan_year and str(year) == scan_year):
+                    score = 100
+                else:
+                    score = 90
             # Partial match (all words in search are in scanner title, ignoring "&")
             elif words_wo_and(norm_search) == words_wo_and(norm_scan):
                 score = 80
@@ -226,3 +213,13 @@ def normalize_unicode(text):
     if not isinstance(text, str):
         return text
     return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('ASCII')
+
+def normalize_title(title):
+    # Remove all punctuation (including !, ?, ., etc.)
+    title = re.sub(r'[^\w\s]', '', title)
+    # Normalize unicode, lowercase, and strip
+    title = unicodedata.normalize('NFKD', title)
+    title = title.lower().strip()
+    # Collapse whitespace
+    title = re.sub(r'\s+', ' ', title)
+    return title
