@@ -4,6 +4,8 @@ Monitor module for Scanly to detect changes in directories.
 """
 import os
 import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from src.main import load_scan_history_set, is_any_media_file_in_scan_history
 import json
 import time
 import uuid
@@ -95,6 +97,7 @@ class MonitorManager:
             
         self._observers = {}  # Critical: This dictionary tracks actual monitor observers
         self._monitored_directories = {}
+        self.scan_history_set = load_scan_history_set()
         self._ensure_config_dir()
         self._load_monitored_directories()
         
@@ -429,7 +432,15 @@ class MonitorManager:
         if dir_id not in self._monitored_directories:
             logger.warning(f"Cannot process directory for unknown dir_id: {dir_id}")
             return
-            
+
+        # --- ADD THIS BLOCK: Check scan history before proceeding ---
+        # Refresh scan history set before checking
+        self.scan_history_set = load_scan_history_set()
+        if is_any_media_file_in_scan_history(dir_path, self.scan_history_set):
+            logger.info(f"Skipping notification for {dir_path} (already in scan history)")
+            return
+        # --- END BLOCK ---
+
         dir_info = self._monitored_directories[dir_id]
         dir_name = dir_info.get('name', 'Unknown')
         monitored_path = dir_info.get('path', '')
