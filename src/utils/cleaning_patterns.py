@@ -1,8 +1,10 @@
 patterns_to_remove = [
     # years
-    r'\b(19|20)\d{2}\b', 
+    r'\b(19|20)\d{2}\b',
+    # Remove everything after SxxExx (season/episode) pattern, including the pattern itself
+    r'(?i)S\d{1,2}E\d{1,2}.*$',
     # video quality and formats
-    r'(?i)\b(2160p|1080p|DDR|HDR10Plus|F79|TV Series|Dolby Vision|6000nit|Ai upscale|Telesync|3840X2160|Orig|Re-Grade|Upscale|Atmos-MT|MULTI-RIFE|0-HDS|D.Web|DLRip|P5|4.25V2|60fps|SDR|Qhd|NF|SD|Webmux|master|ben\.the\.men|Classics|Sgf|HDR-X|v1|35mm|DD|Upscaled|Blue Ray|R2|Special.Assembly|AI|Multi|Kc|Extended\.Version|480|720|1080|2160|720p|480p|576p|4k|Theatrical Cut|Theateatrical\.Cut|H.\265|uhd|hdr10|Atvp|Web-DL|H\.264|HDR|hd|Web|hd master|Hybrid|Remaster|plus|remux|bluray|BDRemux|blu-ray|web-dl|webdl|webrip|hdrip|dvdrip|hdtv|x264|x265|h264|h265|hevc|avc|extended|uncut|proper|repack|limited|internal|complete|season|s\d{1,2}e\d{1,2}|s\d{1,2}|e\d{1,2}|part\s?\d+|cd\d+|disc\d+|disk\d+|episode|ep\d+|vol\d+|volume|boxset|collection|special|edition|director\.?s\.?cut|criterion|imax|theatrical|remastered|restored|uncensored|unrated|bdrip|brrip|dvdscr|r5|cam|ts|tc|scr|workprint|sample|read\.?nfo|nfo)\b',
+    r'(?i)\b(2160p|1080p|DDR|HDR10Plus|DVD|F79|TV Series|Dolby Vision|6000nit|Ai upscale|Telesync|3840X2160|Orig|Re-Grade|Upscale|Atmos-MT|MULTI-RIFE|0-HDS|D.Web|DLRip|P5|4.25V2|60fps|SDR|Qhd|NF|SD|Webmux|master|ben\.the\.men|Classics|Sgf|HDR-X|v1|35mm|DD|Upscaled|Blue Ray|R2|Special.Assembly|AI|Multi|Kc|Extended\.Version|480|720|1080|2160|720p|480p|576p|4k|Theatrical Cut|Theateatrical\.Cut|H.\265|uhd|hdr10|Atvp|Web-DL|H\.264|HDR|hd|Web|hd master|Hybrid|Remaster|plus|remux|bluray|BDRemux|blu-ray|web-dl|webdl|webrip|hdrip|dvdrip|hdtv|x264|x265|h264|h265|hevc|avc|extended|uncut|proper|repack|limited|internal|complete|season|s\d{1,2}e\d{1,2}|s\d{1,2}|e\d{1,2}|part\s?\d+|cd\d+|disc\d+|disk\d+|episode|ep\d+|vol\d+|volume|boxset|collection|special|specials|edition|director\.?s\.?cut|criterion|imax|theatrical|remastered|restored|uncensored|unrated|bdrip|brrip|dvdscr|r5|cam|ts|tc|scr|workprint|sample|read\.?nfo|nfo)\b',
     # video file formats (new pattern)
     r'(?i)\b(mkv|mp4|avi|mov|wmv|flv|m4v|ts|Lpcm2|m2ts|webm|vob|mpg|mpeg|3gp|divx|xvid)\b',
     # audio patterns (expanded for channels like AAC2, AAC2.0, DDP5, etc.)
@@ -12,7 +14,7 @@ patterns_to_remove = [
     # subtitle/subbed patterns
     r'(?i)\b(subbed|ensubbed|Latino|Hindi|engsub|DataLass|Iva|GalaxyRG265|YTS\.AG|3xRUS|Ingles|En|Es|engsubbed|sub|subs|subtitles|withsubs|withsubtitles)\b',
     # release groups and tags
-    r'(?i)\b(rarbg|Xebec|CtrlHD|Rick|Hdhweb|Sigma|Teamhd|Megusta|Pack|Aptv|HDO|DLMux|Kings|Lektor|Rartv|Lektor PL|Alusia|Successfulcrab|EZTVx\.to|DC|TRiToN|P8\.by\.DVT|SiCFoI|Dimepiece|Spooks|HANDJOB|johny4545|Master5|Huzzah|Nahom|Alfahd|Collective|YTS\.LT|CC|Criterion|NNMClub|TCV|yify|pirates|snake|Cinephiles|CMRG|DVSUX|Nogrp|Ethd|Tigole|Swtyblz|Shitrips|Secrecy|Warui|Cyber|Sartre|Rutracker|Roland|Roccat|Kogi|Accomplishedyak|Pianyuan|Trump|OSM|ika|DirtyHippie|1080p_by_vedigo|Artemix|Mircrew|APEX|Triton|kuchu|Datphyr|Aki|Dynamic|Tekno3d|Kaurismaki|Finnish|Dovi|Lm|UHDreescalado|Castellano|4k4U|evo|ntg|EniaHD|spark|ghost|nodlabs|EfficientNeatChachalacaOfOpportunity|scream|Theequalizer|Framestor|exkinoray|Sprinter|Rumour|Phobos|Zq|Bobropandavar|Kralimarko|seleZen|eztvx|ntb|tgx|fgt|tepes|usury|bipolar|epsilon|dvt|edge2020|master5i|yts\.mx|fgt|flux|leGi0n|apfelstrudel|ster|team|group|mux|rip|raw)\b',
+    r'(?i)\b(rarbg|Xebec|ProtonMovies|Redrussian1337|CtrlHD|Rick|Hdhweb|Sigma|Teamhd|Megusta|Pack|Aptv|HDO|DLMux|Kings|Lektor|Rartv|Lektor PL|Alusia|Successfulcrab|EZTVx\.to|DC|TRiToN|P8\.by\.DVT|SiCFoI|Dimepiece|Spooks|HANDJOB|johny4545|Master5|Huzzah|Nahom|Alfahd|Collective|YTS\.LT|CC|Criterion|NNMClub|TCV|yify|pirates|snake|Cinephiles|CMRG|DVSUX|Nogrp|Ethd|Tigole|Swtyblz|Shitrips|Secrecy|Warui|Cyber|Sartre|Rutracker|Roland|Roccat|Kogi|Accomplishedyak|Pianyuan|Trump|OSM|ika|DirtyHippie|1080p_by_vedigo|Artemix|Mircrew|APEX|Triton|kuchu|Datphyr|Aki|Dynamic|Tekno3d|Kaurismaki|Finnish|Dovi|Lm|UHDreescalado|Castellano|4k4U|evo|ntg|EniaHD|spark|ghost|nodlabs|EfficientNeatChachalacaOfOpportunity|scream|Theequalizer|Framestor|exkinoray|Sprinter|Rumour|Phobos|Zq|Bobropandavar|Kralimarko|seleZen|eztvx|ntb|tgx|fgt|tepes|usury|bipolar|epsilon|dvt|edge2020|master5i|yts\.mx|fgt|flux|leGi0n|apfelstrudel|ster|team|group|mux|rip|raw)\b',
     # production/distribution companies
     r'(?i)\b(sony[\s\._-]*pictures|AMZN|DSNP|amazon|warner[\s\._-]*bros|universal[\s\._-]*pictures|paramount([\s\._-]*pictures)?|columbia[\s\._-]*pictures|20th[\s\._-]*century[\s\._-]*fox|fox[\s\._-]*searchlight|lionsgate|mgm|walt[\s\._-]*disney|disney|pixar|dreamworks|new[\s\._-]*line[\s\._-]*cinema|focus[\s\._-]*features|miramax|tristar|legendary|a24|blumhouse|amazon[\s\._-]*studios|netflix|hbo|max|apple[\s\._-]*tv|apple[\s\._-]*originals|bbc|canal\+|gaumont|pathe|studio[\s\._-]*ghibli|toho|shout[\s\._-]*factory|criterion)\b',
     # season and episode formats
@@ -20,14 +22,14 @@ patterns_to_remove = [
     # disc and volume formats
     r'(?i)\b(CD\d+|Disc\d+|Disk\d+|Part\s?\d+|Vol\.?\d+|Volume|Episode|Ep\d+)\b',
     # punctuation
-    r'[\[\]\(\)\{\}\-_\.\,+\*\/\\\|:;\"\'\?=~`!@#$%^&]+', 
+    r'[\[\]\(\)\{\}\-_\.\,+\*\/\\\|:;\"\'\?=~`!@#$%^&]+',
     # extra spaces
     r'\s+',
     # standalone patterns
     r'(?i)\bcut\b',
     r'(?i)h[\.\s]?265',  # Matches "H.265", "H 265", "H265"
-    # lone season number at end (e.g. "Adam Ruins Everything 1")
+    # lone season number at end (e.g. "Alien Nation 1")
     r'\s+\d{1,2}$',
     # trailing group tags at end (expand as needed)
-    r'\s+(Ctrlhd|Rick|SiCFoI|Dimepiece|Spooks|HANDJOB|johny4545|Master5|Huzzah|Nahom|Alfahd|Collective|YTS\.LT|CC|Criterion|NNMClub|TCV|yify|pirates|snake|Cinephiles|CMRG|DVSUX|Nogrp|Ethd|Tigole|Swtyblz|Shitrips|Secrecy|Warui|Cyber|Sartre|Rutracker|Roland|Roccat|Kogi|Accomplishedyak|Pianyuan|Trump|OSM|ika|DirtyHippie|1080p_by_vedigo|Artemix|Mircrew|APEX|Triton|kuchu|Datphyr|Aki|Dynamic|Tekno3d|Kaurismaki|Finnish|Dovi|Lm|UHDreescalado|Castellano|4k4U|evo|ntg|EniaHD|spark|ghost|nodlabs|EfficientNeatChachalacaOfOpportunity|scream|Theequalizer|Framestor|exkinoray|Sprinter|Rumour|Phobos|Zq|Bobropandavar|Kralimarko|seleZen|eztvx|ntb|tgx|fgt|tepes|usury|bipolar|epsilon|dvt|edge2020|master5i|yts\.mx|fgt|flux|leGi0n|apfelstrudel|ster|team|group|mux|rip|raw)$',
+    r'\s+(Ctrlhd|Rick|SiCFoI|Dimepiece|Spooks|HANDJOB|johny4545|Master5|Huzzah|Nahom|Alfahd|Collective|YTS\.LT|CC|Criterion|NNMClub|TCV|yify|pirates|snake|Cinephiles|CMRG|DVSUX|Nogrp|Ethd|Tigole|Swtyblz|Shitrips|Secrecy|Warui|Cyber|Sartre|Rutracker|Roland|Roccat|Kogi|Accomplishedyak|Pianyuan|Trump|OSM|ika|DirtyHippie|1080p_by_vedigo|Artemix|Mircrew|APEX|Triton|kuchu|Datphyr|Aki|Dynamic|Tekno3d|Kaurismaki|Finnish|Dovi|Lm|UHDreescalado|Castellano|4k4U|evo|ntg|EniaHD|spark|ghost|nodlabs|EfficientNeatChachalacaOfOpportunity|scream|Theequalizer|Framestor|exkinoray|Sprinter|Rumour|Phobos|Zq|Bobropandavar|Kralimarko|seleZen|eztvx|ntb|tgx|fgt|tepes|usury|bipolar|epsilon|dvt|edge2020|master5i|yts\.mx|fgt|flux|leGi0n|apfelstrudel|ster|team|group|mux|rip|raw|Panda)$',
 ]
