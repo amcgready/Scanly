@@ -137,11 +137,11 @@ def send_symlink_repair_notification(title, year, poster, description, symlink_p
         logger.error("Failed to send repair webhook: %s", e)
         return False
 
-def send_monitored_item_notification(item_data):
+def send_monitored_item_notification(data):
     """Send a notification for a monitored item event.
     
     Args:
-        item_data (dict): Dictionary containing item details (title, description, path, poster)
+        data (dict): Dictionary containing item details (title, description, path, poster)
         
     Returns:
         bool: True if notification was sent successfully, False otherwise
@@ -151,9 +151,9 @@ def send_monitored_item_notification(item_data):
         logger.warning("No webhook URL configured for monitored item")
         return False
 
-    folder_name = item_data.get('title', 'Unknown')
-    dir_name = item_data.get('parent', 'Unknown')
-    message = f"📁 New folder detected: **{folder_name}** in {dir_name}"
+    directory = data.get("directory", "Unknown")
+    folder = data.get("folder", "Unknown")
+    message = data.get("message", f"New folder detected: {directory} in {folder}")
 
     try:
         webhook = DiscordWebhook(
@@ -162,7 +162,7 @@ def send_monitored_item_notification(item_data):
         )
         response = webhook.execute()
         if response and hasattr(response, 'status_code') and response.status_code in [200, 204]:
-            logger.info(f"Monitored item webhook sent for {folder_name} in {dir_name}")
+            logger.info(f"Monitored item webhook sent for {directory} in {folder}")
             return True
         else:
             logger.error(f"Webhook notification failed with status code: {getattr(response, 'status_code', 'unknown')}")

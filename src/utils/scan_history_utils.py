@@ -32,3 +32,28 @@ def is_path_in_scan_history(path):
     result = c.fetchone()
     conn.close()
     return result is not None
+
+def load_scan_history_set():
+    """Load scan history from both scan_history.txt and scan_history.db."""
+    history_set = set()
+    # Load from scan_history.txt
+    txt_path = os.path.join(os.path.dirname(__file__), '../scan_history.txt')
+    if os.path.exists(txt_path):
+        with open(txt_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    history_set.add(line)
+    # Load from scan_history.db
+    db_path = os.path.join(os.path.dirname(__file__), '../scan_history.db')
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            cur = conn.cursor()
+            cur.execute("SELECT path FROM scan_history")
+            for row in cur.fetchall():
+                history_set.add(row[0])
+            conn.close()
+        except Exception as e:
+            print(f"Failed to load scan_history.db: {e}")
+    return history_set

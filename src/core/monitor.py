@@ -125,7 +125,7 @@ class MonitorManager:
         return False
 
     def toggle_directory_active(self, dir_id):
-        """Toggle the active state of a monitored directory."""
+        """Toggle the active state of a monitored """
         if dir_id not in self._monitored_directories:
             logger.error(f"Directory ID not found: {dir_id}")
             return False
@@ -231,27 +231,48 @@ class MonitorManager:
             logger.error(f"Error scanning rclone directory: {e}")
 
     def _on_directory_detected(self, dir_id, dir_path):
-        """Handle a newly detected directory under a monitored path."""
-        if dir_id not in self._monitored_directories:
-            logger.warning(f"Cannot process directory for unknown dir_id: {dir_id}")
-            return
+        logger.debug(f"Triggered _on_directory_detected with dir_id={dir_id}, dir_path={dir_path}")
+        logger.debug(f"Current monitored_directories keys: {list(self._monitored_directories.keys())}")
 
-        # Refresh scan history set before checking
-        self.scan_history_set = load_scan_history_set()
-        if is_any_media_file_in_scan_history(dir_path, self.scan_history_set):
-            logger.info(f"Skipping notification for {dir_path} (already in scan history)")
+        if dir_id not in self._monitored_directories:
+            logger.error(f"Unknown dir_id: {dir_id} for detected directory {dir_path}")
             return
 
         dir_info = self._monitored_directories[dir_id]
+        logger.debug(f"dir_info: {dir_info}")
+
         dir_name = dir_info.get('name', 'Unknown')
         monitored_path = dir_info.get('path', '')
+
+        if not dir_name or not monitored_path:
+            logger.error(f"Monitored directory config missing name or path for dir_id {dir_id}: {dir_info}")
+            return
+
+        # --- CRITICAL: Only notify if no media file in this folder is in scan history ---
+        from src.main import load_scan_history_set, is_any_media_file_in_scan_history
+        scan_history_set = load_scan_history_set()
+        if is_any_media_file_in_scan_history(dir_path, scan_history_set):
+            logger.info(f"Skipping notification for {dir_path} (already in scan history)")
+            return
 
         folder_name = os.path.relpath(dir_path, monitored_path)
         self._send_directory_notification(dir_name, folder_name)
 
     def _send_directory_notification(self, dir_name, folder_name):
         logger.info(f"New directory detected: {dir_name} - {folder_name}")
-        # Place webhook or notification logic here
+        payload = {
+            "directory": dir_name,
+            "folder": folder_name,
+            "message": f"New directory detected: {dir_name} - {folder_name}"
+        }
+        logger.debug(f"Webhook payload: {payload}")
+        try:
+            from src.utils.webhooks import send_monitored_item_notification
+            webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
+            if webhook_url:
+                send_monitored_item_notification(payload)
+        except Exception as e:
+            logger.error(f"Failed to send directory notification webhook: {e}")
 
     def _stop_monitoring(self, dir_id):
         if dir_id in self._observers:
