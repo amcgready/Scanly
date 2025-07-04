@@ -34,6 +34,33 @@ def clean_title_with_patterns(title):
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 RESUME_TEMP_FILE = "/tmp/scanly_resume_path.txt"
 
+def deduplicate_phrases(title):
+    """Remove repeated phrases from a title string, preserving order."""
+    words = title.split()
+    seen = set()
+    result = []
+    phrase = ""
+    for i, word in enumerate(words):
+        # Build up phrases of length 2 and 3 for better detection
+        if i < len(words) - 1:
+            two_word = f"{words[i]} {words[i+1]}"
+            if two_word.lower() not in seen:
+                seen.add(two_word.lower())
+                result.append(words[i])
+            else:
+                continue
+        elif word.lower() not in seen:
+            seen.add(word.lower())
+            result.append(word)
+    # Fallback: remove any single repeated words
+    final = []
+    seen_words = set()
+    for word in result:
+        if word.lower() not in seen_words:
+            final.append(word)
+            seen_words.add(word.lower())
+    return ' '.join(final)
+
 def save_resume_path(path):
     """Save the resume path to a temp file."""
     with open(RESUME_TEMP_FILE, "w") as f:
@@ -662,8 +689,12 @@ class DirectoryProcessor:
             clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1)
         # Remove patterns to clean up the title
         clean_title = clean_title_with_patterns(clean_title)
-        if not clean_title:
-            clean_title = folder_name
+        # --- Deduplicate repeated words/phrases ---
+        clean_title = deduplicate_phrases(clean_title)
+        if not clean_title.strip():
+            # Fallback: use the folder name (minus year) if cleaning wipes everything
+            clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1) if year else folder_name
+            clean_title = clean_title.strip()
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
         return clean_title, year
     
@@ -1026,7 +1057,6 @@ class DirectoryProcessor:
 
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
-                title = clean_title_with_patterns(title)
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 is_wrestling = False
