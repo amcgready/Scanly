@@ -1883,9 +1883,8 @@ def handle_monitor_management(monitor_manager):
         
         # Get status
         status = monitor_manager.get_monitoring_status()
-        active_dirs = status.get('active_directories', [])
-        # Monitoring is ACTIVE if any directory is active
-        is_active = bool(active_dirs)
+        # status is {dir_id: True/False, ...}
+        is_active = any(status.values())
         # Show current status
         if is_active:
             print("\n✅ Monitoring is ACTIVE")
@@ -1948,11 +1947,7 @@ def handle_monitor_management(monitor_manager):
                     dir_name = "Unknown Directory"
                 
                 # Status indicator
-                is_active_dir = False
-                for active_dir in active_dirs:
-                    if active_dir == key:
-                        is_active_dir = True
-                        break
+                is_active_dir = status.get(key, False)
                 status_icon = "🟢" if is_active_dir else "🔴"
                 
                 # Get pending count
@@ -2408,6 +2403,9 @@ def main():
     
     clear_screen()  # Make sure screen is clear before starting menu loop
     
+    # Start the initial scan in the background
+    monitor_manager.start_initial_scan_in_background()
+
     while True:
         display_ascii_art()
         print("=" * 84)
