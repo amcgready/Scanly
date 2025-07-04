@@ -691,6 +691,9 @@ class DirectoryProcessor:
         clean_title = clean_title_with_patterns(clean_title)
         # --- Deduplicate repeated words/phrases ---
         clean_title = deduplicate_phrases(clean_title)
+        # --- PATCH: Restore titles like "9-1-1 Lone Star" if original matches ---
+        if re.match(r'9-1-1(\.| )?Lone\.?Star', folder_name, re.IGNORECASE):
+            clean_title = "9-1-1 Lone Star"
         if not clean_title.strip():
             # Fallback: use the folder name (minus year) if cleaning wipes everything
             clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1) if year else folder_name
