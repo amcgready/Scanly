@@ -22,13 +22,22 @@ from utils.scan_logic import normalize_title, normalize_unicode
 
 # --- Add this helper function for consistent cleaning ---
 def clean_title_with_patterns(title):
-    """Apply all cleaning patterns to a title string."""
+    # List of known number-based titles (expand as needed)
+    number_titles = [
+        r'^90[ ._-]?day[ ._-]?fianc[eé]',
+        r'^9-1-1([ ._-]?lone[ ._-]?star)?',
+        r'^60[ ._-]?minutes',
+        r'^24$',
+        # Add more as needed
+    ]
+    # If the title does NOT match a known number-based title, remove leading numbers
+    if not any(re.match(pat, title, re.IGNORECASE) for pat in number_titles):
+        title = re.sub(r'^\d{2,}[\s\-\.\)]{1,}(?=[A-Za-z])', '', title)
+    # Now apply the rest of your patterns as usual
+    from utils.cleaning_patterns import patterns_to_remove
     for pattern in patterns_to_remove:
         title = re.sub(pattern, ' ', title, flags=re.IGNORECASE)
-    title = title.strip()
-    title = re.sub(r'\s+', ' ', title)
-    title = title.title()
-    title = normalize_unicode(title)
+    title = re.sub(r'\s+', ' ', title).strip()
     return title
 
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
@@ -1731,7 +1740,7 @@ class DirectoryProcessor:
                         break  # Move to next item, do NOT process
                     elif choice == "7":
                         save_resume_path(self.directory_path)
-                        print("\nRefreshing script and resuming scan...")
+                        print("\nRefreshing scan script...")
                         sys.stdout.flush()
                         python = sys.executable
                         os.execv(python, [python] + sys.argv)

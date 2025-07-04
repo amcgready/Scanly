@@ -217,8 +217,8 @@ def normalize_unicode(text):
 def normalize_title(title):
     # Remove all punctuation (including !, ?, ., etc.)
     title = re.sub(r'[^\w\s]', '', title)
-    # Normalize unicode, lowercase, and strip
-    title = unicodedata.normalize('NFKD', title)
+    # Normalize unicode (remove accents), lowercase, and strip
+    title = normalize_unicode(title)
     title = title.lower().strip()
     # Collapse whitespace
     title = re.sub(r'\s+', ' ', title)

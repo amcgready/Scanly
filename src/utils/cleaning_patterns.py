@@ -1,6 +1,4 @@
 patterns_to_remove = [
-    # Remove leading numbers ONLY if they are followed by a space and not part of a word (e.g., "01 " but NOT "9-1-1")
-    r'^(?P<num>\d{2,})[\s\-\.\)]{1,}(?=[A-Za-z])',
     # years
     r'\b(19|20)\d{2}\b',
     # Remove everything after SxxExx (season/episode) pattern, including the episode code itself
