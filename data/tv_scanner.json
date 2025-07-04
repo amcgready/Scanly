@@ -1,0 +1,14 @@
+[
+    {
+        "title": "Stranger Things",
+        "year": "2016",
+        "tmdb_id": "66732",
+        "anime": false
+    },
+    {
+        "title": "Attack on Titan",
+        "year": "2013",
+        "tmdb_id": "1429",
+        "anime": true
+    }
+]
