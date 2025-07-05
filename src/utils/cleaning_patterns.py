@@ -47,4 +47,6 @@ patterns_to_remove = [
     r'\([^)]+\)',
     # Remove common non-title phrases (customize as needed)
     r'(?i)\b(stacja kosmiczna|lektor pl|napisy pl|polska wersja|wersja pl)\b',
+    # Specialized blocking for odd release names"
+    r'\bRiCK\b',
 ]

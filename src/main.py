@@ -708,6 +708,15 @@ class DirectoryProcessor:
             clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1) if year else folder_name
             clean_title = clean_title.strip()
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
+        
+        # Remove trailing season/volume number if year is unknown and title ends with a number
+        if (year is None or str(year).lower() == "unknown") and re.search(r'\b\d+$', clean_title):
+            known_numbered = [
+                r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+            ]
+            if not any(re.match(pat, clean_title, re.IGNORECASE) for pat in known_numbered):
+                clean_title = re.sub(r'\b\d+$', '', clean_title).strip()
+        
         return clean_title, year
     
     def _detect_if_tv_show(self, folder_name):
@@ -2522,3 +2531,12 @@ if __name__ == "__main__":
         folder_name = get_series_folder_name(title, year, tmdb_id, season_number)
     else:
         folder_name = f"{title} ({year})"
+
+    # Remove trailing season number if year is unknown and title ends with a number
+    if (year is None or year == "Unknown") and re.match(r'.*\b\d+$', title):
+        # Only strip if not a known numbered show (like "24", "9-1-1", etc.)
+        known_numbered = [
+            r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+        ]
+        if not any(re.match(pat, title, re.IGNORECASE) for pat in known_numbered):
+            title = re.sub(r'\b\d+$', '', title).strip()
