@@ -233,28 +233,30 @@ def _init_scan_history_db():
     conn.close()
 
 def archive_scan_history_txt_to_db():
-    """Move first 100 items from scan_history.txt to the database and remove them from the file."""
+    """Move all items from scan_history.txt to the database if there are 100 or more, then clear the file."""
     if not os.path.exists(SCAN_HISTORY_FILE):
         return
+
     with open(SCAN_HISTORY_FILE, 'r') as f:
         lines = [line.strip() for line in f if line.strip()]
+
     if len(lines) < 100:
         return
+
     _init_scan_history_db()
-    to_archive = lines[:100]
     conn = sqlite3.connect(SCAN_HISTORY_DB)
     c = conn.cursor()
-    for path in to_archive:
+    for path in lines:
         try:
             c.execute('INSERT OR IGNORE INTO archived_scan_history (path) VALUES (?)', (path,))
-        except Exception as e:
-            logger.error(f"Error archiving scan history path to DB: {e}")
+        except Exception:
+            pass
     conn.commit()
     conn.close()
-    # Write back only the remaining lines
+
+    # Clear the txt file after archiving
     with open(SCAN_HISTORY_FILE, 'w') as f:
-        for line in lines[100:]:
-            f.write(line + '\n')
+        pass
 
 def is_path_in_archived_history(path):
     """Check if a path is in the archived scan history database."""
@@ -320,6 +322,7 @@ def append_to_scan_history(path):
     with open(SCAN_HISTORY_FILE, 'a') as f:
         f.write(f"{path}\n")
     GLOBAL_SCAN_HISTORY_SET.add(path)
+    archive_scan_history_txt_to_db()  # <-- Add this line
 
 def load_scan_history():
     """Load scan history from file."""
