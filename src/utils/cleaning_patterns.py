@@ -10,7 +10,7 @@ patterns_to_remove = [
     # Remove language track counts like 2xUKR, 3xENG, etc.
     r'(?i)\b\d+x[a-z]{2,4}\b',
     # video quality and formats
-    r'(?i)\b(2160p|1080p|Fhd|UHDremux|Ultrahd|Enhance|Animated|HONE|Multisub|TV|1080i|960p|DDR|DDPA5|DDP|Pal|Dubbed|Subbed|HD1080p|4K80|10-Bit|Hhweb|Subtitle|Extras|Language|P8|Web-D|TVShows|Rife\.4|HDR10Plus|Seasons|Tvrip|DVD|F79|TV Series|Dolby Vision|6000nit|Ai upscale|Telesync|3840X2160|Orig|Re-Grade|Upscale|Atmos-MT|MULTI-RIFE|0-HDS|D.Web|DLRip|P5|4.25V2|60fps|SDR|Qhd|NF|SD|Webmux|master|ben\.the\.men|Classics|Sgf|HDR-X|v1|35mm|DD|Upscaled|Blue Ray|R2|Special.Assembly|AI|Multi|Kc|Extended\.Version|480|720|1080|2160|720p|480p|576p|4k|Theatrical Cut|Theateatrical\.Cut|uhd|hdr10|Atvp|Web-DL|HDR|hd|Web|hd master|Hybrid|Remaster|plus|remux|bluray|BDRemux|blu-ray|web-dl|webdl|webrip|hdrip|dvdrip|hdtv|x264|x265|h264|h265|hevc|avc|extended|uncut|proper|repack|limited|internal|complete|season|part\s?\d+|cd\d+|disc\d+|disk\d+|episode|ep\d+|vol\d+|volume|boxset|collection|special|specials|edition|director\.?s\.?cut|criterion|imax|theatrical|remastered|restored|uncensored|unrated|bdrip|brrip|dvdscr|r5|cam|ts|tc|scr|workprint|sample|read\.?nfo|nfo)\b',
+    r'(?i)\b(2160p|1080p|Fhd|UHDremux|Ultrahd|Enhance|Animated|HONE|Multisub|TV|1080i|960p|DDR|DDPA5|DDP|Pal|Dubbed|Subbed|HD1080p|4K80|10-Bit|Hhweb|Subtitle|Extras|Language|P8|Web-D|TVShows|Rife\.4|HDR10Plus|Tvrip|DVD|F79|TV Series|Dolby Vision|6000nit|Ai upscale|Telesync|3840X2160|Orig|Re-Grade|Upscale|Atmos-MT|MULTI-RIFE|0-HDS|D.Web|DLRip|P5|4.25V2|60fps|SDR|Qhd|NF|SD|Webmux|master|ben\.the\.men|Classics|Sgf|HDR-X|v1|35mm|DD|Upscaled|Blue Ray|R2|Special.Assembly|AI|Multi|Kc|Extended\.Version|480|720|1080|2160|720p|480p|576p|4k|Theatrical Cut|Theateatrical\.Cut|uhd|hdr10|Atvp|Web-DL|HDR|hd|Web|hd master|Hybrid|Remaster|plus|remux|bluray|BDRemux|blu-ray|web-dl|webdl|webrip|hdrip|dvdrip|hdtv|x264|x265|h264|h265|hevc|avc|extended|uncut|proper|repack|limited|internal|complete|season|part\s?\d+|cd\d+|disc\d+|disk\d+|episode|ep\d+|vol\d+|volume|boxset|collection|special|specials|edition|director\.?s\.?cut|criterion|imax|theatrical|remastered|restored|uncensored|unrated|bdrip|brrip|dvdscr|r5|cam|ts|tc|scr|workprint|sample|read\.?nfo|nfo)\b',
     # Remove H.264, H 264, H264, H.265, H 265, H265 (with or without spaces/dots)
     r'(?i)\bH[\s\.]?26[45]\b',
     # video file formats (new pattern)
@@ -48,5 +48,5 @@ patterns_to_remove = [
     # Remove common non-title phrases (customize as needed)
     r'(?i)\b(stacja kosmiczna|lektor pl|napisy pl|polska wersja|wersja pl|Głowa)\b',
     # Specialized blocking for odd release names"
-    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',r'\bsinhala\b',r'\bUS\b',r'\bLostFIlm\b',r'\bBaibaKo\b',r'\bCARVED\b',r'\bRuDub\b',r'\bGHOSTS\b',r'\bGeneralfilm\b',
+    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',r'\bsinhala\b',r'\bUS\b',r'\bLostFIlm\b',r'\bBaibaKo\b',r'\bCARVED\b',r'\bRuDub\b',r'\bGHOSTS\b',r'\bGeneralfilm\b',r'\biAHD\b',r'\bDB\b',r'\bHONE\b',r'\bRGzsRutracker\b',
 ]
