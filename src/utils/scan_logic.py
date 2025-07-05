@@ -132,8 +132,8 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
                 score = 100
             # Exact title match, year mismatch or missing
             elif norm_search == norm_scan:
-                # For TV Series, ignore year mismatch
-                if content_type == "TV Series":
+                # For TV Series or Anime Series, ignore year mismatch
+                if content_type in ("TV Series", "Anime Series"):
                     score = 100
                 elif not year or (scan_year and str(year) == scan_year):
                     score = 100
