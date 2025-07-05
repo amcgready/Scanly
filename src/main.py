@@ -17,26 +17,15 @@ import csv
 import sqlite3
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
-from utils.cleaning_patterns import patterns_to_remove
+from utils.cleaning_patterns import patterns_to_remove, case_sensitive_patterns
 from utils.scan_logic import normalize_title, normalize_unicode
 
 # --- Add this helper function for consistent cleaning ---
 def clean_title_with_patterns(title):
-    # List of known number-based titles (expand as needed)
-    number_titles = [
-        r'^90[ ._-]?day[ ._-]?fianc[eé]',
-        r'^9-1-1([ ._-]?lone[ ._-]?star)?',
-        r'^60[ ._-]?minutes',
-        r'^24$',
-        # Add more as needed
-    ]
-    # If the title does NOT match a known number-based title, remove leading numbers
-    if not any(re.match(pat, title, re.IGNORECASE) for pat in number_titles):
-        title = re.sub(r'^\d{2,}[\s\-\.\)]{1,}(?=[A-Za-z])', '', title)
-    # Now apply the rest of your patterns as usual
-    from utils.cleaning_patterns import patterns_to_remove
     for pattern in patterns_to_remove:
         title = re.sub(pattern, ' ', title, flags=re.IGNORECASE)
+    for pattern in case_sensitive_patterns:
+        title = re.sub(pattern, ' ', title)  # No IGNORECASE here!
     title = re.sub(r'\s+', ' ', title).strip()
     return title
 

@@ -47,6 +47,12 @@ patterns_to_remove = [
     r'\([^)]+\)',
     # Remove common non-title phrases (customize as needed)
     r'(?i)\b(stacja kosmiczna|lektor pl|napisy pl|polska wersja|wersja pl|Głowa)\b',
-    # Specialized blocking for odd release names"
-    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',r'\bsinhala\b',r'\bUS\b',r'\bLostFIlm\b',r'\bBaibaKo\b',r'\bCARVED\b',r'\bRuDub\b',r'\bGHOSTS\b',r'\bGeneralfilm\b',r'\biAHD\b',r'\bDB\b',r'\bHONE\b',r'\bRGzsRutracker\b',r'\bFLUX\b',r'\biris2\b',r'\bh265\b',r'\bACE\b',
+]
+
+case_sensitive_patterns = [
+    r'\bRiCK\b', r'\bby AKTEP\b', r'\bBIGDOC\b', r'\bAS76\b', r'\bSHD13\b', r'\bSiQ\b', r'\bSunabouzu\b',
+    r'\bsinhala\b', r'\bUS\b', r'\bLostFIlm\b', r'\bBaibaKo\b', r'\bCARVED\b', r'\bRuDub\b', r'\bGHOSTS\b',
+    r'\bGeneralfilm\b', r'\biAHD\b', r'\bDB\b', r'\bHONE\b', r'\bRGzsRutracker\b', r'\bFLUX\b', r'\biris2\b',
+    r'\bh265\b', r'\bACE\b', r'\bsbor\b', r'\b264-PIX\b', r'\bMOREBiTS\b', r'\bTorrent911.lol\b',
+    r'\bTorrent911.wf\b', r'\bKAZETV\b', r'\bT3KASHi\b', r'\bBEST TORRENTS COM\b', r'\bEx torrenty org\b', r'\bRalf\b',
 ]
