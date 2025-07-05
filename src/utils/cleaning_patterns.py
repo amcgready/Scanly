@@ -46,7 +46,7 @@ patterns_to_remove = [
     # Remove actor names in parentheses (e.g., (Ted Danson - Shelley Long - Kirstie Alley))
     r'\([^)]+\)',
     # Remove common non-title phrases (customize as needed)
-    r'(?i)\b(stacja kosmiczna|lektor pl|napisy pl|polska wersja|wersja pl)\b',
+    r'(?i)\b(stacja kosmiczna|lektor pl|napisy pl|polska wersja|wersja pl|Głowa)\b',
     # Specialized blocking for odd release names"
-    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',r'\bsinhala\b',r'\bUS\b',r'\bLostFIlm\b',
+    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',r'\bsinhala\b',r'\bUS\b',r'\bLostFIlm\b',r'\bBaibaKo\b',r'\bCARVED\b',
 ]
