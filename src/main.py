@@ -1468,17 +1468,12 @@ class DirectoryProcessor:
                                 is_tv = False
                                 is_anime = False
                                 is_wrestling = True
-                            
-                            # --- Apply default content type logic based on parent directory ---
-                            default_flags = get_default_content_type_for_path(self.directory_path)
-                            if default_flags:
-                                is_tv, is_anime, is_wrestling = default_flags
+                            elif type_choice == "0":
+                                continue  # Go back to previous menu
                             else:
-                                is_tv = self._detect_if_tv_show(subfolder_name)
-                                is_anime = self._detect_if_anime(subfolder_name)
-                                is_wrestling = False
-
-                            continue  # Re-check scanner lists with new content type
+                                print("Invalid type. Returning to previous menu.")
+                                continue
+                            continue  # <--- THIS LINE ENSURES THE LOOP RESTARTS WITH NEW CONTENT TYPE
                         elif (tmdb_choices and action_choice == "5") or (not tmdb_choices and action_choice == "4"):
                             # Manual TMDB ID
                             new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
@@ -1705,7 +1700,7 @@ class DirectoryProcessor:
                         else:
                             print("Invalid type. Returning to previous menu.")
                             continue
-                        continue  # After changing type, re-run the scanner with new type
+                        continue  # <--- THIS LINE ENSURES THE LOOP RESTARTS WITH NEW CONTENT TYPE
                     elif choice == "4":
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                         if new_tmdb_id:
