@@ -212,12 +212,12 @@ def normalize_title(title):
     title = re.sub(r"[’']", '', title)
     # Replace dots, underscores, and dashes with space
     title = re.sub(r'[._\-]+', ' ', title)
-    # Remove all other punctuation except spaces
-    title = re.sub(r'[^\w\s]', '', title)
+    # Remove all other punctuation except spaces and &
+    title = re.sub(r'[^\w\s&]', '', title)
     # Normalize unicode (remove accents), lowercase, and strip
     title = normalize_unicode(title)
     title = title.lower().strip()
     # Collapse whitespace
     title = re.sub(r'\s+', ' ', title)
-    title = title.replace(' ', '')  # <--- Add this line
+    # DO NOT remove all spaces!
     return title
