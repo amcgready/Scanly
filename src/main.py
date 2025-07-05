@@ -717,6 +717,14 @@ class DirectoryProcessor:
             if not any(re.match(pat, clean_title, re.IGNORECASE) for pat in known_numbered):
                 clean_title = re.sub(r'\b\d+$', '', clean_title).strip()
         
+        # Always remove trailing season/volume number if title ends with a number and not a known numbered show
+        if re.search(r'\b\d+$', clean_title):
+            known_numbered = [
+                r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+            ]
+            if not any(re.match(pat, clean_title, re.IGNORECASE) for pat in known_numbered):
+                clean_title = re.sub(r'\b\d+$', '', clean_title).strip()
+        
         return clean_title, year
     
     def _detect_if_tv_show(self, folder_name):
@@ -1795,7 +1803,7 @@ class DirectoryProcessor:
         elif is_anime and is_tv:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
         elif is_anime and not is_tv:
-            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
+                       dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
         elif is_tv and not is_anime:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
 
