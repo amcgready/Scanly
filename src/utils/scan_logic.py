@@ -208,11 +208,16 @@ def normalize_unicode(text):
     return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('ASCII')
 
 def normalize_title(title):
-    # Remove all punctuation (including !, ?, ., etc.)
+    # Remove apostrophes entirely (don't replace with space)
+    title = re.sub(r"[’']", '', title)
+    # Replace dots, underscores, and dashes with space
+    title = re.sub(r'[._\-]+', ' ', title)
+    # Remove all other punctuation except spaces
     title = re.sub(r'[^\w\s]', '', title)
     # Normalize unicode (remove accents), lowercase, and strip
     title = normalize_unicode(title)
     title = title.lower().strip()
     # Collapse whitespace
     title = re.sub(r'\s+', ' ', title)
+    title = title.replace(' ', '')  # <--- Add this line
     return title
