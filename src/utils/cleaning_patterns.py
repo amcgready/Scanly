@@ -18,7 +18,7 @@ patterns_to_remove = [
     # audio patterns (expanded for channels like AAC2, AAC2.0, DDP5, etc.)
     r'(?i)\b(DD5\.1|FLAC-TTGA|FLAC2|Dolby|FLAC2.0|PCM|TTGA|MA|MA5\.1|EAC3|GP|SYNCOPY|H264-FT|AV1|G66|LC|VC-1|LPCM|5 1|1 0|2 0|VO|DDP2\.0|FLAC1\.0|H-264|H-265|DDP5(\.\d)?|FLAC|AAC(\d(\.\d)?)?|AC3|DTS|TrueHD|Atmos|DV|1\.0|2\.0|5\.1|7\.1|10bit|8bit|opus|dual|audio)\b',
     # language patterns
-    r'(?i)\b(eng|pk|english|USA|Lang|Jrp|fr|fre|french|Hin|Un|USA|Nuevo|R\.G\.|RG|R G|Mundo|Lat|spa|Ukr|Sk|es|Swedish|spanish|ita|it|italian|ger|de|german|rus|ru|russian|jpn|ja|japanese|chi|zh|chinese|kor|ko|korean|nl|dut|dutch|por|pt|portuguese|pl|pol|polish|cz|cze|czech|hun|magyar|gre|ell|greek|tur|tr|turkish|arabic|ara|heb|he|hebrew|ind|id|indonesian|tha|th|thai|vie|vi|vietnamese|fil|tl|tagalog|malay|tam|ta|tamil|tel|te|telugu|kan|kn|kannada|bn|bengali|mar|mr|marathi|guj|gu|gujarati|pun|pa|punjabi|ori|or|odia|mal|ml|malayalam|bur|my|burmese|khm|km|khmer|lao|lo|lao|mon|mn|mongolian|nep|ne|nepali|sin|si|sinhala|swa|sw|swahili|tgl|tl|tagalog|uzb|uz|uzbek|yor|yo|yoruba|zho|zh|chinese)\b',
+    r'(?i)\b(eng|pk|english|USA|Lang|Jrp|fr|fre|french|Hin|Un|USA|Nuevo|R\.G\.|RG|R G|Mundo|Lat|spa|Ukr|Sk|es|Swedish|spanish|ita|it|italian|ger|de|german|rus|ru|russian|jpn|ja|japanese|chi|zh|chinese|kor|ko|korean|nl|dut|dutch|por|pt|portuguese|pl|pol|polish|cz|cze|czech|hun|magyar|gre|ell|greek|tur|tr|turkish|arabic|ara|heb|he|hebrew|ind|id|indonesian|tha|th|thai|vie|vi|vietnamese|fil|tl|tagalog|malay|tam|ta|tamil|tel|te|telugu|kan|kn|kannada|bn|bengali|mar|mr|marathi|guj|gu|gujarati|pun|pa|punjabi|ori|or|odia|mal|ml|malayalam|bur|my|burmese|khm|km|khmer|lao|lo|lao|mon|mn|mongolian|nep|ne|nepali|si|swa|sw|swahili|tgl|tl|tagalog|uzb|uz|uzbek|yor|yo|yoruba|zho|zh|chinese)\b',
     # subtitle/subbed patterns
     r'(?i)\b(subbed|ensubbed|Bdc|Rmteam|Bcore|Pignus|Sbr|CAT|Esp|Jap|Latino|Hindi|engsub|DataLass|Eztv|Dovi Ace|RE|eztv\.re|TNClub|rutracker\.org|Iva|GalaxyRG265|YTS\.AG|3xRUS|Ingles|En|Es|engsubbed|sub|subs|subtitles|withsubs|withsubtitles)\b',
     # release groups and tags (improved: match before brackets, parenthesis, space, or end)
@@ -48,5 +48,5 @@ patterns_to_remove = [
     # Remove common non-title phrases (customize as needed)
     r'(?i)\b(stacja kosmiczna|lektor pl|napisy pl|polska wersja|wersja pl)\b',
     # Specialized blocking for odd release names"
-    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',
+    r'\bRiCK\b', r'\bby AKTEP\b',r'\bBIGDOC\b',r'\bAS76\b',r'\bSHD13\b',r'\bSiQ\b',r'\bSunabouzu\b',r'\bsinhala\b',r'\bUS\b',r'\bLostFIlm\b',
 ]
