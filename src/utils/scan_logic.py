@@ -3,26 +3,24 @@ import datetime
 import unicodedata
 import os
 import difflib
+from .cleaning_patterns import patterns_to_remove
 
 def extract_folder_metadata(folder_name):
-    # ...copy the logic from DirectoryProcessor._extract_folder_metadata...
-    # (Use the latest, most correct version)
-    title = folder_name
+    clean_title = folder_name
     year = None
-    parentheses_year = re.search(r'\((\d{4})\)', folder_name)
+    parentheses_year = re.search(r'\((\d{4})\)', clean_title)
     if parentheses_year:
         year = parentheses_year.group(1)
-        clean_title = re.sub(r'\s*\(\d{4}\)\s*', ' ', folder_name).strip()
+        clean_title = re.sub(r'\s*\(\d{4}\)\s*', ' ', clean_title).strip()
     else:
         current_year = datetime.datetime.now().year
-        year_matches = re.findall(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', folder_name)
-        clean_title = folder_name
+        year_matches = re.findall(r'(?:^|[^0-9])(\d{4})(?:[^0-9]|$)', clean_title)
         if year_matches:
             for potential_year in year_matches:
                 year_int = int(potential_year)
                 if 1900 <= year_int <= current_year + 5:
                     year = potential_year
-            if year_matches[0] == year and re.match(r'^' + year + r'[^0-9]', folder_name):
+            if year_matches[0] == year and re.match(r'^' + year + r'[^0-9]', clean_title):
                 if len(year_matches) > 1:
                     for potential_year in year_matches[1:]:
                         year_int = int(potential_year)
@@ -31,24 +29,19 @@ def extract_folder_metadata(folder_name):
                             break
                 else:
                     year = None
-    clean_title = folder_name
-    if year and not re.match(r'^' + year + r'[^0-9]', folder_name):
+    # Remove trailing season/volume number if not a known numbered show
+    if year and re.search(r'\b\d+$', clean_title):
+        known_numbered = [
+            r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+        ]
+        if not any(re.match(pat, clean_title, re.IGNORECASE) for pat in known_numbered):
+            clean_title = re.sub(r'\b\d+$', '', clean_title).strip()
+    if year and not re.match(r'^' + year + r'[^0-9]', clean_title):
         clean_title = re.sub(r'\.?' + year + r'\.?', ' ', clean_title)
-    patterns_to_remove = [
-        r'(?i)\b(720p|1080p|1440p|2160p|4320p|480p|576p|8K|4K|UHD|HD|FHD|QHD)\b',
-        r'(?i)\b(BluRay|Blu Ray|Blu-ray|BD|REMUX|BDRemux|BDRip|DVDRip|HDTV|WebRip|WEB-DL|WEBRip|Web|HDRip|DVD|DVDR)\b',
-        r'(?i)\b(xvid|divx|x264|x265|hevc|h264|h265|HEVC|avc|vp9|av1)\b',
-        r'(?i)\b(DTS[-\.]?(HD|ES|X)?|DD5\.1|AAC|AC3|TrueHD|Atmos|MA|5\.1|7\.1|2\.0|opus)\b',
-        r'(?i)(\[.*?\]|\-[a-zA-Z0-9_]+$)',
-        r'(?i)\b(AMZN|EfficientNeatChachalacaOfOpportunityTGx|SPRiNTER|KRaLiMaRKo|DVT|TheEqualizer|YIFY|NTG|YTS|SPARKS|RARBG|EVO|GHOST|HDCAM|CAM|TS|SCREAM|ExKinoRay)\b',
-        r'(?i)\b(HDR|VC|10bit|8bit|Hi10P|IMAX|PROPER|REPACK|HYBRID|DV)\b'
-    ]
+    # Apply all shared cleaning patterns
     for pattern in patterns_to_remove:
         clean_title = re.sub(pattern, ' ', clean_title)
-    clean_title = re.sub(r'\.|\-|_', ' ', clean_title)
-    clean_title = re.sub(r'\bFGT\b', '', clean_title, flags=re.IGNORECASE)
-    clean_title = re.sub(r'\(\s*\)', '', clean_title)  # Remove empty parentheses
-    clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+    clean_title = clean_title.strip()
     if not clean_title:
         clean_title = folder_name
     return clean_title, year
@@ -139,8 +132,8 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
                 score = 100
             # Exact title match, year mismatch or missing
             elif norm_search == norm_scan:
-                # For TV Series, ignore year mismatch
-                if content_type == "TV Series":
+                # For TV Series or Anime Series, ignore year mismatch
+                if content_type in ("TV Series", "Anime Series"):
                     score = 100
                 elif not year or (scan_year and str(year) == scan_year):
                     score = 100
@@ -215,11 +208,16 @@ def normalize_unicode(text):
     return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('ASCII')
 
 def normalize_title(title):
-    # Remove all punctuation (including !, ?, ., etc.)
-    title = re.sub(r'[^\w\s]', '', title)
-    # Normalize unicode, lowercase, and strip
-    title = unicodedata.normalize('NFKD', title)
+    # Remove apostrophes entirely (don't replace with space)
+    title = re.sub(r"[’']", '', title)
+    # Replace dots, underscores, and dashes with space
+    title = re.sub(r'[._\-]+', ' ', title)
+    # Remove all other punctuation except spaces and &
+    title = re.sub(r'[^\w\s&]', '', title)
+    # Normalize unicode (remove accents), lowercase, and strip
+    title = normalize_unicode(title)
     title = title.lower().strip()
     # Collapse whitespace
     title = re.sub(r'\s+', ' ', title)
+    # DO NOT remove all spaces!
     return title

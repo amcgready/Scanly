@@ -17,22 +17,47 @@ import csv
 import sqlite3
 from pathlib import Path
 from utils.plex_utils import refresh_selected_plex_libraries
-from utils.cleaning_patterns import patterns_to_remove
+from utils.cleaning_patterns import patterns_to_remove, case_sensitive_patterns
 from utils.scan_logic import normalize_title, normalize_unicode
 
 # --- Add this helper function for consistent cleaning ---
 def clean_title_with_patterns(title):
-    """Apply all cleaning patterns to a title string."""
     for pattern in patterns_to_remove:
         title = re.sub(pattern, ' ', title, flags=re.IGNORECASE)
-    title = title.strip()
-    title = re.sub(r'\s+', ' ', title)
-    title = title.title()
-    title = normalize_unicode(title)
+    for pattern in case_sensitive_patterns:
+        title = re.sub(pattern, ' ', title)  # No IGNORECASE here!
+    title = re.sub(r'\s+', ' ', title).strip()
     return title
 
 TMDB_FOLDER_ID = os.getenv("TMDB_FOLDER_ID", "false").lower() == "true"
 RESUME_TEMP_FILE = "/tmp/scanly_resume_path.txt"
+
+def deduplicate_phrases(title):
+    """Remove repeated phrases from a title string, preserving order."""
+    words = title.split()
+    seen = set()
+    result = []
+    phrase = ""
+    for i, word in enumerate(words):
+        # Build up phrases of length 2 and 3 for better detection
+        if i < len(words) - 1:
+            two_word = f"{words[i]} {words[i+1]}"
+            if two_word.lower() not in seen:
+                seen.add(two_word.lower())
+                result.append(words[i])
+            else:
+                continue
+        elif word.lower() not in seen:
+            seen.add(word.lower())
+            result.append(word)
+    # Fallback: remove any single repeated words
+    final = []
+    seen_words = set()
+    for word in result:
+        if word.lower() not in seen_words:
+            final.append(word)
+            seen_words.add(word.lower())
+    return ' '.join(final)
 
 def save_resume_path(path):
     """Save the resume path to a temp file."""
@@ -197,28 +222,30 @@ def _init_scan_history_db():
     conn.close()
 
 def archive_scan_history_txt_to_db():
-    """Move first 100 items from scan_history.txt to the database and remove them from the file."""
+    """Move all items from scan_history.txt to the database if there are 100 or more, then clear the file."""
     if not os.path.exists(SCAN_HISTORY_FILE):
         return
+
     with open(SCAN_HISTORY_FILE, 'r') as f:
         lines = [line.strip() for line in f if line.strip()]
+
     if len(lines) < 100:
         return
+
     _init_scan_history_db()
-    to_archive = lines[:100]
     conn = sqlite3.connect(SCAN_HISTORY_DB)
     c = conn.cursor()
-    for path in to_archive:
+    for path in lines:
         try:
             c.execute('INSERT OR IGNORE INTO archived_scan_history (path) VALUES (?)', (path,))
-        except Exception as e:
-            logger.error(f"Error archiving scan history path to DB: {e}")
+        except Exception:
+            pass
     conn.commit()
     conn.close()
-    # Write back only the remaining lines
+
+    # Clear the txt file after archiving
     with open(SCAN_HISTORY_FILE, 'w') as f:
-        for line in lines[100:]:
-            f.write(line + '\n')
+        pass
 
 def is_path_in_archived_history(path):
     """Check if a path is in the archived scan history database."""
@@ -284,6 +311,7 @@ def append_to_scan_history(path):
     with open(SCAN_HISTORY_FILE, 'a') as f:
         f.write(f"{path}\n")
     GLOBAL_SCAN_HISTORY_SET.add(path)
+    archive_scan_history_txt_to_db()  # <-- Add this line
 
 def load_scan_history():
     """Load scan history from file."""
@@ -662,9 +690,33 @@ class DirectoryProcessor:
             clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1)
         # Remove patterns to clean up the title
         clean_title = clean_title_with_patterns(clean_title)
-        if not clean_title:
-            clean_title = folder_name
+        # --- Deduplicate repeated words/phrases ---
+        clean_title = deduplicate_phrases(clean_title)
+        # --- PATCH: Restore titles like "9-1-1 Lone Star" if original matches ---
+        if re.match(r'9-1-1(\.| )?Lone\.?Star', folder_name, re.IGNORECASE):
+            clean_title = "9-1-1 Lone Star"
+        if not clean_title.strip():
+            # Fallback: use the folder name (minus year) if cleaning wipes everything
+            clean_title = re.sub(r'[\.\s\-\_\(\)\[\]]*' + re.escape(year) + r'[\.\s\-\_\(\)\[\]]*', ' ', folder_name, count=1) if year else folder_name
+            clean_title = clean_title.strip()
         self.logger.debug(f"Original: '{folder_name}', Cleaned: '{clean_title}', Year: {year}")
+        
+        # Remove trailing season/volume number if year is unknown and title ends with a number
+        if (year is None or str(year).lower() == "unknown") and re.search(r'\b\d+$', clean_title):
+            known_numbered = [
+                r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+            ]
+            if not any(re.match(pat, clean_title, re.IGNORECASE) for pat in known_numbered):
+                clean_title = re.sub(r'\b\d+$', '', clean_title).strip()
+        
+        # Always remove trailing season/volume number if title ends with a number and not a known numbered show
+        if re.search(r'\b\d+$', clean_title):
+            known_numbered = [
+                r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+            ]
+            if not any(re.match(pat, clean_title, re.IGNORECASE) for pat in known_numbered):
+                clean_title = re.sub(r'\b\d+$', '', clean_title).strip()
+        
         return clean_title, year
     
     def _detect_if_tv_show(self, folder_name):
@@ -1026,7 +1078,6 @@ class DirectoryProcessor:
 
                 # Extract metadata from folder name
                 title, year = self._extract_folder_metadata(subfolder_name)
-                title = clean_title_with_patterns(title)
                 is_tv = self._detect_if_tv_show(subfolder_name)
                 is_anime = self._detect_if_anime(subfolder_name)
                 is_wrestling = False
@@ -1406,17 +1457,12 @@ class DirectoryProcessor:
                                 is_tv = False
                                 is_anime = False
                                 is_wrestling = True
-                            
-                            # --- Apply default content type logic based on parent directory ---
-                            default_flags = get_default_content_type_for_path(self.directory_path)
-                            if default_flags:
-                                is_tv, is_anime, is_wrestling = default_flags
+                            elif type_choice == "0":
+                                continue  # Go back to previous menu
                             else:
-                                is_tv = self._detect_if_tv_show(subfolder_name)
-                                is_anime = self._detect_if_anime(subfolder_name)
-                                is_wrestling = False
-
-                            continue  # Re-check scanner lists with new content type
+                                print("Invalid type. Returning to previous menu.")
+                                continue
+                            continue  # <--- THIS LINE ENSURES THE LOOP RESTARTS WITH NEW CONTENT TYPE
                         elif (tmdb_choices and action_choice == "5") or (not tmdb_choices and action_choice == "4"):
                             # Manual TMDB ID
                             new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
@@ -1643,7 +1689,7 @@ class DirectoryProcessor:
                         else:
                             print("Invalid type. Returning to previous menu.")
                             continue
-                        continue  # After changing type, re-run the scanner with new type
+                        continue  # <--- THIS LINE ENSURES THE LOOP RESTARTS WITH NEW CONTENT TYPE
                     elif choice == "4":
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
                         if new_tmdb_id:
@@ -1698,7 +1744,7 @@ class DirectoryProcessor:
                         break  # Move to next item, do NOT process
                     elif choice == "7":
                         save_resume_path(self.directory_path)
-                        print("\nRefreshing script and resuming scan...")
+                        print("\nRefreshing scan script...")
                         sys.stdout.flush()
                         python = sys.executable
                         os.execv(python, [python] + sys.argv)
@@ -1744,7 +1790,7 @@ class DirectoryProcessor:
         elif is_anime and is_tv:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
         elif is_anime and not is_tv:
-            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
+                       dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
         elif is_tv and not is_anime:
             dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
 
@@ -2480,3 +2526,12 @@ if __name__ == "__main__":
         folder_name = get_series_folder_name(title, year, tmdb_id, season_number)
     else:
         folder_name = f"{title} ({year})"
+
+    # Remove trailing season number if year is unknown and title ends with a number
+    if (year is None or year == "Unknown") and re.match(r'.*\b\d+$', title):
+        # Only strip if not a known numbered show (like "24", "9-1-1", etc.)
+        known_numbered = [
+            r'^24$', r'^9-1-1(\s|$)', r'^60\s?Minutes', r'^90\s?Day\s?Fianc[eé]'
+        ]
+        if not any(re.match(pat, title, re.IGNORECASE) for pat in known_numbered):
+            title = re.sub(r'\b\d+$', '', title).strip()
