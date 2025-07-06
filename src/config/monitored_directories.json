@@ -2,11 +2,11 @@
   "4936318115036735725": {
     "path": "/mnt/pd_zurg/shows",
     "name": "shows",
-    "active": false
+    "active": true
   },
   "777461645315839766": {
     "path": "/mnt/pd_zurg/anime",
     "name": "anime",
-    "active": false
+    "active": true
   }
 }
