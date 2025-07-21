@@ -2606,8 +2606,12 @@ def perform_csv_import():
     import csv
     import shutil
     import unicodedata
+    import datetime
     from src.utils.scan_logic import normalize_title, normalize_unicode
     global skipped_items_registry
+    
+    # Add logging for CSV import start
+    logger.info("CSV Processing: Starting CSV import operation")
     
     clear_screen()
     display_ascii_art()
@@ -2637,9 +2641,13 @@ def perform_csv_import():
     # Clean and validate CSV file path
     csv_path = _clean_directory_path(csv_input)
     if not os.path.isfile(csv_path) or not csv_path.lower().endswith('.csv'):
+        logger.error(f"CSV Processing: Invalid CSV file path: {csv_path}")
         print(f"\nError: {csv_path} is not a valid CSV file.")
         input("\nPress Enter to continue...")
         return
+    
+    # Log CSV file being processed
+    logger.info(f"CSV Processing: Processing CSV file: {csv_path}")
     
     # Load scan history to avoid re-processing
     scan_history = load_scan_history_set()
@@ -2650,7 +2658,10 @@ def perform_csv_import():
             reader = csv.reader(f)
             file_paths = [row[0].strip() for row in reader if row and row[0].strip()]
         
+        logger.info(f"CSV Processing: Read {len(file_paths)} file paths from CSV")
+        
         if not file_paths:
+            logger.warning("CSV Processing: No file paths found in CSV")
             print("\nNo file paths found in CSV.")
             input("\nPress Enter to continue...")
             return
@@ -2660,6 +2671,9 @@ def perform_csv_import():
         # Check for already processed items but let user decide
         already_processed = [path for path in file_paths if path not in scan_history]
         new_items = [path for path in file_paths if path not in scan_history]
+        already_processed_items = [path for path in file_paths if path in scan_history]
+        
+        logger.info(f"CSV Processing: Found {len(already_processed_items)} already processed, {len(new_items)} new items")
         already_processed_items = [path for path in file_paths if path in scan_history]
         
         # Track whether user wants to ignore scan history
@@ -2686,11 +2700,13 @@ def perform_csv_import():
                 # Use only new items
                 items_to_process = new_items
                 ignore_scan_history = False
+                logger.info(f"CSV Processing: User selected to process {len(items_to_process)} new items only")
                 print(f"Will process {len(items_to_process)} new items only")
             elif choice == "2":
                 # Process all items
                 items_to_process = file_paths
                 ignore_scan_history = True
+                logger.info(f"CSV Processing: User selected to process all {len(items_to_process)} items (including already processed)")
                 print(f"Will process all {len(items_to_process)} items (including already processed)")
             elif choice == "3":
                 # Show detailed list and let user choose each one
@@ -2732,6 +2748,7 @@ def perform_csv_import():
         
         # Process each file
         processed_count = 0
+        skipped_count = 0
         
         for i, file_path in enumerate(items_to_process, 1):
             clear_screen()
@@ -2741,9 +2758,14 @@ def perform_csv_import():
             print("=" * 84)
             print(f"\nFile: {file_path}")
             
+            # Add logging for CSV processing start
+            logger.info(f"CSV Processing: Starting item {i}/{len(items_to_process)}: {file_path}")
+            
             # Validate file exists
             if not os.path.exists(file_path):
+                logger.warning(f"CSV Processing: File does not exist, skipping: {file_path}")
                 print(f"Warning: File does not exist, skipping: {file_path}")
+                skipped_count += 1
                 continue
             
             # Extract directory and filename
@@ -2902,6 +2924,9 @@ def perform_csv_import():
                     try:
                         processor = DirectoryProcessor(parent_dir)
                         
+                        # Add logging before processing
+                        logger.info(f"CSV Processing: Attempting to process {file_path} as '{clean_title}' ({content_type})")
+                        
                         # For CSV import, use the single-file processing method
                         if is_tv:
                             # For TV content, pass season and episode info
@@ -2918,6 +2943,7 @@ def perform_csv_import():
                         
                         if symlink_result:
                             processed_count += 1
+                            logger.info(f"CSV Processing: Successfully processed {file_path}")
                             print(f"✅ Successfully processed: {clean_title}")
                             if is_tv:
                                 if episode_name:
@@ -2925,9 +2951,11 @@ def perform_csv_import():
                                 else:
                                     print(f"   Season {season_number}, Episode {episode_number}")
                         else:
+                            logger.warning(f"CSV Processing: Failed to process {file_path} - symlink creation returned False")
                             print(f"⚠️  Failed to process: {clean_title}")
                             print("   Check logs for more details.")
                     except Exception as e:
+                        logger.error(f"CSV Processing: Exception processing {file_path}: {e}")
                         print(f"❌ Error processing {file_path}: {e}")
                         import traceback
                         traceback.print_exc()
@@ -2979,6 +3007,8 @@ def perform_csv_import():
                             
                             while True:
                                 tmdb_pick = input("\nSelect TMDB result [1-5], 0 for new search, 8 for manual ID, 9 to skip: ").strip()
+                                if tmdb_pick == "":
+                                    tmdb_pick = "1"  # Default to first result
                                 if tmdb_pick == "0":
                                     # Prompt for new search term and re-run TMDB search
                                     break  # Break inner loop to get new search term
@@ -3004,12 +3034,60 @@ def perform_csv_import():
                                         year = pick['year']
                                     tmdb_id = pick['tmdb_id']
                                     print(f"\n✅ TMDB result selected: {clean_title} ({year}) {{tmdb-{tmdb_id}}}")
-                                    break  # Break inner loop to return to main menu
+                                    
+                                    # Process the item immediately after selection
+                                    print(f"\n🔄 Processing: {clean_title}")
+                                    if year:
+                                        print(f"   Year: {year}")
+                                    if tmdb_id:
+                                        print(f"   TMDB ID: {tmdb_id}")
+                                    print(f"   Content Type: {content_type}")
+                                    if is_tv:
+                                        if episode_name:
+                                            print(f"   Season {season_number}, Episode '{episode_name}'")
+                                        else:
+                                            print(f"   Season {season_number}, Episode {episode_number}")
+                                    
+                                    try:
+                                        processor = DirectoryProcessor(parent_dir)
+                                        
+                                        # For CSV import, use the single-file processing method
+                                        if is_tv:
+                                            # For TV content, pass season and episode info
+                                            symlink_result = processor._create_symlink_for_single_file(
+                                                file_path, clean_title, year, is_tv, is_anime, is_wrestling, tmdb_id,
+                                                season_number, episode_number, episode_name, ignore_scan_history
+                                            )
+                                        else:
+                                            # For movies
+                                            symlink_result = processor._create_symlink_for_single_file(
+                                                file_path, clean_title, year, is_tv, is_anime, is_wrestling, tmdb_id,
+                                                None, None, None, ignore_scan_history
+                                            )
+                                        
+                                        if symlink_result:
+                                            processed_count += 1
+                                            print(f"✅ Successfully processed: {clean_title}")
+                                            if is_tv:
+                                                if episode_name:
+                                                    print(f"   Season {season_number}, Episode '{episode_name}'")
+                                                else:
+                                                    print(f"   Season {season_number}, Episode {episode_number}")
+                                        else:
+                                            print(f"⚠️  Failed to process: {clean_title}")
+                                            print("   Check logs for more details.")
+                                    except Exception as e:
+                                        print(f"❌ Error processing {file_path}: {e}")
+                                        traceback.print_exc()
+                                    
+                                    # Set flags to exit all loops and move to next item
+                                    tmdb_pick = "processed_and_break"
+                                    break  # Break inner loop
                                 else:
                                     print("Invalid selection. Please try again.")
                             
-                            # If user entered manual ID, selected option 9 (skip), or made a selection, exit outer loop
-                            if tmdb_pick == "manual_id_set" or tmdb_pick == "9" or (tmdb_pick.isdigit() and 1 <= int(tmdb_pick) <= len(tmdb_choices)):
+                            # If user entered manual ID, selected option 9 (skip), processed an item, or made a selection, exit outer loop
+                            if tmdb_pick == "manual_id_set" or tmdb_pick == "9" or tmdb_pick == "processed_and_break" or (tmdb_pick.isdigit() and 1 <= int(tmdb_pick) <= len(tmdb_choices)):
                                 break
                             # If user selected option 0, continue outer loop for new search term
                         else:
@@ -3018,6 +3096,8 @@ def perform_csv_import():
                             print("8. Enter TMDB ID manually")
                             print("9. Skip and return to previous menu")
                             tmdb_pick = input("\nSelect option: ").strip()
+                            if tmdb_pick == "":
+                                tmdb_pick = "0"  # Default to new search term when no results
                             if tmdb_pick == "0":
                                 continue  # Continue outer loop for new search term
                             elif tmdb_pick == "8":
@@ -3035,6 +3115,11 @@ def perform_csv_import():
                             else:
                                 print("Invalid selection. Please try again.")
                                 continue
+                    
+                    # Check if we processed an item and should move to next CSV item
+                    if tmdb_pick == "processed_and_break":
+                        break  # Break out of main choice loop to move to next CSV item
+                    
                     continue
                     
                 elif choice == "3":
@@ -3154,6 +3239,7 @@ def perform_csv_import():
                     
                 elif choice == "6":
                     # Skip and save for later review
+                    logger.info(f"CSV Processing: User skipped file for later review: {file_path}")
                     print(f"Skipping: {clean_title}")
                     skipped_items_registry.append({
                         'file_path': file_path,
@@ -3163,10 +3249,12 @@ def perform_csv_import():
                         'skipped_date': datetime.datetime.now().isoformat()
                     })
                     save_skipped_items(skipped_items_registry)
+                    skipped_count += 1
                     break
                     
                 elif choice == "7":
                     # Flag this item
+                    logger.info(f"CSV Processing: User flagged file: {file_path}")
                     write_flag_to_csv({
                         "File Path": file_path,
                         "Cleaned Title": clean_title,
@@ -3175,6 +3263,7 @@ def perform_csv_import():
                     })
                     append_to_scan_history(file_path)
                     print(f"Item flagged and saved to {FLAGGED_CSV}.")
+                    skipped_count += 1
                     break
                 
                 elif choice == "8":
@@ -3268,7 +3357,9 @@ def perform_csv_import():
                     
                 elif choice == "0":
                     # Skip to next CSV item
+                    logger.info(f"CSV Processing: User skipped to next item: {file_path}")
                     print("Skipping to next item...")
+                    skipped_count += 1
                     break
                     
                 else:
@@ -3284,7 +3375,11 @@ def perform_csv_import():
         print("=" * 84)
         print("CSV IMPORT COMPLETE".center(84))
         print("=" * 84)
-        print(f"\nProcessed: {processed_count} / {len(new_items)} items")
+        print(f"\nProcessed: {processed_count} / {len(items_to_process)} items")
+        print(f"Skipped: {skipped_count} items")
+        
+        # Add comprehensive logging for CSV completion
+        logger.info(f"CSV Processing: Complete - Processed: {processed_count}, Skipped: {skipped_count}, Total: {len(items_to_process)}")
         
         # Trigger Plex refresh if any items were processed
         if processed_count > 0:
