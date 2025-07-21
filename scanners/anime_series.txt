@@ -1,564 +1,564 @@
-Frieren Beyond Journey's End (2023) [tmdb-209867]
-Fullmetal Alchemist Brotherhood (2009) [tmdb-31911]
-Attack on Titan (2013) [tmdb-1429]
-Death Note (2006) [tmdb-13916]
-Steins;Gate (2011) [tmdb-42509]
-ERASED (2017) [tmdb-74939]
-Hunter x Hunter (2011) [tmdb-46298]
-One-Punch Man (2015) [tmdb-63926]
-One Piece (1999) [tmdb-37854]
-Cyberpunk Edgerunners (2022) [tmdb-105248]
-Solo Leveling (2024) [tmdb-127532]
-Delicious in Dungeon (2024) [tmdb-207784]
-Neon Genesis Evangelion (1995) [tmdb-890]
-Cowboy Bebop (1998) [tmdb-30991]
-Great Teacher Onizuka (1999) [tmdb-43017]
-Hajime no Ippo The Fighting! (2000) [tmdb-42705]
-Vinland Saga (2019) [tmdb-88803]
-Steins;Gate 0 (2018) [tmdb-78102]
-Mushi-Shi (2005) [tmdb-26867]
-Gurren Lagann (2007) [tmdb-21729]
-SPY x FAMILY (2022) [tmdb-120089]
-Monster (2004) [tmdb-30981]
-Dorohedoro (2020) [tmdb-94404]
-Gintama (2006) [tmdb-57041]
-Chainsaw Man (2022) [tmdb-114410]
-PLUTO (2023) [tmdb-91997]
-The Apothecary Diaries (2023) [tmdb-220542]
-Haikyu!! (2014) [tmdb-60863]
-Slam Dunk (2016) [tmdb-67777]
-Your lie in April (2014) [tmdb-61663]
-Demon Slayer Kimetsu no Yaiba (2019) [tmdb-85937]
-Trigun (1998) [tmdb-26453]
-Code Geass Lelouch of the Rebellion (2006) [tmdb-31724]
-Jujutsu Kaisen (2020) [tmdb-95479]
-Kotaro Lives Alone (2021) [tmdb-123499]
-Hellsing Ultimate (2006) [tmdb-61752]
-Yu Yu Hakusho (1992) [tmdb-30669]
-Naruto Shippūden (2007) [tmdb-31910]
-Kaguya-sama Love is War (2019) [tmdb-83121]
-Ping Pong the Animation (2014) [tmdb-60811]
-Samurai Champloo (2004) [tmdb-1063]
-Violet Evergarden (2018) [tmdb-75214]
-Ghost in the Shell Stand Alone Complex (2002) [tmdb-1095]
-Mob Psycho 100 (2016) [tmdb-67075]
-Dragon Ball Z (1989) [tmdb-12971]
-Nana (2006) [tmdb-56568]
-ODDTAXI (2024) [tmdb-242378]
-Given (2021) [tmdb-129804]
-Ranking of Kings (2021) [tmdb-112613]
-Dragon Ball (2018) [tmdb-80020]
-Saint Seiya (2018) [tmdb-78122]
-Naruto (2002) [tmdb-46260]
-Legend of the Galactic Heroes (1988) [tmdb-27660]
-Fruits Basket (2001) [tmdb-36941]
-Monogatari (1990) [tmdb-225920]
-Barakamon (2023) [tmdb-228498]
-Dragon Ball Super (2018) [tmdb-80020]
-Magi (2021) [tmdb-153297]
-Bungo Stray Dogs (2021) [tmdb-110837]
-The Melancholy of Haruhi Suzumiya (2006) [tmdb-42511]
-Shaman King (2021) [tmdb-104699]
-Sailor Moon (2003) [tmdb-5405]
-Planetes (2003) [tmdb-34102]
-Fairy Tail (2024) [tmdb-248947]
-Shiki (2021) [tmdb-95248]
-GATE (2005) [tmdb-88409]
-Free! (1992) [tmdb-103757]
-The Way of the Househusband (2021) [tmdb-112160]
-Teasing Master Takagi-san (2024) [tmdb-235913]
-Is it Wrong to Try to Pick Up Girls in a Dungeon? (2017) [tmdb-70590]
-Mononoke (2016) [tmdb-65956]
+Frieren Beyond Journey's End (2023) {tmdb-209867}
+Fullmetal Alchemist Brotherhood (2009) {tmdb-31911}
+Attack on Titan (2013) {tmdb-1429}
+Death Note (2006) {tmdb-13916}
+Steins;Gate (2011) {tmdb-42509}
+ERASED (2017) {tmdb-74939}
+Hunter x Hunter (2011) {tmdb-46298}
+One-Punch Man (2015) {tmdb-63926}
+One Piece (1999) {tmdb-37854}
+Cyberpunk Edgerunners (2022) {tmdb-105248}
+Solo Leveling (2024) {tmdb-127532}
+Delicious in Dungeon (2024) {tmdb-207784}
+Neon Genesis Evangelion (1995) {tmdb-890}
+Cowboy Bebop (1998) {tmdb-30991}
+Great Teacher Onizuka (1999) {tmdb-43017}
+Hajime no Ippo The Fighting! (2000) {tmdb-42705}
+Vinland Saga (2019) {tmdb-88803}
+Steins;Gate 0 (2018) {tmdb-78102}
+Mushi-Shi (2005) {tmdb-26867}
+Gurren Lagann (2007) {tmdb-21729}
+SPY x FAMILY (2022) {tmdb-120089}
+Monster (2004) {tmdb-30981}
+Dorohedoro (2020) {tmdb-94404}
+Gintama (2006) {tmdb-57041}
+Chainsaw Man (2022) {tmdb-114410}
+PLUTO (2023) {tmdb-91997}
+The Apothecary Diaries (2023) {tmdb-220542}
+Haikyu!! (2014) {tmdb-60863}
+Slam Dunk (2016) {tmdb-67777}
+Your lie in April (2014) {tmdb-61663}
+Demon Slayer Kimetsu no Yaiba (2019) {tmdb-85937}
+Trigun (1998) {tmdb-26453}
+Code Geass Lelouch of the Rebellion (2006) {tmdb-31724}
+Jujutsu Kaisen (2020) {tmdb-95479}
+Kotaro Lives Alone (2021) {tmdb-123499}
+Hellsing Ultimate (2006) {tmdb-61752}
+Yu Yu Hakusho (1992) {tmdb-30669}
+Naruto Shippūden (2007) {tmdb-31910}
+Kaguya-sama Love is War (2019) {tmdb-83121}
+Ping Pong the Animation (2014) {tmdb-60811}
+Samurai Champloo (2004) {tmdb-1063}
+Violet Evergarden (2018) {tmdb-75214}
+Ghost in the Shell Stand Alone Complex (2002) {tmdb-1095}
+Mob Psycho 100 (2016) {tmdb-67075}
+Dragon Ball Z (1989) {tmdb-12971}
+Nana (2006) {tmdb-56568}
+ODDTAXI (2024) {tmdb-242378}
+Given (2021) {tmdb-129804}
+Ranking of Kings (2021) {tmdb-112613}
+Dragon Ball (2018) {tmdb-80020}
+Saint Seiya (2018) {tmdb-78122}
+Naruto (2002) {tmdb-46260}
+Legend of the Galactic Heroes (1988) {tmdb-27660}
+Fruits Basket (2001) {tmdb-36941}
+Monogatari (1990) {tmdb-225920}
+Barakamon (2023) {tmdb-228498}
+Dragon Ball Super (2018) {tmdb-80020}
+Magi (2021) {tmdb-153297}
+Bungo Stray Dogs (2021) {tmdb-110837}
+The Melancholy of Haruhi Suzumiya (2006) {tmdb-42511}
+Shaman King (2021) {tmdb-104699}
+Sailor Moon (2003) {tmdb-5405}
+Planetes (2003) {tmdb-34102}
+Fairy Tail (2024) {tmdb-248947}
+Shiki (2021) {tmdb-95248}
+GATE (2005) {tmdb-88409}
+Free! (1992) {tmdb-103757}
+The Way of the Househusband (2021) {tmdb-112160}
+Teasing Master Takagi-san (2024) {tmdb-235913}
+Is it Wrong to Try to Pick Up Girls in a Dungeon? (2017) {tmdb-70590}
+Mononoke (2016) {tmdb-65956}
 History's Strongest Disciple Kenichi [Error]
-Mobile Suit Gundam 00 (1991) [tmdb-72677]
-Kino's Journey (2003) [tmdb-34166]
-Yamada-kun and the Seven Witches (2015) [tmdb-62568]
-Mobile Suit Gundam (1991) [tmdb-72677]
-Heidi (1978) [tmdb-29354]
-WATAMOTE (2013) [tmdb-61755]
-Thus Spoke Kishibe Rohan (2017) [tmdb-118443]
-Yu-Gi-Oh! (1998) [tmdb-36406]
-Mobile Suit Gundam SEED (2006) [tmdb-43142]
-Silver Spoon (2013) [tmdb-58237]
-Beyblade (2001) [tmdb-54728]
-BLEACH 千年血戦篇 (2004) [tmdb-30984]
-Dance In The Vampire Bund (2010) [tmdb-37183]
-B Gata H Kei - Yamada's First Time (2010) [tmdb-45967]
-Macross (1994) [tmdb-21735]
-Record of Lodoss War (1998) [tmdb-72041]
-After the Rain (2018) [tmdb-75777]
-X-Men (1992) [tmdb-4574]
-Aria the Scarlet Ammo (2015) [tmdb-71618]
-Candy Candy (1976) [tmdb-9160]
-Assassins Pride (2019) [tmdb-91299]
-The Wonderful Adventures of Nils (1982) [tmdb-529667]
-New Game! (2024) [tmdb-254363]
-Speed Racer (2008) [tmdb-7266]
-Kanon (2006) [tmdb-34124]
-Honey and Clover (2005) [tmdb-35415]
-Anne of Green Gables (2001) [tmdb-21205]
-Persona 4 The Animation (2014) [tmdb-61465]
-Love Live! (2020) [tmdb-103511]
-X (2003) [tmdb-5707]
-O Maidens in Your Savage Season (2020) [tmdb-106676]
-Girlfriend, Girlfriend (2015) [tmdb-69367]
-Akuma Kun (1989) [tmdb-227269]
-Real Girl (2024) [tmdb-250469]
-KAKEGURUI TWIN (2021) [tmdb-121860]
-Bubblegum Crisis (1998) [tmdb-9542]
-[C] The Money of Soul and Possibility Control (2011) [tmdb-39435]
-Monster Rancher (1998) [tmdb-58653]
-Iron Man (2010) [tmdb-45418]
-KOKKOKU (2018) [tmdb-76131]
-Sabikui Bisco (2022) [tmdb-120142]
-Back Street Girls -GOKUDOLS- (2019) [tmdb-88791]
-Joker Game (2016) [tmdb-65949]
-Astro Boy (1963) [tmdb-10826]
-Pokémon Chronicles (1998) [tmdb-13230]
-Beautiful Bones Sakurako’s Investigation (2017) [tmdb-88176]
-D.Gray-Man Hallow (2016) [tmdb-67145]
-OreShura (2013) [tmdb-53296]
-Are You Lost? (2023) [tmdb-210524]
-Super Robot Monkey Team Hyperforce Go! (2004) [tmdb-3428]
-Engage Kiss (2007) [tmdb-34844]
-Jeanne the Kamikaze Thief (1999) [tmdb-34729]
-Hakuoki Demon of the Fleeting Blossom (2022) [tmdb-154842]
-Alice in Borderland (2014) [tmdb-71907]
-Kirby Right Back At Ya! (2001) [tmdb-14891]
-Major (2004) [tmdb-29602]
-Samurai Girls (2011) [tmdb-45281]
-Azur Lane (2021) [tmdb-109805]
-Cherry Magic! Thirty Years of Virginity Can Make You a Wizard?! (2020) [tmdb-111204]
-Minami-Ke (2007) [tmdb-56354]
-ChäoS;Head (2008) [tmdb-56996]
-Kinnikuman (1983) [tmdb-43231]
-WWW.Working!! (2016) [tmdb-68070]
-Sengoku Basara Samurai Kings (2009) [tmdb-25492]
-Mobile Suit Gundam SEED Destiny (2004) [tmdb-283589]
-Hare+Guu (2001) [tmdb-34812]
-THE iDOLM@STER (2007) [tmdb-34215]
-Tiger Mask (1969) [tmdb-25114]
-Last Hope (2013) [tmdb-86700]
-Ikebukuro West Gate Park (2000) [tmdb-4939]
-Bartender (2011) [tmdb-70975]
-S-CRY-Ed (2001) [tmdb-42676]
-Sket Dance (2011) [tmdb-42419]
-Fairy gone (2019) [tmdb-86835]
-Rec (2019) [tmdb-96108]
-Denki-Gai (2014) [tmdb-61407]
-Bastard!! (1992) [tmdb-43798]
-UNDER NINJA (2023) [tmdb-132917]
-Karas (2005) [tmdb-69055]
+Mobile Suit Gundam 00 (1991) {tmdb-72677}
+Kino's Journey (2003) {tmdb-34166}
+Yamada-kun and the Seven Witches (2015) {tmdb-62568}
+Mobile Suit Gundam (1991) {tmdb-72677}
+Heidi (1978) {tmdb-29354}
+WATAMOTE (2013) {tmdb-61755}
+Thus Spoke Kishibe Rohan (2017) {tmdb-118443}
+Yu-Gi-Oh! (1998) {tmdb-36406}
+Mobile Suit Gundam SEED (2006) {tmdb-43142}
+Silver Spoon (2013) {tmdb-58237}
+Beyblade (2001) {tmdb-54728}
+BLEACH 千年血戦篇 (2004) {tmdb-30984}
+Dance In The Vampire Bund (2010) {tmdb-37183}
+B Gata H Kei - Yamada's First Time (2010) {tmdb-45967}
+Macross (1994) {tmdb-21735}
+Record of Lodoss War (1998) {tmdb-72041}
+After the Rain (2018) {tmdb-75777}
+X-Men (1992) {tmdb-4574}
+Aria the Scarlet Ammo (2015) {tmdb-71618}
+Candy Candy (1976) {tmdb-9160}
+Assassins Pride (2019) {tmdb-91299}
+The Wonderful Adventures of Nils (1982) {tmdb-529667}
+New Game! (2024) {tmdb-254363}
+Speed Racer (2008) {tmdb-7266}
+Kanon (2006) {tmdb-34124}
+Honey and Clover (2005) {tmdb-35415}
+Anne of Green Gables (2001) {tmdb-21205}
+Persona 4 The Animation (2014) {tmdb-61465}
+Love Live! (2020) {tmdb-103511}
+X (2003) {tmdb-5707}
+O Maidens in Your Savage Season (2020) {tmdb-106676}
+Girlfriend, Girlfriend (2015) {tmdb-69367}
+Akuma Kun (1989) {tmdb-227269}
+Real Girl (2024) {tmdb-250469}
+KAKEGURUI TWIN (2021) {tmdb-121860}
+Bubblegum Crisis (1998) {tmdb-9542}
+[C] The Money of Soul and Possibility Control (2011) {tmdb-39435}
+Monster Rancher (1998) {tmdb-58653}
+Iron Man (2010) {tmdb-45418}
+KOKKOKU (2018) {tmdb-76131}
+Sabikui Bisco (2022) {tmdb-120142}
+Back Street Girls -GOKUDOLS- (2019) {tmdb-88791}
+Joker Game (2016) {tmdb-65949}
+Astro Boy (1963) {tmdb-10826}
+Pokémon Chronicles (1998) {tmdb-13230}
+Beautiful Bones Sakurako’s Investigation (2017) {tmdb-88176}
+D.Gray-Man Hallow (2016) {tmdb-67145}
+OreShura (2013) {tmdb-53296}
+Are You Lost? (2023) {tmdb-210524}
+Super Robot Monkey Team Hyperforce Go! (2004) {tmdb-3428}
+Engage Kiss (2007) {tmdb-34844}
+Jeanne the Kamikaze Thief (1999) {tmdb-34729}
+Hakuoki Demon of the Fleeting Blossom (2022) {tmdb-154842}
+Alice in Borderland (2014) {tmdb-71907}
+Kirby Right Back At Ya! (2001) {tmdb-14891}
+Major (2004) {tmdb-29602}
+Samurai Girls (2011) {tmdb-45281}
+Azur Lane (2021) {tmdb-109805}
+Cherry Magic! Thirty Years of Virginity Can Make You a Wizard?! (2020) {tmdb-111204}
+Minami-Ke (2007) {tmdb-56354}
+ChäoS;Head (2008) {tmdb-56996}
+Kinnikuman (1983) {tmdb-43231}
+WWW.Working!! (2016) {tmdb-68070}
+Sengoku Basara Samurai Kings (2009) {tmdb-25492}
+Mobile Suit Gundam SEED Destiny (2004) {tmdb-283589}
+Hare+Guu (2001) {tmdb-34812}
+THE iDOLM@STER (2007) {tmdb-34215}
+Tiger Mask (1969) {tmdb-25114}
+Last Hope (2013) {tmdb-86700}
+Ikebukuro West Gate Park (2000) {tmdb-4939}
+Bartender (2011) {tmdb-70975}
+S-CRY-Ed (2001) {tmdb-42676}
+Sket Dance (2011) {tmdb-42419}
+Fairy gone (2019) {tmdb-86835}
+Rec (2019) {tmdb-96108}
+Denki-Gai (2014) {tmdb-61407}
+Bastard!! (1992) {tmdb-43798}
+UNDER NINJA (2023) {tmdb-132917}
+Karas (2005) {tmdb-69055}
 Boys Over Flowers (anime) [Error]
-Full Moon (2002) [tmdb-21918]
-MAJOR 2nd (2018) [tmdb-78476]
-Liar, Liar (2007) [tmdb-13967]
-Mobile Suit V Gundam (1993) [tmdb-25797]
-Tenchi Muyô! GXP (2002) [tmdb-42881]
-One Room (2017) [tmdb-69298]
-Isuca (2015) [tmdb-64831]
-Karin (1993) [tmdb-207171]
-Gilgamesh (2003) [tmdb-26107]
-Magical Witch Punie-chan (2006) [tmdb-45286]
-KIBA (2006) [tmdb-31739]
-Attack No.1 (2005) [tmdb-54389]
-Heartcatch Precure! (2010) [tmdb-42981]
-Black Jack (1993) [tmdb-30083]
-Sword of the Demon Hunter Kijin Gentosho (2025) [tmdb-133154]
-ISLAND (2018) [tmdb-80535]
-C³ (1998) [tmdb-15226]
-Blue Seed (1996) [tmdb-123332]
-Vampire Princess Miyu (1988) [tmdb-80223]
-Shin Getter Robo vs. Neo Getter Robo (2000) [tmdb-67579]
+Full Moon (2002) {tmdb-21918}
+MAJOR 2nd (2018) {tmdb-78476}
+Liar, Liar (2007) {tmdb-13967}
+Mobile Suit V Gundam (1993) {tmdb-25797}
+Tenchi Muyô! GXP (2002) {tmdb-42881}
+One Room (2017) {tmdb-69298}
+Isuca (2015) {tmdb-64831}
+Karin (1993) {tmdb-207171}
+Gilgamesh (2003) {tmdb-26107}
+Magical Witch Punie-chan (2006) {tmdb-45286}
+KIBA (2006) {tmdb-31739}
+Attack No.1 (2005) {tmdb-54389}
+Heartcatch Precure! (2010) {tmdb-42981}
+Black Jack (1993) {tmdb-30083}
+Sword of the Demon Hunter Kijin Gentosho (2025) {tmdb-133154}
+ISLAND (2018) {tmdb-80535}
+C³ (1998) {tmdb-15226}
+Blue Seed (1996) {tmdb-123332}
+Vampire Princess Miyu (1988) {tmdb-80223}
+Shin Getter Robo vs. Neo Getter Robo (2000) {tmdb-67579}
 Slayers The Book of Spells [Error]
 Kimagure Orange Road OVA [Error]
-Winter Sonata (2002) [tmdb-12539]
-Spirit Blade Mountain (2016) [tmdb-65206]
-Princess Knight (1967) [tmdb-34864]
-Legend of the Condor Hero (1983) [tmdb-104]
-25-sai no Joshikousei (2018) [tmdb-75778]
-Gatchaman (1972) [tmdb-13549]
-DOUBLE DECKER! DOUG & KIRILL (2018) [tmdb-82046]
-Whistle! (1971) [tmdb-12412]
-Voltes V (2023) [tmdb-134224]
-Alice in Wonderland (1985) [tmdb-42553]
-Night Head Genesis (2006) [tmdb-16525]
-Bakumatsu (2006) [tmdb-42833]
-Suite Precure (2011) [tmdb-43055]
-The Diary of Our Days (2018) [tmdb-80864]
-AYAKA (2006) [tmdb-42963]
-Angelique When Hearts Awaken (2006) [tmdb-35152]
-Gokudo (1999) [tmdb-34701]
-Murai in Love (2024) [tmdb-204098]
-Di Gi Charat (2003) [tmdb-9639]
-Thermae Romae (2012) [tmdb-74956]
-Glass Mask (2005) [tmdb-35175]
-Love Love? (2012) [tmdb-84791]
-Mobile Suit Gundam MS IGLOO (2004) [tmdb-44919]
-Mobile Suit Gundam MS IGLOO Apocalypse 0079 (2006) [tmdb-282823]
-Night World (2021) [tmdb-123902]
-Final Approach (2004) [tmdb-25917]
-Mouse [tmdb-241315]
-Fireball (2008) [tmdb-21326]
-Alien Defender Geo-Armor, Kishin Corps (1993) [tmdb-26121]
-Romance of the Three Kingdoms (1991) [tmdb-43853]
-Muv-Luv Alternative (2021) [tmdb-112010]
-Battle Athletes (2021) [tmdb-108460]
-Stitch! (2005) [tmdb-40031]
-Princess Princess (1998) [tmdb-34757]
-Time Travel Tondekeman (1989) [tmdb-8721]
-Ultimate Girls (2005) [tmdb-34827]
-Here Is Greenwood (1991) [tmdb-43340]
-Master of Mosquiton (1996) [tmdb-67102]
-Katte ni Kaizō (2011) [tmdb-43256]
-Yatterman (1977) [tmdb-53298]
-Absolute Boy (2005) [tmdb-42914]
-Seven of Seven (2023) [tmdb-153337]
-Akiba-chan (2008) [tmdb-43593]
-Tide Line Blue (2005) [tmdb-34084]
-Fart Gorou (2016) [tmdb-67927]
-Driland (2012) [tmdb-90356]
-Happy Lesson (2001) [tmdb-79871]
-Mission-E (2008) [tmdb-26426]
-Idolls! (2011) [tmdb-52823]
-Million Doll (2015) [tmdb-74822]
-Ai no Kusabi (2012) [tmdb-43927]
-B-Robo Kabutack (1997) [tmdb-85995]
-Tenko and the Guardians of Magic (1995) [tmdb-2821]
+Winter Sonata (2002) {tmdb-12539}
+Spirit Blade Mountain (2016) {tmdb-65206}
+Princess Knight (1967) {tmdb-34864}
+Legend of the Condor Hero (1983) {tmdb-104}
+25-sai no Joshikousei (2018) {tmdb-75778}
+Gatchaman (1972) {tmdb-13549}
+DOUBLE DECKER! DOUG & KIRILL (2018) {tmdb-82046}
+Whistle! (1971) {tmdb-12412}
+Voltes V (2023) {tmdb-134224}
+Alice in Wonderland (1985) {tmdb-42553}
+Night Head Genesis (2006) {tmdb-16525}
+Bakumatsu (2006) {tmdb-42833}
+Suite Precure (2011) {tmdb-43055}
+The Diary of Our Days (2018) {tmdb-80864}
+AYAKA (2006) {tmdb-42963}
+Angelique When Hearts Awaken (2006) {tmdb-35152}
+Gokudo (1999) {tmdb-34701}
+Murai in Love (2024) {tmdb-204098}
+Di Gi Charat (2003) {tmdb-9639}
+Thermae Romae (2012) {tmdb-74956}
+Glass Mask (2005) {tmdb-35175}
+Love Love? (2012) {tmdb-84791}
+Mobile Suit Gundam MS IGLOO (2004) {tmdb-44919}
+Mobile Suit Gundam MS IGLOO Apocalypse 0079 (2006) {tmdb-282823}
+Night World (2021) {tmdb-123902}
+Final Approach (2004) {tmdb-25917}
+Mouse {tmdb-241315}
+Fireball (2008) {tmdb-21326}
+Alien Defender Geo-Armor, Kishin Corps (1993) {tmdb-26121}
+Romance of the Three Kingdoms (1991) {tmdb-43853}
+Muv-Luv Alternative (2021) {tmdb-112010}
+Battle Athletes (2021) {tmdb-108460}
+Stitch! (2005) {tmdb-40031}
+Princess Princess (1998) {tmdb-34757}
+Time Travel Tondekeman (1989) {tmdb-8721}
+Ultimate Girls (2005) {tmdb-34827}
+Here Is Greenwood (1991) {tmdb-43340}
+Master of Mosquiton (1996) {tmdb-67102}
+Katte ni Kaizō (2011) {tmdb-43256}
+Yatterman (1977) {tmdb-53298}
+Absolute Boy (2005) {tmdb-42914}
+Seven of Seven (2023) {tmdb-153337}
+Akiba-chan (2008) {tmdb-43593}
+Tide Line Blue (2005) {tmdb-34084}
+Fart Gorou (2016) {tmdb-67927}
+Driland (2012) {tmdb-90356}
+Happy Lesson (2001) {tmdb-79871}
+Mission-E (2008) {tmdb-26426}
+Idolls! (2011) {tmdb-52823}
+Million Doll (2015) {tmdb-74822}
+Ai no Kusabi (2012) {tmdb-43927}
+B-Robo Kabutack (1997) {tmdb-85995}
+Tenko and the Guardians of Magic (1995) {tmdb-2821}
 Anime Abandon [Error]
-Strange Love (2005) [tmdb-927]
-Clockwork Fighters Hiwou's War (2000) [tmdb-9705]
+Strange Love (2005) {tmdb-927}
+Clockwork Fighters Hiwou's War (2000) {tmdb-9705}
 Pokémon The 'Bridged Series [Error]
-Hellsing Ultimate Abridged [tmdb-286509]
+Hellsing Ultimate Abridged {tmdb-286509}
 Parasol Henbee [Error]
 G.I. Joe Sigma Six [Error]
-Girl School. (2017) [tmdb-72504]
-Ryu, the Cave Boy (1971) [tmdb-28037]
+Girl School. (2017) {tmdb-72504}
+Ryu, the Cave Boy (1971) {tmdb-28037}
 Nari Hero www [Error]
 空想科学世界ガリバーボイ [Error]
-Misha The Bearcub (1979) [tmdb-69241]
+Misha The Bearcub (1979) {tmdb-69241}
 Goblin Slayer Abridged [Error]
-Animation Runner Kuromi (2001) [tmdb-87636]
+Animation Runner Kuromi (2001) {tmdb-87636}
 Danganronpa F Shattered Hope [Error]
-Mozaika (2024) [tmdb-256273]
-Baby Felix [tmdb-10035]
-Switch! TV (1997) [tmdb-45338]
+Mozaika (2024) {tmdb-256273}
+Baby Felix {tmdb-10035}
+Switch! TV (1997) {tmdb-45338}
 Itsuka Aeru Kimi ni [Error]
 Cooking Papa (1992) [261945]
-Puzzle & Dragons (2016) [tmdb-80573]
+Puzzle & Dragons (2016) {tmdb-80573}
 Little Charo Touhoku Hen [Error]
-The Kabocha Wine (1982) [tmdb-34110]
+The Kabocha Wine (1982) {tmdb-34110}
 Crystal Jewels! The Adventures of Crystal Monsters! [Error]
-Prayers (2020) [tmdb-104214]
-Return of the Dinosaurs (1984) [tmdb-189229]
-Sex Pistols (2010) [tmdb-285870]
-Nyamen (2014) [tmdb-290737]
-Dark Side Cat [tmdb-44320]
-Kamui the Ninja (1969) [tmdb-14338]
+Prayers (2020) {tmdb-104214}
+Return of the Dinosaurs (1984) {tmdb-189229}
+Sex Pistols (2010) {tmdb-285870}
+Nyamen (2014) {tmdb-290737}
+Dark Side Cat {tmdb-44320}
+Kamui the Ninja (1969) {tmdb-14338}
 The Two Facials of Eve [Error]
-Disney Twisted-Wonderland - The Animation [tmdb-136342]
+Disney Twisted-Wonderland - The Animation {tmdb-136342}
 The Magnificent Kotobuki Side Story Harukaze Squadron in the Sky [Error]
-Osomatsu-kun (1988) [tmdb-121372]
-Be Stronger! New Saga (2025) [tmdb-212766]
-Super Radical Gag Family (1998) [tmdb-113073]
-F (2009) [tmdb-30166]
-Eagle Talon (2020) [tmdb-114590]
-Dirty Pair 2 (1987) [tmdb-153175]
-Akuma-kun (1989) [tmdb-227269]
-超人ロック 新世界戦隊 (1991) [tmdb-113163]
-东方M-1ぐらんぷり (2007) [tmdb-233509]
-Gakkou No Yuurei (1995) [tmdb-112625]
+Osomatsu-kun (1988) {tmdb-121372}
+Be Stronger! New Saga (2025) {tmdb-212766}
+Super Radical Gag Family (1998) {tmdb-113073}
+F (2009) {tmdb-30166}
+Eagle Talon (2020) {tmdb-114590}
+Dirty Pair 2 (1987) {tmdb-153175}
+Akuma-kun (1989) {tmdb-227269}
+超人ロック 新世界戦隊 (1991) {tmdb-113163}
+东方M-1ぐらんぷり (2007) {tmdb-233509}
+Gakkou No Yuurei (1995) {tmdb-112625}
 おしえて魔法のペンデュラム～リルリルフェアリル～ [Error]
-Machine Robo Battle Hackers [tmdb-9704]
+Machine Robo Battle Hackers {tmdb-9704}
 Hell Teacher Nube OVA [Error]
 Major World Series [Error]
-Sentenced to Be a Hero The Prison Records of Penal Hero Unit 9004 [tmdb-249907]
-機動戦士ガンダム MS IGLOO 1年戦争秘録 (2004) [tmdb-44919]
+Sentenced to Be a Hero The Prison Records of Penal Hero Unit 9004 {tmdb-249907}
+機動戦士ガンダム MS IGLOO 1年戦争秘録 (2004) {tmdb-44919}
 Boku no Pico [Error]
-三国志 (1991) [tmdb-43853]
-Okaimono Panda (2024) [tmdb-253504]
-TOUGEN ANKI [tmdb-253811]
-G-taste [tmdb-1434810]
+三国志 (1991) {tmdb-43853}
+Okaimono Panda (2024) {tmdb-253504}
+TOUGEN ANKI {tmdb-253811}
+G-taste {tmdb-1434810}
 PUNCH PUNCH FOREVER! (2023) [293351]
-Gachiakuta [tmdb-256721]
-Burning Village (1989) [tmdb-256807]
-真魔神英雄伝ワタル 魔神山編 (1989) [tmdb-260312]
-New Dominion Tank Police (1993) [tmdb-261280]
-Kamitsubaki City Under Construction (2025) [tmdb-261392]
-Danganronpa 3 The End of Hope's Peak Academy (2013) [tmdb-49471]
-The Exiled Heavy Knight Knows How to Game the System [tmdb-270603]
+Gachiakuta {tmdb-256721}
+Burning Village (1989) {tmdb-256807}
+真魔神英雄伝ワタル 魔神山編 (1989) {tmdb-260312}
+New Dominion Tank Police (1993) {tmdb-261280}
+Kamitsubaki City Under Construction (2025) {tmdb-261392}
+Danganronpa 3 The End of Hope's Peak Academy (2013) {tmdb-49471}
+The Exiled Heavy Knight Knows How to Game the System {tmdb-270603}
 カードキャプターさくら クリアカード編, Hepburn Kādokyaputā Sakura Kuria Kādo-hen, lit. [Error]
-Go for It, Nakamura-kun!! [tmdb-274622]
-Show Time! (2015) [tmdb-113534]
+Go for It, Nakamura-kun!! {tmdb-274622}
+Show Time! (2015) {tmdb-113534}
 新蜡笔小新（港配） [Error]
-俺の妹がこんなに可愛いわけがない (2010) [tmdb-56353]
-The Summer Hikaru Died [tmdb-278196]
-ポケットモンスター めざせポケモンマスター (1997) [tmdb-60572]
-Cultural Exchange With a Game Centre Girl [tmdb-279220]
-Akane Maniax (2004) [tmdb-104840]
-Dogs Bullets & Carnage (2009) [tmdb-82180]
-Trava Fist Planet (2002) [tmdb-131941]
-ICE (2011) [tmdb-39784]
-Dog & Scissors (2013) [tmdb-49464]
-Working with Voice! (2010) [tmdb-278185]
-Secrets of the Silent Witch [tmdb-281058]
-Mobile Suit Gundam SEED C.E. 73 Stargazer (2006) [tmdb-43142]
-Psycho-Pass Extended Edition (2014) [tmdb-281820]
-Digimon Adventure Tri. (2018) [tmdb-481760]
-冤罪 (2019) [tmdb-86671]
+俺の妹がこんなに可愛いわけがない (2010) {tmdb-56353}
+The Summer Hikaru Died {tmdb-278196}
+ポケットモンスター めざせポケモンマスター (1997) {tmdb-60572}
+Cultural Exchange With a Game Centre Girl {tmdb-279220}
+Akane Maniax (2004) {tmdb-104840}
+Dogs Bullets & Carnage (2009) {tmdb-82180}
+Trava Fist Planet (2002) {tmdb-131941}
+ICE (2011) {tmdb-39784}
+Dog & Scissors (2013) {tmdb-49464}
+Working with Voice! (2010) {tmdb-278185}
+Secrets of the Silent Witch {tmdb-281058}
+Mobile Suit Gundam SEED C.E. 73 Stargazer (2006) {tmdb-43142}
+Psycho-Pass Extended Edition (2014) {tmdb-281820}
+Digimon Adventure Tri. (2018) {tmdb-481760}
+冤罪 (2019) {tmdb-86671}
 Shangri-La Frontier Season 2 [Error]
-Pokémon To Be a Pokémon Master (1997) [tmdb-60572]
+Pokémon To Be a Pokémon Master (1997) {tmdb-60572}
 Reゼロから始める異世界生活 3rd season 反擊編 [Error]
-Haikyuu!! Land Vs Air (2020) [tmdb-286490]
+Haikyuu!! Land Vs Air (2020) {tmdb-286490}
 Lupin the 3rd Part 6 [Error]
-Zettai Shogeki ~Platonic Heart~ (2008) [tmdb-87852]
-Patalliro! (2005) [tmdb-27347]
-ゆるゆり なちゅやちゅみ!+ (2015) [tmdb-287763]
-PetitCure Precure Fairies (2025) [tmdb-287971]
-Idol Incidents (2017) [tmdb-69287]
-機動戦士ガンダムSEED MSV ASTRAY (2004) [tmdb-288661]
-機動戦士ガンダムSEED HD スペシャル放送 (2012) [tmdb-288666]
-20th Century Electricity Catalog [tmdb-153217]
+Zettai Shogeki ~Platonic Heart~ (2008) {tmdb-87852}
+Patalliro! (2005) {tmdb-27347}
+ゆるゆり なちゅやちゅみ!+ (2015) {tmdb-287763}
+PetitCure Precure Fairies (2025) {tmdb-287971}
+Idol Incidents (2017) {tmdb-69287}
+機動戦士ガンダムSEED MSV ASTRAY (2004) {tmdb-288661}
+機動戦士ガンダムSEED HD スペシャル放送 (2012) {tmdb-288666}
+20th Century Electricity Catalog {tmdb-153217}
 Lady Napoleon [Error]
-Möbius Dust [tmdb-98865]
-Witch Hat Atelier [tmdb-196950]
-Turkey! -Time to Strike- [tmdb-217247]
-April Showers Bring May Flowers [tmdb-217409]
-Special Kid Factory [tmdb-222924]
-Rebuild World [tmdb-229902]
-My Friend's Little Sister Has It In for Me! [tmdb-117879]
-Astro Boy Reboot [tmdb-204225]
-3-nen Z-gumi Ginpachi-sensei [tmdb-222624]
-Onmiyou Hyakki Monogatari [tmdb-95049]
-In a World Filled With Zombies, I'm the Only One They Won't Attack [tmdb-245198]
-New PANTY & STOCKING with GARTERBELT [tmdb-246862]
-Nyaight of the Living Cat (2024) [tmdb-247045]
+Möbius Dust {tmdb-98865}
+Witch Hat Atelier {tmdb-196950}
+Turkey! -Time to Strike- {tmdb-217247}
+April Showers Bring May Flowers {tmdb-217409}
+Special Kid Factory {tmdb-222924}
+Rebuild World {tmdb-229902}
+My Friend's Little Sister Has It In for Me! {tmdb-117879}
+Astro Boy Reboot {tmdb-204225}
+3-nen Z-gumi Ginpachi-sensei {tmdb-222624}
+Onmiyou Hyakki Monogatari {tmdb-95049}
+In a World Filled With Zombies, I'm the Only One They Won't Attack {tmdb-245198}
+New PANTY & STOCKING with GARTERBELT {tmdb-246862}
+Nyaight of the Living Cat (2024) {tmdb-247045}
 The Neat and Beautiful Girl at My New School Was My Childhood Friend Whom I Thought Was a Boy and I Played Together With [Error]
-Hero Without a Class Who Even Needs Skills?! [tmdb-236565]
-Diary of a Strange Land [tmdb-253476]
-Garena Free Fire [tmdb-254286]
-The Darwin Incident [tmdb-255064]
-The Ghost in the Shell (2016) [tmdb-72838]
-Bad Girl (2010) [tmdb-48908]
-CLEVATESS [tmdb-258348]
-Omniscient Reader [tmdb-258706]
-SANDA [tmdb-258901]
-Aikatsu Academy! [tmdb-259286]
-Rooster Fighter [tmdb-259819]
-Daemons of the Shadow Realm [tmdb-260463]
-Harmony of Mille-Feuille [tmdb-260848]
-千歳くんはラムネ瓶のなか [tmdb-261343]
-With You and the Rain [tmdb-262254]
-Wondance [tmdb-262259]
-Detectives These Days Are Crazy! [tmdb-262377]
-陰の実力者になりたくて！ ちびキャラアニメ [tmdb-263168]
-9-nine- Ruler's Crown [tmdb-270931]
-May I Ask for One Final Thing? [tmdb-271605]
-The Fragrant Flower Blooms with Dignity [tmdb-271607]
-DARK MOON THE BLOOD ALTAR [tmdb-271609]
-Introduction to Mineralogy [tmdb-271649]
-Mikadono San Shimai wa Angai, Choroi [tmdb-272556]
-The Barbarian's Bride [tmdb-273467]
-A Gentle Noble's Vacation Recommendation [tmdb-274141]
-BLADE & BASTARD [tmdb-274711]
-This Monster Wants to Eat Me [tmdb-274810]
-Pass the Monster Meat, Milady! [tmdb-274814]
-カヤちゃんはコワくない [tmdb-275902]
-異世界マンチキン　ーHP1のままで最強最速ダンジョン攻略ー [tmdb-276109]
-ホテル・インヒューマンズ [tmdb-276288]
-Yano-kun's Ordinary Days [tmdb-276349]
-Tamon-kun Ima Docchi!? [tmdb-276393]
-Él (2006) [tmdb-6809]
-The Moon on a Rainy Night [tmdb-277369]
-There's No Freaking Way I'll Be Your Lover! Unless… [tmdb-277513]
-呪術廻戦 第2期 [tmdb-289124]
-You and I Are Polar Opposites [tmdb-278043]
-航海王鱼人岛篇特别编辑版 (1999) [tmdb-37854]
-Gnosia [tmdb-278604]
-Backstabbed in a Backwater Dungeon [tmdb-278635]
-cocoon (2014) [tmdb-84734]
-The Truth Of Grimm Brothers’ Fairy Tales [tmdb-227727]
-Betrothed to my Sister's Ex [tmdb-279989]
-Apocalypse Bringer Mynoghra [tmdb-280038]
-A Wild Last Boss Appeared! [tmdb-280042]
-Reincarnated as the Daughter of the Legendary Hero and the Queen of Spirits [tmdb-280048]
-Hell Mode [tmdb-280049]
-See You Tomorrow at the Food Court [tmdb-280366]
+Hero Without a Class Who Even Needs Skills?! {tmdb-236565}
+Diary of a Strange Land {tmdb-253476}
+Garena Free Fire {tmdb-254286}
+The Darwin Incident {tmdb-255064}
+The Ghost in the Shell (2016) {tmdb-72838}
+Bad Girl (2010) {tmdb-48908}
+CLEVATESS {tmdb-258348}
+Omniscient Reader {tmdb-258706}
+SANDA {tmdb-258901}
+Aikatsu Academy! {tmdb-259286}
+Rooster Fighter {tmdb-259819}
+Daemons of the Shadow Realm {tmdb-260463}
+Harmony of Mille-Feuille {tmdb-260848}
+千歳くんはラムネ瓶のなか {tmdb-261343}
+With You and the Rain {tmdb-262254}
+Wondance {tmdb-262259}
+Detectives These Days Are Crazy! {tmdb-262377}
+陰の実力者になりたくて！ ちびキャラアニメ {tmdb-263168}
+9-nine- Ruler's Crown {tmdb-270931}
+May I Ask for One Final Thing? {tmdb-271605}
+The Fragrant Flower Blooms with Dignity {tmdb-271607}
+DARK MOON THE BLOOD ALTAR {tmdb-271609}
+Introduction to Mineralogy {tmdb-271649}
+Mikadono San Shimai wa Angai, Choroi {tmdb-272556}
+The Barbarian's Bride {tmdb-273467}
+A Gentle Noble's Vacation Recommendation {tmdb-274141}
+BLADE & BASTARD {tmdb-274711}
+This Monster Wants to Eat Me {tmdb-274810}
+Pass the Monster Meat, Milady! {tmdb-274814}
+カヤちゃんはコワくない {tmdb-275902}
+異世界マンチキン　ーHP1のままで最強最速ダンジョン攻略ー {tmdb-276109}
+ホテル・インヒューマンズ {tmdb-276288}
+Yano-kun's Ordinary Days {tmdb-276349}
+Tamon-kun Ima Docchi!? {tmdb-276393}
+Él (2006) {tmdb-6809}
+The Moon on a Rainy Night {tmdb-277369}
+There's No Freaking Way I'll Be Your Lover! Unless… {tmdb-277513}
+呪術廻戦 第2期 {tmdb-289124}
+You and I Are Polar Opposites {tmdb-278043}
+航海王鱼人岛篇特别编辑版 (1999) {tmdb-37854}
+Gnosia {tmdb-278604}
+Backstabbed in a Backwater Dungeon {tmdb-278635}
+cocoon (2014) {tmdb-84734}
+The Truth Of Grimm Brothers’ Fairy Tales {tmdb-227727}
+Betrothed to my Sister's Ex {tmdb-279989}
+Apocalypse Bringer Mynoghra {tmdb-280038}
+A Wild Last Boss Appeared! {tmdb-280042}
+Reincarnated as the Daughter of the Legendary Hero and the Queen of Spirits {tmdb-280048}
+Hell Mode {tmdb-280049}
+See You Tomorrow at the Food Court {tmdb-280366}
 Pokémon Kids TV [Error]
-Noble Reincarnation [tmdb-281161]
-The Ideal Sponger Life [tmdb-281163]
-Latna Saga Survival of a Sword King [tmdb-281165]
-The Villager Who Was Abandoned, Was Picked Up by an Aristocrat and Awakened a Legendary Divine Skill [tmdb-281427]
-Reincarnated as a Neglected Noble Raising My Baby Brother With Memories From My Past Life [tmdb-281623]
-With You, Our Love Will Make It Through [tmdb-282662]
-The Ramparts of Ice [tmdb-283428]
-Reゼロから始める異世界生活 新編集版 (2016) [tmdb-65942]
-Vampire-chan Can’t Suck Properly [tmdb-283689]
-目覚めたら最強装備と宇宙船持ちだったので、一戸建て目指して傭兵として自由に生きたい [tmdb-283692]
-The Otome Heroine's Fight for Survival [tmdb-283703]
-フェルマーの料理 (2023) [tmdb-233750]
-気絶勇者と暗殺姫 [tmdb-283705]
+Noble Reincarnation {tmdb-281161}
+The Ideal Sponger Life {tmdb-281163}
+Latna Saga Survival of a Sword King {tmdb-281165}
+The Villager Who Was Abandoned, Was Picked Up by an Aristocrat and Awakened a Legendary Divine Skill {tmdb-281427}
+Reincarnated as a Neglected Noble Raising My Baby Brother With Memories From My Past Life {tmdb-281623}
+With You, Our Love Will Make It Through {tmdb-282662}
+The Ramparts of Ice {tmdb-283428}
+Reゼロから始める異世界生活 新編集版 (2016) {tmdb-65942}
+Vampire-chan Can’t Suck Properly {tmdb-283689}
+目覚めたら最強装備と宇宙船持ちだったので、一戸建て目指して傭兵として自由に生きたい {tmdb-283692}
+The Otome Heroine's Fight for Survival {tmdb-283703}
+フェルマーの料理 (2023) {tmdb-233750}
+気絶勇者と暗殺姫 {tmdb-283705}
 Re ゼロから始める異世界生活  Director's cut (2020) [293104]
-A Star Brighter Than the Sun [tmdb-283818]
-ニューノーマル [tmdb-283879]
-さわらないで小手指くん [tmdb-283880]
-人妻の唇は缶チューハイの味がして [tmdb-283884]
-クジマ歌えば家ほろろ [tmdb-283888]
-エリスの聖杯 [tmdb-283891]
-上伊那ぼたん、酔へる姿は百合の花 [tmdb-283905]
+A Star Brighter Than the Sun {tmdb-283818}
+ニューノーマル {tmdb-283879}
+さわらないで小手指くん {tmdb-283880}
+人妻の唇は缶チューハイの味がして {tmdb-283884}
+クジマ歌えば家ほろろ {tmdb-283888}
+エリスの聖杯 {tmdb-283891}
+上伊那ぼたん、酔へる姿は百合の花 {tmdb-283905}
 名侦探柯南 TV拆分版 [Error]
-終末ツーリング [tmdb-283935]
-生徒会にも穴はある! [tmdb-283938]
-The Cat and the Dragon [tmdb-284029]
-则卷阿拉蕾大陆辽艺版 (1981) [tmdb-220280]
-笑顔のたえない職場です。 [tmdb-284388]
-恋せよまやかし天使ども [tmdb-284391]
-勇者のクズ [tmdb-284432]
-不器用な先輩。 [tmdb-284433]
-素材採取家の異世界旅行記 [tmdb-284442]
-シャンピニオンの魔女 [tmdb-284444]
-Takopii's Original Sin [tmdb-284445]
-よわよわ先生 [tmdb-284447]
-公女殿下の家庭教師 [tmdb-284448]
-異世界の沙汰は社畜次第 [tmdb-284495]
-税金で買った本 [tmdb-284496]
-姫騎士様のヒモ [tmdb-284563]
-Even a Replica Can Fall in Love [tmdb-284568]
-暗殺者である俺のステータスが勇者よりも明らかに強いのだが [tmdb-284644]
-勇者パーティーを追放された白魔導師、Sランク冒険者に拾われる～この白魔導師が規格外すぎる～ [tmdb-284771]
-火喰鳥 羽州ぼろ鳶組 [tmdb-284969]
-忍者と極道 [tmdb-285070]
-ウタヒメドリーム [tmdb-285114]
-勇者パーティを追い出された器用貧乏　～パーティ事情で付与術士をやっていた剣士、万能へと至る～ [tmdb-285166]
-転生したらドラゴンの卵だった～最強以外目指さねぇ～ [tmdb-285291]
-渡くんの××が崩壊寸前 [tmdb-285356]
-「お前ごときが魔王に勝てると思うな」と勇者パーティを追放されたので、王都で気ままに暮らしたい [tmdb-285357]
-I Want to Love You Till Your Dying Day [tmdb-285574]
-ジャイアントお嬢様 [tmdb-285623]
+終末ツーリング {tmdb-283935}
+生徒会にも穴はある! {tmdb-283938}
+The Cat and the Dragon {tmdb-284029}
+则卷阿拉蕾大陆辽艺版 (1981) {tmdb-220280}
+笑顔のたえない職場です。 {tmdb-284388}
+恋せよまやかし天使ども {tmdb-284391}
+勇者のクズ {tmdb-284432}
+不器用な先輩。 {tmdb-284433}
+素材採取家の異世界旅行記 {tmdb-284442}
+シャンピニオンの魔女 {tmdb-284444}
+Takopii's Original Sin {tmdb-284445}
+よわよわ先生 {tmdb-284447}
+公女殿下の家庭教師 {tmdb-284448}
+異世界の沙汰は社畜次第 {tmdb-284495}
+税金で買った本 {tmdb-284496}
+姫騎士様のヒモ {tmdb-284563}
+Even a Replica Can Fall in Love {tmdb-284568}
+暗殺者である俺のステータスが勇者よりも明らかに強いのだが {tmdb-284644}
+勇者パーティーを追放された白魔導師、Sランク冒険者に拾われる～この白魔導師が規格外すぎる～ {tmdb-284771}
+火喰鳥 羽州ぼろ鳶組 {tmdb-284969}
+忍者と極道 {tmdb-285070}
+ウタヒメドリーム {tmdb-285114}
+勇者パーティを追い出された器用貧乏　～パーティ事情で付与術士をやっていた剣士、万能へと至る～ {tmdb-285166}
+転生したらドラゴンの卵だった～最強以外目指さねぇ～ {tmdb-285291}
+渡くんの××が崩壊寸前 {tmdb-285356}
+「お前ごときが魔王に勝てると思うな」と勇者パーティを追放されたので、王都で気ままに暮らしたい {tmdb-285357}
+I Want to Love You Till Your Dying Day {tmdb-285574}
+ジャイアントお嬢様 {tmdb-285623}
 Another Lady Innocent [Error]
-Suikoden The Anime [tmdb-285710]
-幼馴染とはラブコメにならない [tmdb-285743]
-Tanzaburo Tojima Wants To Be Kamen Rider [tmdb-285788]
-陰陽廻天 Reバース [tmdb-285828]
+Suikoden The Anime {tmdb-285710}
+幼馴染とはラブコメにならない {tmdb-285743}
+Tanzaburo Tojima Wants To Be Kamen Rider {tmdb-285788}
+陰陽廻天 Reバース {tmdb-285828}
 Eseカナン様はあくまでチョロい [Error]
-転生した大聖女は、聖女であることをひた隠す [tmdb-285899]
-真夜中ハートチューン [tmdb-285933]
-BLACK TORCH [tmdb-285993]
-魔女と傭兵 [tmdb-285994]
+転生した大聖女は、聖女であることをひた隠す {tmdb-285899}
+真夜中ハートチューン {tmdb-285933}
+BLACK TORCH {tmdb-285993}
+魔女と傭兵 {tmdb-285994}
 もう挟まずにはいられない ~星にお愿いしたらこんなにおっきくなっちゃった! [Error]
-野原ひろし 昼メシの流儀 [tmdb-286236]
-Dead Account [tmdb-286291]
-放課後帰宅びより [tmdb-286303]
-ふつつかな悪女ではございますが ～雛宮蝶鼠とりかえ伝～ [tmdb-286345]
-ヒロイン?聖女?いいえ、オールワークスメイドです [tmdb-286346]
-Magical Sisters LuluttoLilly [tmdb-286361]
-Inexpressive Kashiwada and Expressive Oota [tmdb-286388]
-転生悪女の黒歴史 [tmdb-286404]
-Uglymug, Epicfighter [tmdb-286434]
-Cat's♥Eye [tmdb-286691]
-Welcome to the Outcast's Restaurant! [tmdb-286723]
-ジョジョの奇妙な冒険ダイヤモンド は砕けない (2012) [tmdb-45790]
-DIGIMON BEATBREAK [tmdb-286791]
-Kore Kaite Shine [tmdb-287028]
-Mikata ga Yowasugite Hojo Mahō ni Tesshiteita Kyūtei Mahōshi [tmdb-286984]
-魔のものたちは企てる [tmdb-287242]
-機械じかけのマリー [tmdb-287278]
-その警察官、ときどき野獣！ [tmdb-287449]
-Minecraft Anime Edition (2020) [tmdb-287493]
-うるわしの宵の月 [tmdb-287591]
-亜童 [tmdb-287593]
-Mini Yuri (2019) [tmdb-287751]
+野原ひろし 昼メシの流儀 {tmdb-286236}
+Dead Account {tmdb-286291}
+放課後帰宅びより {tmdb-286303}
+ふつつかな悪女ではございますが ～雛宮蝶鼠とりかえ伝～ {tmdb-286345}
+ヒロイン?聖女?いいえ、オールワークスメイドです {tmdb-286346}
+Magical Sisters LuluttoLilly {tmdb-286361}
+Inexpressive Kashiwada and Expressive Oota {tmdb-286388}
+転生悪女の黒歴史 {tmdb-286404}
+Uglymug, Epicfighter {tmdb-286434}
+Cat's♥Eye {tmdb-286691}
+Welcome to the Outcast's Restaurant! {tmdb-286723}
+ジョジョの奇妙な冒険ダイヤモンド は砕けない (2012) {tmdb-45790}
+DIGIMON BEATBREAK {tmdb-286791}
+Kore Kaite Shine {tmdb-287028}
+Mikata ga Yowasugite Hojo Mahō ni Tesshiteita Kyūtei Mahōshi {tmdb-286984}
+魔のものたちは企てる {tmdb-287242}
+機械じかけのマリー {tmdb-287278}
+その警察官、ときどき野獣！ {tmdb-287449}
+Minecraft Anime Edition (2020) {tmdb-287493}
+うるわしの宵の月 {tmdb-287591}
+亜童 {tmdb-287593}
+Mini Yuri (2019) {tmdb-287751}
 じょしおちっ！～2階から女の子が…降ってきた！？～ (2018) [81044]
-王様のプロポーズ [tmdb-288414]
-Ponkotsu Fūkiin to Skirt Take ga Futekisetsu na JK no Hanashi [tmdb-288551]
-信者ゼロの女神サマと始める異世界攻略 [tmdb-288588]
-お気楽領主の楽しい領地防衛 ～生産系魔術で名もなき村を最強の城塞都市に～ [tmdb-288589]
-自称悪役令嬢な婚約者の観察記録。 [tmdb-288590]
-Agents of the Four Seasons Dance of Spring [tmdb-288659]
-テンカイチ 日本最強武芸者決定戦 [tmdb-288794]
-Jaadugar A Witch in Mongolia [tmdb-288971]
-Alma-chan Wants to Have a Family! [tmdb-289217]
-My Love Story!! (2015) [tmdb-62565]
-Mobile Suit Gundam 00 (2007) [tmdb-21732]
-Mobile Suit Gundam (2025) [tmdb-278704]
-Yu-Gi-Oh! (2020) [tmdb-100368]
-Slayers (2006) [tmdb-44940]
-Shadows House (1996) [tmdb-73027]
-Love Live! (2013) [tmdb-53721]
-Medalist (2023) [tmdb-240992]
-Tokyo Mew Mew (2002) [tmdb-46345]
-Nobody's Boy Remi (2016) [tmdb-75891]
-[C] The Money of Soul and Possibility Control (2011) [tmdb-39435]
-Iron Man (2009) [tmdb-7330]
-Place to Place (2007) [tmdb-105852]
-Babylon (2004) [tmdb-94738]
-Azur Lane (2023) [tmdb-231502]
-D・N・ANGEL (2003) [tmdb-25676]
-Mobile Suit Gundam SEED Destiny (2002) [tmdb-20111]
-Bastard!! (1989) [tmdb-126563]
-Symphogear (2012) [tmdb-63322]
-Shuffle (2005) [tmdb-36877]
-BEATLESS (2018) [tmdb-76062]
-Saiyuki (2005) [tmdb-27347]
-BanG Dream! (2018) [tmdb-80729]
-Pet (2020) [tmdb-93593]
-Onmyoji (2023) [tmdb-210946]
+王様のプロポーズ {tmdb-288414}
+Ponkotsu Fūkiin to Skirt Take ga Futekisetsu na JK no Hanashi {tmdb-288551}
+信者ゼロの女神サマと始める異世界攻略 {tmdb-288588}
+お気楽領主の楽しい領地防衛 ～生産系魔術で名もなき村を最強の城塞都市に～ {tmdb-288589}
+自称悪役令嬢な婚約者の観察記録。 {tmdb-288590}
+Agents of the Four Seasons Dance of Spring {tmdb-288659}
+テンカイチ 日本最強武芸者決定戦 {tmdb-288794}
+Jaadugar A Witch in Mongolia {tmdb-288971}
+Alma-chan Wants to Have a Family! {tmdb-289217}
+My Love Story!! (2015) {tmdb-62565}
+Mobile Suit Gundam 00 (2007) {tmdb-21732}
+Mobile Suit Gundam (2025) {tmdb-278704}
+Yu-Gi-Oh! (2020) {tmdb-100368}
+Slayers (2006) {tmdb-44940}
+Shadows House (1996) {tmdb-73027}
+Love Live! (2013) {tmdb-53721}
+Medalist (2023) {tmdb-240992}
+Tokyo Mew Mew (2002) {tmdb-46345}
+Nobody's Boy Remi (2016) {tmdb-75891}
+[C] The Money of Soul and Possibility Control (2011) {tmdb-39435}
+Iron Man (2009) {tmdb-7330}
+Place to Place (2007) {tmdb-105852}
+Babylon (2004) {tmdb-94738}
+Azur Lane (2023) {tmdb-231502}
+D・N・ANGEL (2003) {tmdb-25676}
+Mobile Suit Gundam SEED Destiny (2002) {tmdb-20111}
+Bastard!! (1989) {tmdb-126563}
+Symphogear (2012) {tmdb-63322}
+Shuffle (2005) {tmdb-36877}
+BEATLESS (2018) {tmdb-76062}
+Saiyuki (2005) {tmdb-27347}
+BanG Dream! (2018) {tmdb-80729}
+Pet (2020) {tmdb-93593}
+Onmyoji (2023) {tmdb-210946}
 Steins;Gate Soumei Eichi no Cognitive Computing [Error]
-Love Lab (2020) [tmdb-103510]
-KIBA (2018) [tmdb-83071]
-Planet With (2018) [tmdb-79288]
-AYAKA (2017) [tmdb-109595]
-Di Gi Charat (2022) [tmdb-210701]
-AMAIM Warrior at the Borderline (2023) [tmdb-229801]
-Humanoid Monster Bem (2011) [tmdb-46228]
-Moeyo Ken (2005) [tmdb-43290]
-Battle Athletes Victory (2021) [tmdb-108460]
-A Piece of Phantasmagoria (1995) [tmdb-45223]
-The☆Ultraman (1993) [tmdb-18305]
-Boys be... (1993) [tmdb-34860]
-Ayakashi (2023) [tmdb-153697]
-Daigunder (2002) [tmdb-44231]
-F (2004) [tmdb-63164]
-ICE (2021) [tmdb-153297]
-カードファイト!! ヴァンガード Divinez [tmdb-289195]
-Gakuen Tokusou Hikaruon [tmdb-43845]
-Lycoris Recoil Friends are thieves of time. (2022) [tmdb-154494]
-No Money (2024) [tmdb-285422]
-Kaya-chan Isn't Scary [tmdb-275902]
-Otherworldly Munchkin [tmdb-276109]
-Tamon’s B-Side [tmdb-276393]
-Despera (2004) [tmdb-693]
-I Made Friends With the Second Prettiest Girl in My Class [tmdb-290019]
-Rurouni Kenshin (1996) [tmdb-28136]
-Captain Tsubasa (2018) [tmdb-77240]
-Shiki (2017) [tmdb-70998]
-Free! (1993) [tmdb-15825]
-Mononoke (2007) [tmdb-16660]
-The Big O (2025) [tmdb-122781]
-[C] The Money of Soul and Possibility Control (2011) [tmdb-39435]
-Black Rock Shooter (2012) [tmdb-43079]
-My Tiny Senpai (2025) [tmdb-277217]
-Yo-kai Watch (2019) [tmdb-100019]
-Rin-ne (2012) [tmdb-42972]
-Dear Brother (2021) [tmdb-133473]
-Orphen (2020) [tmdb-91764]
-High Score (2020) [tmdb-106754]
-Lycoris Recoil Friends are thieves of time. (2025) [tmdb-290356]
-No Money (2015) [tmdb-80993]
-One pace (2013) [tmdb-290519]
-Kōkaku Kidōtai THE GHOST IN THE SHELL [tmdb-255358]
-Hotel Inhumans [tmdb-276288]
-とある科学の超電磁砲S [tmdb-282408]
-リコリス・リコイル Friends are thieves of time (2025) [tmdb-290356]
-Free! (2013) [tmdb-61456]
-Beyblade (2016) [tmdb-67667]
-[C] The Money of Soul and Possibility Control (2011) [tmdb-39435]
-Glitter Force (2013) [tmdb-75086]
-Digimon Adventure Tri. (2017) [tmdb-422347]
+Love Lab (2020) {tmdb-103510}
+KIBA (2018) {tmdb-83071}
+Planet With (2018) {tmdb-79288}
+AYAKA (2017) {tmdb-109595}
+Di Gi Charat (2022) {tmdb-210701}
+AMAIM Warrior at the Borderline (2023) {tmdb-229801}
+Humanoid Monster Bem (2011) {tmdb-46228}
+Moeyo Ken (2005) {tmdb-43290}
+Battle Athletes Victory (2021) {tmdb-108460}
+A Piece of Phantasmagoria (1995) {tmdb-45223}
+The☆Ultraman (1993) {tmdb-18305}
+Boys be... (1993) {tmdb-34860}
+Ayakashi (2023) {tmdb-153697}
+Daigunder (2002) {tmdb-44231}
+F (2004) {tmdb-63164}
+ICE (2021) {tmdb-153297}
+カードファイト!! ヴァンガード Divinez {tmdb-289195}
+Gakuen Tokusou Hikaruon {tmdb-43845}
+Lycoris Recoil Friends are thieves of time. (2022) {tmdb-154494}
+No Money (2024) {tmdb-285422}
+Kaya-chan Isn't Scary {tmdb-275902}
+Otherworldly Munchkin {tmdb-276109}
+Tamon’s B-Side {tmdb-276393}
+Despera (2004) {tmdb-693}
+I Made Friends With the Second Prettiest Girl in My Class {tmdb-290019}
+Rurouni Kenshin (1996) {tmdb-28136}
+Captain Tsubasa (2018) {tmdb-77240}
+Shiki (2017) {tmdb-70998}
+Free! (1993) {tmdb-15825}
+Mononoke (2007) {tmdb-16660}
+The Big O (2025) {tmdb-122781}
+[C] The Money of Soul and Possibility Control (2011) {tmdb-39435}
+Black Rock Shooter (2012) {tmdb-43079}
+My Tiny Senpai (2025) {tmdb-277217}
+Yo-kai Watch (2019) {tmdb-100019}
+Rin-ne (2012) {tmdb-42972}
+Dear Brother (2021) {tmdb-133473}
+Orphen (2020) {tmdb-91764}
+High Score (2020) {tmdb-106754}
+Lycoris Recoil Friends are thieves of time. (2025) {tmdb-290356}
+No Money (2015) {tmdb-80993}
+One pace (2013) {tmdb-290519}
+Kōkaku Kidōtai THE GHOST IN THE SHELL {tmdb-255358}
+Hotel Inhumans {tmdb-276288}
+とある科学の超電磁砲S {tmdb-282408}
+リコリス・リコイル Friends are thieves of time (2025) {tmdb-290356}
+Free! (2013) {tmdb-61456}
+Beyblade (2016) {tmdb-67667}
+[C] The Money of Soul and Possibility Control (2011) {tmdb-39435}
+Glitter Force (2013) {tmdb-75086}
+Digimon Adventure Tri. (2017) {tmdb-422347}
 One pace [Error]
 Mini Yuri [Error]
-リコリス・リコイル Friends are thieves of time (2022) [tmdb-154494]
-[C] The Money of Soul and Possibility Control (2011) [tmdb-39435]
+リコリス・リコイル Friends are thieves of time (2022) {tmdb-154494}
+[C] The Money of Soul and Possibility Control (2011) {tmdb-39435}
 ODDTAXI (2021) [116727]
 Bocchi the Rock! (2022) [119100]
 Dan Da Dan (2024) [240411]
@@ -603,12 +603,12 @@ Food Wars! Shokugeki no Soma (2015) [62273]
 Clannad (2007) [24835]
 Elfen Lied (2004) [42671]
 Fate/Zero (2011) [45845]
-Suicide Squad Isekai (2024) [tmdb-229926]
+Suicide Squad Isekai (2024) {tmdb-229926}
 My Hero Academia (2025) [280110]
 Barakamon (2014) [67048]
 Bleach (2004) [30984]
-Sword Art Online (2012) [tmdb-45782]
-Sword Art Online Alternative: Gun Gale Online (2018) [tmdb-78204]
+Sword Art Online (2012) {tmdb-45782}
+Sword Art Online Alternative: Gun Gale Online (2018) {tmdb-78204}
 Kamisama Kiss (2012) [62741]
 Black Clover (2017) [73223]
 Kuroko's Basketball (2012) [45783]

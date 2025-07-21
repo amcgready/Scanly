@@ -2,7 +2,7 @@
 """
 Fix movie IDs in scanner files.
 
-This script converts ID formats in scanner files to the standard [tmdb-ID] format.
+This script converts ID formats in scanner files to the standard {tmdb-ID} format.
 """
 
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 
 def fix_scanner_ids(scanner_file):
     """
-    Fix IDs in a scanner file to use [tmdb-ID] format.
+    Fix IDs in a scanner file to use {tmdb-ID} format.
     
     Args:
         scanner_file: Path to the scanner file
@@ -38,12 +38,12 @@ def fix_scanner_ids(scanner_file):
                 corrected_lines.append(line)
                 continue
             
-            # Replace different ID formats with [tmdb-ID]
+            # Replace different ID formats with {tmdb-ID}
             # Case 1: [movie:ID]
-            modified_line = re.sub(r'\[movie:(\d+)\]', r'[tmdb-\1]', line)
+            modified_line = re.sub(r'\[movie:(\d+)\]', r'{tmdb-\1}', line)
             
             # Case 2: [ID] (plain ID without prefix)
-            modified_line = re.sub(r'\[(\d+)\](?!\])', r'[tmdb-\1]', modified_line)
+            modified_line = re.sub(r'\[(\d+)\](?!\])', r'{tmdb-\1}', modified_line)
             
             if modified_line != line:
                 modified_count += 1

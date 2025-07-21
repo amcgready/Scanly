@@ -59,32 +59,40 @@ class TMDB:
             logger.error(f"Error making TMDB API request to {endpoint}: {e}")
             return {"results": []}
     
-    def search_movie(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
+    def search_movie(self, query: str, year: Optional[str] = None, limit: int = 3) -> List[Dict[str, Any]]:
         """
         Search for movies.
         
         Args:
             query: Search query
+            year: Optional year to filter results
             limit: Maximum number of results to return
             
         Returns:
             List of movie results
         """
-        results = self._request('search/movie', {'query': query})
+        params = {'query': query}
+        if year:
+            params['year'] = year
+        results = self._request('search/movie', params)
         return results.get('results', [])[:limit]
     
-    def search_tv(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
+    def search_tv(self, query: str, year: Optional[str] = None, limit: int = 3) -> List[Dict[str, Any]]:
         """
         Search for TV shows.
         
         Args:
             query: Search query
+            year: Optional year to filter results (uses first_air_date_year)
             limit: Maximum number of results to return
             
         Returns:
             List of TV show results
         """
-        results = self._request('search/tv', {'query': query})
+        params = {'query': query}
+        if year:
+            params['first_air_date_year'] = year
+        results = self._request('search/tv', params)
         return results.get('results', [])[:limit]
     
     def get_movie_details(self, movie_id: int) -> Dict[str, Any]:

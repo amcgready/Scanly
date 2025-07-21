@@ -120,7 +120,7 @@ def create_symlinks(source_path, destination_base, is_anime=False, content_type=
     # Add IDs to folder name based on environment settings
     folder_suffix = ""
     if tmdb_id and os.environ.get('TMDB_FOLDER_ID', 'true').lower() in ('true', 'yes', '1'):
-        folder_suffix += f" [tmdb-{tmdb_id}]"
+        folder_suffix += f" {{tmdb-{tmdb_id}}}"
     
     if imdb_id and os.environ.get('IMDB_FOLDER_ID', 'false').lower() in ('true', 'yes', '1'):
         folder_suffix += f" [imdb-{imdb_id}]"
@@ -262,7 +262,7 @@ def create_hardlinks(source_file, base_dest_dir, is_anime=False, content_type='t
             # Create folder name with optional IDs
             folder_name = title
             if tmdb_id:
-                folder_name += f" [tmdb-{tmdb_id}]"
+                folder_name += f" {{tmdb-{tmdb_id}}}"
             
             # Create destination directory structure
             show_dir = os.path.join(base_dest_dir, content_dir, folder_name)
@@ -292,7 +292,7 @@ def create_hardlinks(source_file, base_dest_dir, is_anime=False, content_type='t
             if year:
                 folder_name += f" ({year})"
             if tmdb_id:
-                folder_name += f" [tmdb-{tmdb_id}]"
+                folder_name += f" {{tmdb-{tmdb_id}}}"
             
             dest_dir = os.path.join(base_dest_dir, content_dir, folder_name)
             dest_name = folder_name

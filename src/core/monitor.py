@@ -236,6 +236,7 @@ class MonitorManager:
 
         if dir_id not in self._monitored_directories:
             logger.error(f"Unknown dir_id: {dir_id} for detected directory {dir_path}")
+            logger.info(f"DEBUG: MONITOR AUTO-SKIPPING - unknown dir_id: {dir_id}")
             return
 
         dir_info = self._monitored_directories[dir_id]
@@ -246,12 +247,16 @@ class MonitorManager:
 
         if not dir_name or not monitored_path:
             logger.error(f"Monitored directory config missing name or path for dir_id {dir_id}: {dir_info}")
+            logger.info(f"DEBUG: MONITOR AUTO-SKIPPING - missing config: dir_name={dir_name}, monitored_path={monitored_path}")
             return
 
-        # --- CRITICAL: Only notify if no media file in this folder is in scan history ---
+        # --- CRITICAL: Check if any media file in this folder is in scan history ---
         from src.main import load_scan_history_set, is_any_media_file_in_scan_history
         scan_history_set = load_scan_history_set()
-        if is_any_media_file_in_scan_history(dir_path, scan_history_set):
+        scan_history_check = is_any_media_file_in_scan_history(dir_path, scan_history_set)
+        logger.info(f"DEBUG: Monitor scan history check for {dir_path}: {scan_history_check}")
+        if scan_history_check:
+            logger.info(f"DEBUG: MONITOR AUTO-SKIPPING due to scan history: {dir_path}")
             logger.info(f"Skipping notification for {dir_path} (already in scan history)")
             return
 

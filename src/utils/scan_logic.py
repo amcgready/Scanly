@@ -118,7 +118,7 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
             if not line or line.startswith('#'):
                 continue
             # Extract title, year, and TMDB ID
-            match = re.match(r'^(.+?)(?:\s+\((\d{4})\))?(?:\s+\[tmdb-(\d+)\])?$', line)
+            match = re.match(r'^(.+?)(?:\s+\((\d{4})\))?(?:\s+\{tmdb-(\d+)\})?$', line)
             if not match:
                 continue
             scan_title = match.group(1).strip()
@@ -165,13 +165,13 @@ def find_scanner_matches(search_term, content_type, year=None, threshold=0.75):
 
 def get_movie_folder_name(title, year, tmdb_id):
     if TMDB_FOLDER_ID and tmdb_id:
-        return f"{title} ({year}) [tmdb-{tmdb_id}]"
+        return f"{title} ({year}) {{tmdb-{tmdb_id}}}"
     else:
         return f"{title} ({year})"
 
 def get_series_folder_name(title, year, tmdb_id, season_number):
     if TMDB_FOLDER_ID and tmdb_id:
-        base = f"{title} ({year}) [tmdb-{tmdb_id}]"
+        base = f"{title} ({year}) {{tmdb-{tmdb_id}}}"
     else:
         base = f"{title} ({year})"
     return os.path.join(base, f"S{season_number:02d}")

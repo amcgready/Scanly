@@ -38,7 +38,7 @@ def main():
         return
     print(f"\nResults for '{title}' ({year}):")
     for movie in results:
-        print(f"- {movie['title']} ({movie.get('release_date', 'N/A')[:4]}) [tmdb-{movie['id']}]")
+        print(f"- {movie['title']} ({movie.get('release_date', 'N/A')[:4]}) {{tmdb-{movie['id']}}}")
 
 if __name__ == "__main__":
     main()

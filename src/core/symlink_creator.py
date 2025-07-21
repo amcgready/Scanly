@@ -165,7 +165,7 @@ class SymlinkCreator:
             
         # Add IDs if enabled
         if TMDB_FOLDER_ID and tmdb_id:
-            folder_name += f" [tmdb-{tmdb_id}]"
+            folder_name += f" {{tmdb-{tmdb_id}}}"
         if IMDB_FOLDER_ID and imdb_id:
             folder_name += f" [imdb-{imdb_id}]"
         
@@ -220,7 +220,7 @@ class SymlinkCreator:
             
         # Add IDs if enabled
         if TMDB_FOLDER_ID and tmdb_id:
-            folder_name += f" [tmdb-{tmdb_id}]"
+            folder_name += f" {{tmdb-{tmdb_id}}}"
         if TVDB_FOLDER_ID and tvdb_id:
             folder_name += f" [tvdb-{tvdb_id}]"
         

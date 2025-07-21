@@ -33,7 +33,7 @@ def get_webhook_url(event_type=None):
 def _symlink_embed(event, title, year, poster, description, symlink_path, tmdb_id=None):
     # Format title with TMDB ID if available
     if tmdb_id:
-        display_title = f"{title} [tmdb-{tmdb_id}]"
+        display_title = f"{title} {{tmdb-{tmdb_id}}}"
     else:
         display_title = title
 

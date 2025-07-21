@@ -29,11 +29,11 @@ class ScannerUtils:
         Returns:
             Formatted entry for the scanner list
         """
-        # Format with year if available and use the standard [tmdb-ID] format
+        # Format with year if available and use the standard {tmdb-ID} format
         if year:
-            return f"{title} ({year}) [tmdb-{tmdb_id}]"
+            return f"{title} ({year}) {{tmdb-{tmdb_id}}}"
         else:
-            return f"{title} [tmdb-{tmdb_id}]"
+            return f"{title} {{tmdb-{tmdb_id}}}"
     
     @staticmethod
     def parse_entry(entry: str) -> Dict[str, Any]:
@@ -60,8 +60,8 @@ class ScannerUtils:
             result["error"] = True
             return result
             
-        # Extract ID - look for [tmdb-ID] pattern
-        id_match = re.search(r'\[tmdb-(\d+)\]', entry)
+        # Extract ID - look for {tmdb-ID} pattern
+        id_match = re.search(r'\{tmdb-(\d+)\}', entry)
         
         # Fall back to other patterns if needed
         if not id_match:
