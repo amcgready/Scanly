@@ -414,12 +414,6 @@ def reload_global_scan_history():
     GLOBAL_SCAN_HISTORY_SET = load_scan_history_set()
 reload_global_scan_history()
 
-def append_to_scan_history(path):
-    """Append a processed file path to scan_history.txt and update global set."""
-    with open(SCAN_HISTORY_FILE, 'a') as f:
-        f.write(f"{path}\n")
-    GLOBAL_SCAN_HISTORY_SET.add(path)
-
 # Function to clear the screen - updating to remove excessive newlines
 def clear_screen():
     """Clear the terminal screen using optimal methods."""
@@ -819,9 +813,8 @@ class DirectoryProcessor:
         if not manual_season and not manual_episode:
             return None, None, None  # Both disabled, use automatic detection
         
-        clear_screen()
-        display_ascii_art()
-        print("=" * 84)
+        # Don't clear screen - preserve context from previous screen
+        print("\n" + "=" * 84)
         content_type = "Anime Series" if is_anime else "TV Series"
         print(f"MANUAL {content_type.upper()} PROCESSING".center(84))
         print("=" * 84)
@@ -833,16 +826,16 @@ class DirectoryProcessor:
         if manual_season:
             print("\nSeason Information:")
             while True:
-                season_input = input("Enter season number (1, 2, 3...) or press Enter to skip: ").strip()
+                season_input = input("Enter season number (0 for extras/specials, 1, 2, 3...) or press Enter to skip: ").strip()
                 if not season_input:
                     season_number = None
                     break
                 try:
                     season_number = int(season_input)
-                    if season_number > 0:
+                    if season_number >= 0:  # Allow 0 for extras/specials
                         break
                     else:
-                        print("Please enter a positive number.")
+                        print("Please enter a number 0 or greater (0 = extras/specials).")
                 except ValueError:
                     print("Please enter a valid number.")
         
@@ -862,6 +855,33 @@ class DirectoryProcessor:
                 episode_name = episode_name_input
         
         return season_number, episode_number, episode_name
+
+    def _display_folder_header(self, subfolder_name, title, year, content_type, search_term, tmdb_id_for_search, media_files_count, scanner_matches_count, current_index, total_items):
+        """Helper method to display consistent folder processing header without clearing screen."""
+        print("=" * 84)
+        print("FOLDER PROCESSING".center(84))
+        print("=" * 84)
+        print(f"\nProcessing: {subfolder_name}")
+        print(f"  Title: {title}")
+        print(f"  Year: {year if year else 'Unknown'}")
+        print(f"  Type: {content_type}")
+        print(f"  Search term: {search_term}")
+        
+        if tmdb_id_for_search:
+            print(f"  TMDB ID for search term: {tmdb_id_for_search}")
+        else:
+            print(f"  TMDB ID for search term: Not found")
+            
+        print(f"  Media files detected: {media_files_count}")
+        print(f"  Scanner Matches: {scanner_matches_count}")
+        
+        # Show current item count and progress bar
+        bar_len = 30
+        filled_len = int(bar_len * current_index // total_items)
+        bar = '=' * filled_len + '-' * (bar_len - filled_len)
+        percent = int(100 * current_index / total_items)
+        print(f"\nItem {current_index} of {total_items} [{bar}] {percent}%")
+        print("=" * 84)
 
     def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None, season_number=None, episode_number=None, episode_name=None):
         """
@@ -909,29 +929,49 @@ class DirectoryProcessor:
 
             # --- CRITICAL FIX: Only process files not in scan history ---
             processed_any = False
+            
+            self.logger.info(f"DEBUG: Starting symlink creation for {subfolder_path}")
+            self.logger.info(f"DEBUG: is_tv={is_tv}, is_wrestling={is_wrestling}, season_number={season_number}, episode_number={episode_number}, episode_name={episode_name}")
 
             if is_tv and not is_wrestling:
+                self.logger.info(f"DEBUG: Processing TV show files in {subfolder_path}")
                 for root, dirs, files in os.walk(subfolder_path):
                     media_files = [f for f in files if f.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv'))]
+                    self.logger.info(f"DEBUG: Found {len(media_files)} media files: {media_files}")
                     for idx, file in enumerate(sorted(media_files), 1):
                         source_file_path = os.path.join(root, file)
+                        self.logger.info(f"DEBUG: Processing file {idx}: {source_file_path}")
+                        
                         # SKIP if already in scan history
                         if source_file_path in GLOBAL_SCAN_HISTORY_SET:
+                            self.logger.info(f"DEBUG: SKIPPING {file} - already in scan history")
                             continue
 
                         # Use provided season/episode info if available (from CSV import)
                         if season_number is not None:
+                            self.logger.info(f"DEBUG: Using provided season_number={season_number}, episode_number={episode_number}, episode_name={episode_name}")
                             s_num = season_number
                             if episode_name:
                                 # Special episode with name (like "Concept Art")
                                 e_num = None
                                 episode_label = episode_name
+                                self.logger.info(f"DEBUG: Special episode with name: {episode_name}")
                             elif episode_number is not None:
-                                e_num = episode_number
-                                episode_label = f"E{e_num:02d}"
+                                # Check if episode_number is a string (special episode) or integer (regular episode)
+                                if isinstance(episode_number, str) and not episode_number.isdigit():
+                                    # String episode identifier like "The Road West"
+                                    e_num = None
+                                    episode_label = episode_number
+                                    self.logger.info(f"DEBUG: Special episode with string identifier: {episode_number}")
+                                else:
+                                    # Numeric episode number
+                                    e_num = int(episode_number) if isinstance(episode_number, str) else episode_number
+                                    episode_label = f"E{e_num:02d}"
+                                    self.logger.info(f"DEBUG: Regular episode with number: S{s_num:02d}E{e_num:02d}")
                             else:
                                 e_num = idx
                                 episode_label = f"E{e_num:02d}"
+                                self.logger.info(f"DEBUG: Fallback to file index: S{s_num:02d}E{e_num:02d}")
                         else:
                             # Fallback to regex extraction from filename
                             ep_match = re.search(r'(?:[sS](\d{1,2}))?[\. _-]*[eE](\d{1,2})', file)
@@ -946,26 +986,46 @@ class DirectoryProcessor:
 
                         ext = os.path.splitext(file)[1]
                         
-                        # Create episode symlink name based on whether it's a special episode or regular
+                        # Create episode symlink name based on season and episode type
                         if season_number is not None and episode_name:
-                            # Special episode: "The X-Files (1993) - Concept Art.mkv"
+                            # Special episode with name: "The X-Files (1993) - Concept Art.mkv"
                             ep_symlink_name = f"{base_name} - {episode_name}{ext}"
+                        elif s_num == 0:
+                            # Season 0 episodes: "SHOW NAME (YEAR) - INDICATOR.extension" (no S00 prefix)
+                            if episode_label and episode_label != "E01":
+                                # Use the episode identifier as the indicator
+                                if episode_label.startswith('E'):
+                                    # Remove E prefix for Season 0
+                                    indicator = episode_label[1:] if len(episode_label) > 1 else episode_label
+                                else:
+                                    indicator = episode_label
+                                ep_symlink_name = f"{base_name} - {indicator}{ext}"
+                            else:
+                                # Fallback for Season 0 without specific episode label
+                                ep_symlink_name = f"{base_name} - Extra{ext}"
                         else:
-                            # Regular episode: "The X-Files (1993) - S00E01.mkv"
+                            # Regular season episodes: "The X-Files (1993) - S01E01.mkv"
                             ep_symlink_name = f"{base_name} - S{s_num:02d}{episode_label}{ext}"
+                        
+                        self.logger.info(f"DEBUG: Episode symlink name: {ep_symlink_name}")
                             
                         season_folder = f"Season {s_num}"
                         season_dir = os.path.join(target_dir_path, season_folder)
+                        self.logger.info(f"DEBUG: Season directory: {season_dir}")
                         os.makedirs(season_dir, exist_ok=True)
                         dest_file_path = os.path.join(season_dir, ep_symlink_name)
+                        self.logger.info(f"DEBUG: Destination file path: {dest_file_path}")
 
                         if os.path.islink(dest_file_path) or os.path.exists(dest_file_path):
+                            self.logger.info(f"DEBUG: Removing existing file/symlink: {dest_file_path}")
                             os.remove(dest_file_path)
                         if use_symlinks:
+                            self.logger.info(f"DEBUG: Creating symlink from {source_file_path} to {dest_file_path}")
                             os.symlink(source_file_path, dest_file_path)
                             self.logger.info(f"Created symlink: {dest_file_path} -> {source_file_path}")
                             print(f"📺 Created TV symlink: {dest_file_path}")
                         else:
+                            import shutil
                             shutil.copy2(source_file_path, dest_file_path)
                             self.logger.info(f"Copied file: {source_file_path} -> {dest_file_path}")
                             print(f"📁 Copied TV file: {dest_file_path}")
@@ -1161,19 +1221,38 @@ class DirectoryProcessor:
                         episode_label = episode_name
                         ep_symlink_name = f"{base_name} - {episode_name}{file_ext}"
                     elif episode_number is not None:
-                        episode_label = f"E{episode_number:02d}"
-                        ep_symlink_name = f"{base_name} - S{s_num:02d}E{episode_number:02d}{file_ext}"
+                        if s_num == 0:
+                            # Season 0 episodes: "SHOW NAME (YEAR) - INDICATOR.extension" (no S00 prefix)
+                            if isinstance(episode_number, str):
+                                # String episode identifier
+                                ep_symlink_name = f"{base_name} - {episode_number}{file_ext}"
+                            else:
+                                # Numeric episode number for Season 0
+                                ep_symlink_name = f"{base_name} - {episode_number:02d}{file_ext}"
+                        else:
+                            # Regular season episodes
+                            episode_label = f"E{episode_number:02d}"
+                            ep_symlink_name = f"{base_name} - S{s_num:02d}E{episode_number:02d}{file_ext}"
                     else:
-                        episode_label = "E01"
-                        ep_symlink_name = f"{base_name} - S{s_num:02d}E01{file_ext}"
+                        if s_num == 0:
+                            # Season 0 without specific episode number
+                            ep_symlink_name = f"{base_name} - Extra{file_ext}"
+                        else:
+                            episode_label = "E01"
+                            ep_symlink_name = f"{base_name} - S{s_num:02d}E01{file_ext}"
                 else:
                     # Fallback to regex extraction from filename
                     ep_match = re.search(r'(?:[sS](\d{1,2}))?[\. _-]*[eE](\d{1,2})', filename)
                     if ep_match:
                         s_num = int(ep_match.group(1)) if ep_match.group(1) else 1
                         e_num = int(ep_match.group(2))
-                        episode_label = f"E{e_num:02d}"
-                        ep_symlink_name = f"{base_name} - S{s_num:02d}E{e_num:02d}{file_ext}"
+                        if s_num == 0:
+                            # Season 0 episodes: "SHOW NAME (YEAR) - EPISODE_NUM.extension" (no S00 prefix)
+                            ep_symlink_name = f"{base_name} - {e_num:02d}{file_ext}"
+                        else:
+                            # Regular season episodes
+                            episode_label = f"E{e_num:02d}"
+                            ep_symlink_name = f"{base_name} - S{s_num:02d}E{e_num:02d}{file_ext}"
                     else:
                         s_num = 1
                         episode_label = "E01"
@@ -1459,6 +1538,23 @@ class DirectoryProcessor:
                 self.logger.info(f"DEBUG: Starting to process subfolder: {subfolder_name}")
                 print(f"DEBUG: Processing folder: {subfolder_name}")
 
+                # Initialize variables early to avoid scope issues
+                title, year = self._extract_folder_metadata(subfolder_name)
+                is_tv = self._detect_if_tv_show(subfolder_name)
+                is_anime = self._detect_if_anime(subfolder_name)
+                is_wrestling = False
+                tmdb_id = None
+                
+                # Initialize season/episode variables
+                season_number = None
+                episode_number = None
+                episode_name = None
+                
+                # Apply default content type logic based on parent directory
+                default_flags = get_default_content_type_for_path(self.directory_path)
+                if default_flags:
+                    is_tv, is_anime, is_wrestling = default_flags
+
                 # --- CHECK if any media file in subfolder is in scan history ---
                 scan_history_check = is_any_media_file_in_scan_history(subfolder_path, processed_paths)
                 self.logger.info(f"DEBUG: Scan history check for {subfolder_name}: {scan_history_check}")
@@ -1491,24 +1587,55 @@ class DirectoryProcessor:
                         self.logger.info(f"DEBUG: User chose to proceed with symlink")
 
                 # 2. Check if already processed (symlink exists in destination)
-                # We'll check if a symlink exists in any destination subdir for this folder
+                # For TV shows, check if this episode already exists, regardless of source quality
                 already_processed = False
                 self.logger.info(f"DEBUG: Checking for existing symlinks in destination for {subfolder_name}")
-                if DESTINATION_DIRECTORY:
-                    for root, dirs, files in os.walk(DESTINATION_DIRECTORY):
-                        for d in dirs:
-                            dest_dir_path = os.path.join(root, d)
-                            if os.path.islink(dest_dir_path):
-                                # If the symlink points to this subfolder, skip
-                                try:
-                                    if os.path.realpath(dest_dir_path) == os.path.realpath(subfolder_path):
-                                        already_processed = True
-                                        self.logger.info(f"DEBUG: Found existing symlink for {subfolder_name}: {dest_dir_path}")
+                if DESTINATION_DIRECTORY and os.path.exists(DESTINATION_DIRECTORY):
+                    # Extract episode info from folder name to check for existing episodes
+                    is_tv_episode = is_tv and re.search(r'[sS](\d+)[eE](\d+)', subfolder_name)
+                    if is_tv_episode:
+                        # For TV episodes, check if this episode already exists
+                        season_match = re.search(r'[sS](\d+)[eE](\d+)', subfolder_name)
+                        if season_match:
+                            season_num = int(season_match.group(1))
+                            episode_num = int(season_match.group(2))
+                            
+                            # Check for existing episode in destination using cleaned title
+                            tv_series_dir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
+                            if os.path.exists(tv_series_dir):
+                                for show_folder in os.listdir(tv_series_dir):
+                                    show_path = os.path.join(tv_series_dir, show_folder)
+                                    if os.path.isdir(show_path):
+                                        # Check if this could be the same show (basic title matching)
+                                        if any(word.lower() in show_folder.lower() for word in title.split() if len(word) > 3):
+                                            season_folder = f"Season {season_num}"
+                                            season_path = os.path.join(show_path, season_folder)
+                                            if os.path.exists(season_path):
+                                                # Look for existing episode file
+                                                for episode_file in os.listdir(season_path):
+                                                    episode_match = re.search(rf'[sS]{season_num:02d}[eE]{episode_num:02d}', episode_file)
+                                                    if episode_match:
+                                                        already_processed = True
+                                                        self.logger.info(f"DEBUG: Found existing episode S{season_num:02d}E{episode_num:02d}: {episode_file}")
+                                                        break
+                                            if already_processed:
+                                                break
+                                    if already_processed:
                                         break
-                                except Exception as e:
-                                    self.logger.warning(f"Error checking symlink: {dest_dir_path} -> {e}")
-                        if already_processed:
-                            break
+                    else:
+                        # For non-TV or non-episode content, check if any media files are symlinked
+                        for root, dirs, files in os.walk(subfolder_path):
+                            for file in files:
+                                if file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv')):
+                                    source_file_path = os.path.join(root, file)
+                                    
+                                    # Quick check if this exact file is already in scan history
+                                    if source_file_path in GLOBAL_SCAN_HISTORY_SET:
+                                        already_processed = True
+                                        self.logger.info(f"DEBUG: File {file} already in scan history")
+                                        break
+                            if already_processed:
+                                break
                 else:
                     self.logger.info(f"DEBUG: No destination directory configured, skipping symlink check")
                 
@@ -1538,50 +1665,13 @@ class DirectoryProcessor:
                 # --- SKIP LOGIC END ---
 
                 # --- NEW: Skip if any symlinked file for this subfolder exists in destination ---
-                title, year = self._extract_folder_metadata(subfolder_name)
-                is_tv = self._detect_if_tv_show(subfolder_name)
-                is_anime = self._detect_if_anime(subfolder_name)
-                is_wrestling = False
-                tmdb_id = None
-
-                # Extract metadata from folder name
-                title, year = self._extract_folder_metadata(subfolder_name)
-                is_tv = self._detect_if_tv_show(subfolder_name)
-                is_anime = self._detect_if_anime(subfolder_name)
-                is_wrestling = False
-                tmdb_id = None
-                
-                # Initialize season/episode variables
-                season_number = None
-                episode_number = None
-                episode_name = None
-
-                # --- NEW: Skip the skip prompt and always continue
-                # (No input, just proceed to scanner list check)
-
-                # --- Instead, just load scanner matches for identification ---
                 # Initialize search_term before using it
                 search_term = title
-                
-                # --- Apply default content type logic based on parent directory ---
-                default_flags = get_default_content_type_for_path(self.directory_path)
-                if default_flags:
-                    is_tv, is_anime, is_wrestling = default_flags
-                else:
-                    is_tv = self._detect_if_tv_show(subfolder_name)
-                    is_anime = self._detect_if_anime(subfolder_name)
-                    is_wrestling = False
 
                 # Loop for processing the current folder with different options
                 while True:
                     clear_screen()  # Clear screen before displaying folder processing menu
                     display_ascii_art()  # Show ASCII art
-                    print("=" * 84)
-                    print("FOLDER PROCESSING".center(84))
-                    print("=" * 84)
-                    print(f"\nProcessing: {subfolder_name}")
-                    print(f"  Title: {title}")
-                    print(f"  Year: {year if year else 'Unknown'}")
                     
                     # Display content type
                     content_type = "Movie"
@@ -1593,9 +1683,6 @@ class DirectoryProcessor:
                         content_type = "Anime Movie"
                     elif is_tv and not is_anime:
                         content_type = "TV Series"
-                        
-                    print(f"  Type: {content_type}")
-                    print(f"  Search term: {search_term}")
 
                     # --- NEW: Display TMDB ID for search term ---
                     tmdb_id_for_search = None
@@ -1622,12 +1709,6 @@ class DirectoryProcessor:
                     except Exception as e:
                         tmdb_id_for_search = None
 
-                    if tmdb_id_for_search:
-                        print(f"  TMDB ID for search term: {tmdb_id_for_search}")
-                    else:
-                        print(f"  TMDB ID for search term: Not found")
-                    # ...continue with menu/options...
-
                     # ADD THIS BLOCK HERE:
                     media_exts = ('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv')
                     media_files = [
@@ -1638,19 +1719,17 @@ class DirectoryProcessor:
                     if year == "Unknown":
                         year = None
                     scanner_matches = self._check_scanner_lists(search_term, year, is_tv, is_anime)
-                    print(f"  Media files detected: {len(media_files)}")
-                    print(f"  Scanner Matches: {len(scanner_matches)}")
-
-                    # --- Show current item count and progress bar ---
+                    
+                    # Show current item count and progress
                     current_index = subdirs.index(subfolder_name) + 1
                     total_items = len(subdirs)
-                    bar_len = 30
-                    filled_len = int(bar_len * current_index // total_items)
-                    bar = '=' * filled_len + '-' * (bar_len - filled_len)
-                    percent = int(100 * current_index / total_items)
-                    print(f"\nItem {current_index} of {total_items} [{bar}] {percent}%")
-                    print("=" * 84)  # Add a separator for clarity
-                    # --- End progress bar ---
+                    
+                    # Use the new header function
+                    self._display_folder_header(
+                        subfolder_name, title, year, content_type, search_term, 
+                        tmdb_id_for_search, len(media_files), len(scanner_matches),
+                        current_index, total_items
+                    )
 
                     # Prompt user if multiple scanner matches
                     selected_match = None
@@ -1768,12 +1847,30 @@ class DirectoryProcessor:
                             print("Please select an option.")
                             continue
                         if action_choice == "1":
-                            # Accept Scanner match - DON'T auto-process, just set the values and break to menu
+                            # Accept Scanner match - create symlinks automatically
                             title = match_title
                             year = match_year
                             tmdb_id = match_tmdb_id
                             print(f"\n✅ Scanner match accepted: {title} ({year}) {{tmdb-{tmdb_id}}}")
-                            break  # Return to main processing menu
+                            
+                            # Get season/episode info if TV series and not already set
+                            if is_tv and not is_wrestling and season_number is None:
+                                season_number, episode_number, episode_name = self._prompt_for_season_episode_info(is_tv, is_anime, is_wrestling)
+                            
+                            # Automatically create symlinks after scanner match selection
+                            print(f"\n🔗 Creating symlinks for {title} ({year})...")
+                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
+                                processed += 1
+                                append_to_scan_history(subfolder_path)
+                                trigger_plex_refresh()
+                                print(f"\n✅ Successfully processed: {title} ({year})")
+                                input("\nPress Enter to continue...")
+                                clear_screen()
+                                display_ascii_art()
+                            else:
+                                print(f"\n❌ Failed to create symlinks for: {title} ({year})")
+                                input("\nPress Enter to continue...")
+                            break  # Exit the folder processing
     
                         elif tmdb_choices and action_choice == "2":
                             # Let user pick from TMDB results
@@ -1787,12 +1884,29 @@ class DirectoryProcessor:
                                     year = pick['year']
                                     tmdb_id = pick['tmdb_id']
                                     print(f"\n✅ TMDB result selected: {title} ({year}) {{tmdb-{tmdb_id}}}")
-                                    break  # Return to main processing menu
+                                    
+                                    # Get season/episode info if TV series and not already set
+                                    if is_tv and not is_wrestling and season_number is None:
+                                        season_number, episode_number, episode_name = self._prompt_for_season_episode_info(is_tv, is_anime, is_wrestling)
+                                    
+                                    # Automatically create symlinks after TMDB selection
+                                    print(f"\n🔗 Creating symlinks for {title} ({year})...")
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
+                                        processed += 1
+                                        append_to_scan_history(subfolder_path)
+                                        trigger_plex_refresh()
+                                        print(f"\n✅ Successfully processed: {title} ({year})")
+                                        input("\nPress Enter to continue...")
+                                        clear_screen()
+                                        display_ascii_art()
+                                    else:
+                                        print(f"\n❌ Failed to create symlinks for: {title} ({year})")
+                                        input("\nPress Enter to continue...")
+                                    break  # Exit the folder processing
                                 else:
                                     print("Invalid selection. Please try again.")
-                            self.logger.info(f"DEBUG: Single scanner match - TMDB selection processed for {subfolder_name}")
-                            print(f"DEBUG: Single scanner match - TMDB break for {subfolder_name}")
-                            break
+                            self.logger.info(f"DEBUG: Single scanner match - TMDB selection processed and symlinks created for {subfolder_name}")
+                            break  # Break out of main processing loop for this folder
                         elif (tmdb_choices and action_choice == "3") or (not tmdb_choices and action_choice == "2"):
                             # Change search term and re-run TMDB search
                             while True:
@@ -1873,42 +1987,70 @@ class DirectoryProcessor:
                                             year = pick['year']
                                             tmdb_id = pick['tmdb_id']
                                             print(f"\n✅ TMDB result selected: {title} ({year}) {{tmdb-{tmdb_id}}}")
-                                            break  # Return to main processing menu
+                                            
+                                            # Get season/episode info if TV series and not already set
+                                            if is_tv and not is_wrestling and season_number is None:
+                                                season_number, episode_number, episode_name = self._prompt_for_season_episode_info(is_tv, is_anime, is_wrestling)
+                                            
+                                            # Automatically create symlinks after TMDB selection
+                                            print(f"\n🔗 Creating symlinks for {title} ({year})...")
+                                            if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
+                                                processed += 1
+                                                append_to_scan_history(subfolder_path)
+                                                trigger_plex_refresh()
+                                                print(f"\n✅ Successfully processed: {title} ({year})")
+                                                input("\nPress Enter to continue...")
+                                                clear_screen()
+                                                display_ascii_art()
+                                            else:
+                                                print(f"\n❌ Failed to create symlinks for: {title} ({year})")
+                                                input("\nPress Enter to continue...")
+                                            break  # Exit the folder processing
     
                                         else:
                                             print("Invalid selection. Please try again.")
-                            break  # After TMDB selection, break out of the main loop for this folder
+                            self.logger.info(f"DEBUG: Change search term - TMDB selection processed and symlinks created for {subfolder_name}")
+                            break  # Break out of main processing loop for this folder
                         elif action_choice == "4":
-                            # Change content type
-                            print("\nSelect new content type:")
+                            # Change content type - show options without clearing screen
+                            print("\n" + "=" * 50)
+                            print("CHANGE CONTENT TYPE".center(50))
+                            print("=" * 50)
+                            print("Select new content type:")
                             print("1. Movie")
                             print("2. TV Series")
                             print("3. Anime Movie")
                             print("4. Anime Series")
                             print("5. Wrestling")
                             print("0. Cancel")
-                            type_choice = input("Select type: ").strip()
+                            type_choice = input("\nSelect type: ").strip()
                             if type_choice == "1":
                                 is_tv = False
                                 is_anime = False
                                 is_wrestling = False
+                                print("✅ Content type changed to Movie")
                             elif type_choice == "2":
                                 is_tv = True
                                 is_anime = False
                                 is_wrestling = False
+                                print("✅ Content type changed to TV Series")
                             elif type_choice == "3":
                                 is_tv = False
                                 is_anime = True
                                 is_wrestling = False
+                                print("✅ Content type changed to Anime Movie")
                             elif type_choice == "4":
                                 is_tv = True
                                 is_anime = True
                                 is_wrestling = False
+                                print("✅ Content type changed to Anime Series")
                             elif type_choice == "5":
                                 is_tv = False
                                 is_anime = False
                                 is_wrestling = True
+                                print("✅ Content type changed to Wrestling")
                             elif type_choice == "0":
+                                print("Content type change cancelled")
                                 continue  # Go back to previous menu
                             else:
                                 print("Invalid type. Returning to previous menu.")
@@ -2007,7 +2149,10 @@ class DirectoryProcessor:
                         print("Please select an option.")
                         continue
 
+                    self.logger.info(f"DEBUG: User selected main menu option: '{choice}' for {subfolder_name}")
+
                     if choice == "1":
+                        self.logger.info(f"DEBUG: User chose 'Accept as is' - calling _create_symlinks for {subfolder_name}")
                         if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
                             processed += 1
                             append_to_scan_history(subfolder_path)
@@ -2090,11 +2235,30 @@ class DirectoryProcessor:
                                     year = pick['year']
                                     tmdb_id = pick['tmdb_id']
                                     print(f"\n✅ TMDB result selected: {title} ({year}) {{tmdb-{tmdb_id}}}")
-                                    break  # Return to main processing menu
+                                    
+                                    # Get season/episode info if TV series and not already set
+                                    if is_tv and not is_wrestling and season_number is None:
+                                        season_number, episode_number, episode_name = self._prompt_for_season_episode_info(is_tv, is_anime, is_wrestling)
+                                    
+                                    # Automatically create symlinks after TMDB selection
+                                    print(f"\n🔗 Creating symlinks for {title} ({year})...")
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
+                                        processed += 1
+                                        append_to_scan_history(subfolder_path)
+                                        trigger_plex_refresh()
+                                        print(f"\n✅ Successfully processed: {title} ({year})")
+                                        input("\nPress Enter to continue...")
+                                        clear_screen()
+                                        display_ascii_art()
+                                    else:
+                                        print(f"\n❌ Failed to create symlinks for: {title} ({year})")
+                                        input("\nPress Enter to continue...")
+                                    break  # Exit the folder processing
     
                                 else:
                                     print("Invalid selection. Please try again.")
-                            break  # After TMDB selection, break out of the main loop for this folder
+                            self.logger.info(f"DEBUG: Main menu option 2 - TMDB selection processed and symlinks created for {subfolder_name}")
+                            break  # Break out of main processing loop for this folder
                         else:
                             print("\nNo TMDB results found. Try another search term or skip.")
                             print("0. Enter a new search term")

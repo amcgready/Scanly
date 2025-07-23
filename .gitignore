@@ -140,3 +140,4 @@ test_csv_import.py
 test_csv_parsing.py
 test_paths.csv
 test_symlink_filtering.py
+src/flagged_paths.csv

@@ -5,7 +5,7 @@
 [![wakatime](https://wakatime.com/badge/github/amcgready/Scanly.svg)](https://wakatime.com/badge/github/amcgready/Scanly)
 
 **Version:** 1.5.0  
-**Last Updated:** 2025-07-05
+**Last Updated:** 2025-07-22
 **NOTICE: As of 2025-06-24, Docker deployment is not complete or recommended. It is recommended to run the script (main.py) on it's own**
 ---
 
