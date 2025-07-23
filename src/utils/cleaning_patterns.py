@@ -54,5 +54,5 @@ case_sensitive_patterns = [
     r'\bsinhala\b', r'\bUS\b', r'\bLostFIlm\b', r'\bBaibaKo\b', r'\bCARVED\b', r'\bRuDub\b', r'\bGHOSTS\b',
     r'\bGeneralfilm\b', r'\biAHD\b', r'\bDB\b', r'\bHONE\b', r'\bRGzsRutracker\b', r'\bFLUX\b', r'\biris2\b',
     r'\bh265\b', r'\bACE\b', r'\bsbor\b', r'\b264-PIX\b', r'\bMOREBiTS\b', r'\bTorrent911.lol\b',
-    r'\bTorrent911.wf\b', r'\bKAZETV\b', r'\bDatte13\b', r'\bsam\b',r'\bHi10\b', r'\bRaptoR\b', r'\b6D3D30BF\b', r'\bDFD9BD67\b', r'\bT3KASHi\b',r'\bBD\b', r'\bBeanosubs\b',r'\bPikanet128\b', r'\bArid\b', r'\bwww.UIndex.org\b',r'\bwww.Torrenting.com\b',r'\bBEST TORRENTS COM\b', r'\bEx torrenty org\b', r'\bRalf\b',
+    r'\bTorrent911.wf\b', r'\bKAZETV\b', r'\bteneighty\b', r'\bDatte13\b', r'\bsam\b',r'\bHi10\b', r'\bRaptoR\b', r'\b6D3D30BF\b', r'\bDFD9BD67\b', r'\bT3KASHi\b',r'\bBD\b', r'\bBeanosubs\b',r'\bPikanet128\b', r'\bArid\b', r'\bwww.UIndex.org\b',r'\bwww.Torrenting.com\b',r'\bBEST TORRENTS COM\b', r'\bEx torrenty org\b', r'\bRalf\b',
 ]

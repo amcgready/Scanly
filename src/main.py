@@ -1231,17 +1231,145 @@ class DirectoryProcessor:
 
         try:
             # Get all subdirectories
-            subdirs = [d for d in os.listdir(self.directory_path) 
-                      if os.path.isdir(os.path.join(self.directory_path, d))]
+            all_subdirs = [d for d in os.listdir(self.directory_path) 
+                          if os.path.isdir(os.path.join(self.directory_path, d))]
             
-            if not subdirs:
+            if not all_subdirs:
                 print("\nNo subdirectories found to process.")
                 input("\nPress Enter to continue...")
                 clear_screen()  # Clear screen when returning to main menu
                 display_ascii_art()  # Show ASCII art
                 return 0
 
-            print(f"Found {len(subdirs)} subdirectories to process")
+            print(f"Found {len(all_subdirs)} total subdirectories")
+            self.logger.info(f"Directory scan found {len(all_subdirs)} total subdirectories in {self.directory_path}")
+            
+            # Log some sample directory names for debugging
+            if len(all_subdirs) > 0:
+                sample_count = min(10, len(all_subdirs))
+                self.logger.info(f"Sample directories: {all_subdirs[:sample_count]}")
+                if len(all_subdirs) > 100:
+                    self.logger.warning(f"Very high directory count ({len(all_subdirs)}) - this might indicate individual files being treated as directories")
+            
+            # Check SKIP_SYMLINKED setting to determine if we should pre-filter
+            skip_symlinked = os.environ.get('SKIP_SYMLINKED', 'false').lower() == 'true'
+            
+            if skip_symlinked:
+                print("Pre-filtering directories that already have symlinks...")
+                print("⚠️  This may take some time for large directories (4000+ items)")
+                print("    Building symlink cache for faster processing...")
+                
+                # Build a cache of all existing symlinks in destination (ONE-TIME OPERATION)
+                symlink_cache = {}
+                if DESTINATION_DIRECTORY and os.path.exists(DESTINATION_DIRECTORY):
+                    cache_start = time.time()
+                    print("Building symlink cache from destination directory...")
+                    try:
+                        for root, dirs, files in os.walk(DESTINATION_DIRECTORY):
+                            # Cache directory symlinks
+                            for d in dirs:
+                                dest_dir_path = os.path.join(root, d)
+                                if os.path.islink(dest_dir_path):
+                                    try:
+                                        real_path = os.path.realpath(dest_dir_path)
+                                        symlink_cache[real_path] = dest_dir_path
+                                    except Exception:
+                                        pass
+                            
+                            # Cache file symlinks
+                            for f in files:
+                                dest_file_path = os.path.join(root, f)
+                                if os.path.islink(dest_file_path):
+                                    try:
+                                        real_target = os.path.realpath(dest_file_path)
+                                        # Store parent directory of the target file
+                                        parent_dir = os.path.dirname(real_target)
+                                        if parent_dir not in symlink_cache:
+                                            symlink_cache[parent_dir] = []
+                                        if isinstance(symlink_cache[parent_dir], list):
+                                            symlink_cache[parent_dir].append(dest_file_path)
+                                        else:
+                                            symlink_cache[parent_dir] = [dest_file_path]
+                                    except Exception:
+                                        pass
+                    except Exception as e:
+                        print(f"Warning: Error building symlink cache: {e}")
+                    
+                    cache_time = time.time() - cache_start
+                    print(f"Symlink cache built in {cache_time:.1f}s ({len(symlink_cache)} entries)")
+                
+                subdirs_to_process = []
+                symlinked_count = 0
+                total_dirs = len(all_subdirs)
+                start_time = time.time()
+                
+                for i, subfolder_name in enumerate(all_subdirs):
+                    # Calculate time estimates
+                    if i > 0:
+                        elapsed_time = time.time() - start_time
+                        avg_time_per_dir = elapsed_time / i
+                        remaining_dirs = total_dirs - i
+                        estimated_remaining = avg_time_per_dir * remaining_dirs
+                        
+                        # Format time estimates
+                        def format_time(seconds):
+                            if seconds < 60:
+                                return f"{int(seconds)}s"
+                            elif seconds < 3600:
+                                return f"{int(seconds/60)}m {int(seconds%60)}s"
+                            else:
+                                return f"{int(seconds/3600)}h {int((seconds%3600)/60)}m"
+                        
+                        eta_str = format_time(estimated_remaining)
+                    else:
+                        eta_str = "calculating..."
+                    
+                    # Show progress every 10 directories or at the end
+                    if i % 50 == 0 or i == total_dirs - 1:
+                        progress_percent = int((i + 1) / total_dirs * 100)
+                        bar_length = 40
+                        filled_length = int(bar_length * (i + 1) // total_dirs)
+                        bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                        print(f"\rProgress: [{bar}] {progress_percent}% ({i + 1}/{total_dirs}) - Found {symlinked_count} with symlinks - ETA: {eta_str}", end='', flush=True)
+                    
+                    subfolder_path = os.path.join(self.directory_path, subfolder_name)
+                    
+                    # Fast symlink check using cache
+                    has_symlink = False
+                    real_subfolder_path = os.path.realpath(subfolder_path)
+                    
+                    # Check if directory itself is symlinked
+                    if real_subfolder_path in symlink_cache:
+                        has_symlink = True
+                    
+                    # Check if any files in this directory are symlinked
+                    if not has_symlink and real_subfolder_path in symlink_cache:
+                        cache_entry = symlink_cache[real_subfolder_path]
+                        if isinstance(cache_entry, list) and cache_entry:
+                            has_symlink = True
+                    
+                    if has_symlink:
+                        symlinked_count += 1
+                        self.logger.info(f"Pre-filtering: Skipping {subfolder_name} - symlinks already exist")
+                    else:
+                        subdirs_to_process.append(subfolder_name)
+                
+                total_time = time.time() - start_time
+                print(f"\nFiltering completed in {int(total_time/60)}m {int(total_time%60)}s")
+                print(f"After filtering: {len(subdirs_to_process)} directories to process, {symlinked_count} already have symlinks")
+                subdirs = subdirs_to_process
+            else:
+                print("Symlink pre-filtering disabled")
+                subdirs = all_subdirs
+
+            if not subdirs:
+                print("\nNo directories need processing (all already have symlinks).")
+                input("\nPress Enter to continue...")
+                clear_screen()
+                display_ascii_art()
+                return 0
+
+            print(f"Will process {len(subdirs)} subdirectories")
 
             # Track progress
             processed = 0
@@ -1306,17 +1434,28 @@ class DirectoryProcessor:
                     self.logger.info(f"DEBUG: No destination directory configured, skipping symlink check")
                 
                 self.logger.info(f"DEBUG: Already processed check for {subfolder_name}: {already_processed}")
+                
+                # Check SKIP_SYMLINKED setting
+                skip_symlinked = os.environ.get('SKIP_SYMLINKED', 'false').lower() == 'true'
+                
                 if already_processed:
-                    print(f"\nWarning: '{subfolder_name}' appears to have already been processed (symlink exists in destination).")
-                    skip_choice = input("Skip this already processed folder? (y/n): ").strip().lower()
-                    self.logger.info(f"DEBUG: User choice for already processed skip: '{skip_choice}'")
-                    if skip_choice == 'y':
-                        self.logger.info(f"User chose to skip already processed (symlink exists): {subfolder_path}")
-                        print(f"DEBUG: SKIPPING due to user choice (already processed): {subfolder_name}")
+                    if skip_symlinked:
+                        # Automatically skip if setting is enabled
+                        self.logger.info(f"Automatically skipping already processed (symlink exists) due to SKIP_SYMLINKED setting: {subfolder_path}")
+                        print(f"Skipping '{subfolder_name}' - symlink already exists (auto-skip enabled)")
                         continue
                     else:
-                        print("Proceeding with processing...")
-                        self.logger.info(f"DEBUG: User chose to proceed despite already processed")
+                        # Ask user if setting is disabled
+                        print(f"\nWarning: '{subfolder_name}' appears to have already been processed (symlink exists in destination).")
+                        skip_choice = input("Skip this already processed folder? (y/n): ").strip().lower()
+                        self.logger.info(f"DEBUG: User choice for already processed skip: '{skip_choice}'")
+                        if skip_choice == 'y':
+                            self.logger.info(f"User chose to skip already processed (symlink exists): {subfolder_path}")
+                            print(f"DEBUG: SKIPPING due to user choice (already processed): {subfolder_name}")
+                            continue
+                        else:
+                            print("Proceeding with processing...")
+                            self.logger.info(f"DEBUG: User chose to proceed despite already processed")
                 # --- SKIP LOGIC END ---
 
                 # --- NEW: Skip if any symlinked file for this subfolder exists in destination ---
@@ -2003,40 +2142,82 @@ class DirectoryProcessor:
     def _has_existing_symlink(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None):
         """
         Check if a symlink for the main media file(s) in this subfolder already exists in the destination directory.
+        Uses comprehensive checking similar to individual scan logic.
         """
-        # Format the base name with year for both folder and files
-        base_name = title
-        if year and not is_wrestling:
-            base_name = f"{title} ({year})"
-        folder_name = base_name
-        if tmdb_id:
-            folder_name = f"{base_name} {{tmdb-{tmdb_id}}}"
-        
-        # Sanitize for filesystem safety
-        safe_base_name = sanitize_filename(base_name)
-        safe_folder_name = sanitize_filename(folder_name)
-
-        # Determine appropriate subdirectory based on content type
-        if is_wrestling:
-            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
-        elif is_anime and is_tv:
-            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
-        elif is_anime and not is_tv:
-                       dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
-        elif is_tv and not is_anime:
-            dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
-
-        target_dir_path = os.path.join(dest_subdir, safe_folder_name)
-        if not os.path.exists(target_dir_path):
+        if not DESTINATION_DIRECTORY:
             return False
+            
+        # Method 1: Check if any symlink in destination points to this subfolder (like individual scan)
+        try:
+            for root, dirs, files in os.walk(DESTINATION_DIRECTORY):
+                # Check directory symlinks
+                for d in dirs:
+                    dest_dir_path = os.path.join(root, d)
+                    if os.path.islink(dest_dir_path):
+                        try:
+                            if os.path.realpath(dest_dir_path) == os.path.realpath(subfolder_path):
+                                self.logger.info(f"Found existing directory symlink pointing to {subfolder_path}: {dest_dir_path}")
+                                return True
+                        except Exception as e:
+                            self.logger.warning(f"Error checking directory symlink: {dest_dir_path} -> {e}")
+                
+                # Check file symlinks that might point to files in this subfolder
+                for f in files:
+                    dest_file_path = os.path.join(root, f)
+                    if os.path.islink(dest_file_path):
+                        try:
+                            real_target = os.path.realpath(dest_file_path)
+                            # Check if the symlink points to any file in our subfolder
+                            if real_target.startswith(os.path.realpath(subfolder_path)):
+                                self.logger.info(f"Found existing file symlink pointing to file in {subfolder_path}: {dest_file_path} -> {real_target}")
+                                return True
+                        except Exception as e:
+                            self.logger.warning(f"Error checking file symlink: {dest_file_path} -> {e}")
+        except Exception as e:
+            self.logger.warning(f"Error during comprehensive symlink check: {e}")
+        
+        # Method 2: Check expected destination path (original logic, but improved)
+        try:
+            # Format the base name with year for both folder and files
+            base_name = title
+            if year and not is_wrestling:
+                base_name = f"{title} ({year})"
+            folder_name = base_name
+            if tmdb_id:
+                folder_name = f"{base_name} {{tmdb-{tmdb_id}}}"
+            
+            # Sanitize for filesystem safety
+            safe_base_name = sanitize_filename(base_name)
+            safe_folder_name = sanitize_filename(folder_name)
 
-        # Check for any symlinked files in the target directory
-        for file in os.listdir(subfolder_path):
-            file_ext = os.path.splitext(file)[1]
-            dest_file_name = f"{safe_base_name}{file_ext}"
-            dest_file_path = os.path.join(target_dir_path, dest_file_name)
-            if os.path.islink(dest_file_path):
-                return True
+            # Determine appropriate subdirectory based on content type
+            if is_wrestling:
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Wrestling")
+            elif is_anime and is_tv:
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Series")
+            elif is_anime and not is_tv:
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Anime Movies")
+            elif is_tv and not is_anime:
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "TV Series")
+            else:
+                dest_subdir = os.path.join(DESTINATION_DIRECTORY, "Movies")
+
+            target_dir_path = os.path.join(dest_subdir, safe_folder_name)
+            if os.path.exists(target_dir_path):
+                # Check for any symlinked files in the target directory
+                try:
+                    for file in os.listdir(subfolder_path):
+                        file_ext = os.path.splitext(file)[1]
+                        dest_file_name = f"{safe_base_name}{file_ext}"
+                        dest_file_path = os.path.join(target_dir_path, dest_file_name)
+                        if os.path.islink(dest_file_path):
+                            self.logger.info(f"Found existing symlink in expected location: {dest_file_path}")
+                            return True
+                except Exception as e:
+                    self.logger.warning(f"Error checking expected destination files: {e}")
+        except Exception as e:
+            self.logger.warning(f"Error during expected path symlink check: {e}")
+        
         return False
 
 def perform_individual_scan():
@@ -2496,22 +2677,27 @@ def process_pending_files_multiscan(monitor_manager, pending_files):
             input()
 
 def handle_settings():
+    while True:
         clear_screen()
         display_ascii_art()
         print("=" * 84)
         print("SETTINGS".center(84))
         print("=" * 84)
+        
+        # Get current skip symlinked setting
+        skip_symlinked = os.environ.get('SKIP_SYMLINKED', 'false').lower() == 'true'
+        
         print("\nOptions:")
         print("  1. Configure File Paths")
         print("  2. Configure API Settings")
         print("  3. Configure Webhook Settings")
         print("  4. Test TMDB Integration")
+        print(f"  5. Skip Symlinked Items: {'Enabled' if skip_symlinked else 'Disabled'}")
         print("  0. Return to Main Menu")
         choice = input("\nSelect option: ").strip()
         if choice == "1":
             print("\nFile path settings selected")
             print("\nPress Enter to continue...")
-
             input()
         elif choice == "2":
             print("\nAPI settings selected")
@@ -2521,33 +2707,14 @@ def handle_settings():
             handle_webhook_settings()
         elif choice == "4":
             handle_tmdb_test()
-        elif choice == "0":
-            return
-        else:
-            display_ascii_art()
-        print("=" * 84)
-        print("SETTINGS".center(84))
-        print("=" * 84)
-        print("\nOptions:")
-        print("  1. Configure File Paths")
-        print("  2. Configure API Settings")
-        print("  3. Configure Webhook Settings")
-        print("  4. Test TMDB Integration")
-        print("  0. Return to Main Menu")
-        choice = input("\nSelect option: ").strip()
-        if choice == "1":
-            print("\nFile path settings selected")
-            print("\nPress Enter to continue...")
-
-            input()
-        elif choice == "2":
-            print("\nAPI settings selected")
-            print("\nPress Enter to continue...")
-            input()
-        elif choice == "3":
-            handle_webhook_settings()
-        elif choice == "4":
-            handle_tmdb_test()
+        elif choice == "5":
+            # Toggle skip symlinked setting
+            new_state = 'false' if skip_symlinked else 'true'
+            _update_env_var('SKIP_SYMLINKED', new_state)
+            print(f"\nSkip symlinked items {'enabled' if new_state == 'true' else 'disabled'}.")
+            print("This setting will automatically skip items that already have symlinks")
+            print("in the destination directory across all scan types.")
+            input("\nPress Enter to continue...")
         elif choice == "0":
             return
         else:
@@ -2685,7 +2852,9 @@ def perform_csv_import():
             
             # Let user decide what to do with already processed items
             print("\nOptions for already processed items:")
-            print("1. Skip them (only process new items)")
+            skip_symlinked = os.environ.get('SKIP_SYMLINKED', 'false').lower() == 'true'
+            symlink_note = " - Also checks for existing symlinks" if skip_symlinked else ""
+            print(f"1. Skip them (only process new items){symlink_note}")
             print("2. Process them anyway (ignore scan history)")
             print("3. Show me the items and let me decide")
             
@@ -2697,11 +2866,73 @@ def perform_csv_import():
                     choice = input("Select option [1-3]: ").strip()
             
             if choice == "1":
-                # Use only new items
-                items_to_process = new_items
+                # Check SKIP_SYMLINKED setting to determine if we should check for symlinks
+                skip_symlinked = os.environ.get('SKIP_SYMLINKED', 'false').lower() == 'true'
+                
+                if skip_symlinked:
+                    # Check for existing symlinks in addition to scan history
+                    print("\nChecking for existing symlinks...")
+                    items_with_symlinks = []
+                    items_to_process = []
+                    
+                    for file_path in new_items:
+                        try:
+                            # Extract metadata to check for existing symlinks
+                            parent_dir = os.path.dirname(file_path)
+                            filename = os.path.basename(file_path)
+                            title_part = os.path.splitext(filename)[0]
+                            
+                            # Extract year
+                            year_match = re.search(r'(19\d{2}|20\d{2})', title_part)
+                            year = year_match.group(1) if year_match else None
+                            
+                            # Clean title
+                            clean_title = title_part
+                            if year:
+                                clean_title = clean_title.replace(year, '').strip()
+                            clean_title = clean_title_with_patterns(clean_title)
+                            clean_title = normalize_unicode(clean_title)
+                            
+                            # Detect content type
+                            default_flags = get_default_content_type_for_path(parent_dir)
+                            if default_flags:
+                                is_tv, is_anime, is_wrestling = default_flags
+                            else:
+                                is_tv = re.search(r'[sS]\d+[eE]\d+|Season|Episode', filename, re.IGNORECASE) is not None
+                                is_anime = re.search(r'anime|subbed|dubbed|\[jp\]', filename, re.IGNORECASE) is not None
+                                is_wrestling = re.search(r'wrestling|wwe|aew|njpw', filename, re.IGNORECASE) is not None
+                            
+                            # Check for existing symlinks using DirectoryProcessor method
+                            temp_processor = DirectoryProcessor(parent_dir)
+                            logger.info(f"CSV Processing: Checking symlinks for '{clean_title}' ({year}) - Type: {'TV' if is_tv else 'Movie'}, Anime: {is_anime}, Wrestling: {is_wrestling}")
+                            has_symlink = temp_processor._has_existing_symlink(
+                                parent_dir, clean_title, year, is_tv, is_anime, is_wrestling
+                            )
+                            
+                            if has_symlink:
+                                items_with_symlinks.append(file_path)
+                                logger.info(f"CSV Processing: Skipping {file_path} - existing symlink found for '{clean_title}' ({year})")
+                            else:
+                                items_to_process.append(file_path)
+                                
+                        except Exception as e:
+                            # If we can't check for symlinks, include the item to be safe
+                            logger.warning(f"CSV Processing: Could not check symlinks for {file_path}: {e}")
+                            items_to_process.append(file_path)
+                    
+                    logger.info(f"CSV Processing: User selected option 1 - Processing {len(items_to_process)} new items, skipping {len(already_processed_items)} in scan history and {len(items_with_symlinks)} with existing symlinks")
+                    
+                    print(f"Will process {len(items_to_process)} new items")
+                    if len(items_with_symlinks) > 0:
+                        print(f"Skipping {len(items_with_symlinks)} items with existing symlinks")
+                else:
+                    # Don't check for symlinks, just process new items
+                    items_to_process = new_items
+                    logger.info(f"CSV Processing: User selected option 1 - Processing {len(items_to_process)} new items, skipping {len(already_processed_items)} in scan history (symlink checking disabled)")
+                    print(f"Will process {len(items_to_process)} new items")
+                
+                print(f"Skipping {len(already_processed_items)} items already in scan history")
                 ignore_scan_history = False
-                logger.info(f"CSV Processing: User selected to process {len(items_to_process)} new items only")
-                print(f"Will process {len(items_to_process)} new items only")
             elif choice == "2":
                 # Process all items
                 items_to_process = file_paths
@@ -2731,7 +2962,71 @@ def perform_csv_import():
                 ignore_scan_history = False
         else:
             print(f"All {len(file_paths)} items appear to be new")
-            items_to_process = new_items
+            # Check SKIP_SYMLINKED setting to determine if we should check for symlinks
+            skip_symlinked = os.environ.get('SKIP_SYMLINKED', 'false').lower() == 'true'
+            
+            if skip_symlinked:
+                # Check for existing symlinks even when all items are new
+                print("Checking for existing symlinks...")
+                items_with_symlinks = []
+                items_to_process = []
+                
+                for file_path in file_paths:
+                    try:
+                        # Extract metadata to check for existing symlinks
+                        parent_dir = os.path.dirname(file_path)
+                        filename = os.path.basename(file_path)
+                        title_part = os.path.splitext(filename)[0]
+                        
+                        # Extract year
+                        year_match = re.search(r'(19\d{2}|20\d{2})', title_part)
+                        year = year_match.group(1) if year_match else None
+                        
+                        # Clean title
+                        clean_title = title_part
+                        if year:
+                            clean_title = clean_title.replace(year, '').strip()
+                        clean_title = clean_title_with_patterns(clean_title)
+                        clean_title = normalize_unicode(clean_title)
+                        
+                        # Detect content type
+                        default_flags = get_default_content_type_for_path(parent_dir)
+                        if default_flags:
+                            is_tv, is_anime, is_wrestling = default_flags
+                        else:
+                            is_tv = re.search(r'[sS]\d+[eE]\d+|Season|Episode', filename, re.IGNORECASE) is not None
+                            is_anime = re.search(r'anime|subbed|dubbed|\[jp\]', filename, re.IGNORECASE) is not None
+                            is_wrestling = re.search(r'wrestling|wwe|aew|njpw', filename, re.IGNORECASE) is not None
+                        
+                        # Check for existing symlinks using DirectoryProcessor method
+                        temp_processor = DirectoryProcessor(parent_dir)
+                        logger.info(f"CSV Processing: Checking symlinks for '{clean_title}' ({year}) - Type: {'TV' if is_tv else 'Movie'}, Anime: {is_anime}, Wrestling: {is_wrestling}")
+                        has_symlink = temp_processor._has_existing_symlink(
+                            parent_dir, clean_title, year, is_tv, is_anime, is_wrestling
+                        )
+                        
+                        if has_symlink:
+                            items_with_symlinks.append(file_path)
+                            logger.info(f"CSV Processing: Skipping {file_path} - existing symlink found for '{clean_title}' ({year})")
+                        else:
+                            items_to_process.append(file_path)
+                            
+                    except Exception as e:
+                        # If we can't check for symlinks, include the item to be safe
+                        logger.warning(f"CSV Processing: Could not check symlinks for {file_path}: {e}")
+                        items_to_process.append(file_path)
+                
+                logger.info(f"CSV Processing: All items new - Processing {len(items_to_process)} items, skipping {len(items_with_symlinks)} with existing symlinks")
+                
+                print(f"Will process {len(items_to_process)} items")
+                if len(items_with_symlinks) > 0:
+                    print(f"Skipping {len(items_with_symlinks)} items with existing symlinks")
+            else:
+                # Don't check for symlinks, process all items
+                items_to_process = file_paths
+                logger.info(f"CSV Processing: All items new - Processing {len(items_to_process)} items (symlink checking disabled)")
+                print(f"Will process {len(items_to_process)} items")
+            
             ignore_scan_history = False
         
         if not items_to_process:
@@ -2765,6 +3060,14 @@ def perform_csv_import():
             if not os.path.exists(file_path):
                 logger.warning(f"CSV Processing: File does not exist, skipping: {file_path}")
                 print(f"Warning: File does not exist, skipping: {file_path}")
+                skipped_count += 1
+                continue
+            
+            # Skip sample files
+            filename = os.path.basename(file_path)
+            if "sample" in filename.lower():
+                logger.info(f"CSV Processing: Skipping sample file: {file_path}")
+                print(f"Skipping sample file: {filename}")
                 skipped_count += 1
                 continue
             
@@ -2856,9 +3159,16 @@ def perform_csv_import():
             if scanner_matches:
                 print(f"\n📋 Found {len(scanner_matches)} scanner list matches:")
                 for i, match in enumerate(scanner_matches[:5], 1):
-                    match_title = match.get('title', 'Unknown')
-                    match_year = match.get('year', '')
-                    match_tmdb = match.get('tmdb_id', '')
+                    # Handle both dictionary and string formats
+                    if isinstance(match, dict):
+                        match_title = match.get('title', 'Unknown')
+                        match_year = match.get('year', '')
+                        match_tmdb = match.get('tmdb_id', '')
+                    else:
+                        # If match is a string, use it as the title
+                        match_title = str(match)
+                        match_year = ''
+                        match_tmdb = ''
                     print(f"  {i}. {match_title} ({match_year}) {{tmdb-{match_tmdb}}}")
                 
                 print("💡 Scanner matches available - use option 8 or 9 to select")
@@ -3030,9 +3340,14 @@ def perform_csv_import():
                                 elif tmdb_pick.isdigit() and 1 <= int(tmdb_pick) <= len(tmdb_choices):
                                     pick = tmdb_choices[int(tmdb_pick)-1]
                                     clean_title = pick['title']
+                                    # Only update year if TMDB has a valid year, otherwise keep original
                                     if pick['year']:
                                         year = pick['year']
+                                    # Always update TMDB ID from the selection
                                     tmdb_id = pick['tmdb_id']
+                                    
+                                    # Log the updated values
+                                    logger.info(f"CSV Processing: TMDB selection updated values - Title: '{clean_title}', Year: '{year}', TMDB ID: '{tmdb_id}'")
                                     print(f"\n✅ TMDB result selected: {clean_title} ({year}) {{tmdb-{tmdb_id}}}")
                                     
                                     # Process the item immediately after selection
@@ -3051,6 +3366,9 @@ def perform_csv_import():
                                     try:
                                         processor = DirectoryProcessor(parent_dir)
                                         
+                                        # Add logging with the updated values
+                                        logger.info(f"CSV Processing: Processing with TMDB selection - {file_path} as '{clean_title}' (Year: {year}, TMDB: {tmdb_id}, Type: {content_type})")
+                                        
                                         # For CSV import, use the single-file processing method
                                         if is_tv:
                                             # For TV content, pass season and episode info
@@ -3067,6 +3385,7 @@ def perform_csv_import():
                                         
                                         if symlink_result:
                                             processed_count += 1
+                                            logger.info(f"CSV Processing: Successfully processed {file_path} with TMDB selection")
                                             print(f"✅ Successfully processed: {clean_title}")
                                             if is_tv:
                                                 if episode_name:
@@ -3074,10 +3393,13 @@ def perform_csv_import():
                                                 else:
                                                     print(f"   Season {season_number}, Episode {episode_number}")
                                         else:
+                                            logger.warning(f"CSV Processing: Failed to process {file_path} with TMDB selection - symlink creation returned False")
                                             print(f"⚠️  Failed to process: {clean_title}")
                                             print("   Check logs for more details.")
                                     except Exception as e:
+                                        logger.error(f"CSV Processing: Exception processing {file_path} with TMDB selection: {e}")
                                         print(f"❌ Error processing {file_path}: {e}")
+                                        import traceback
                                         traceback.print_exc()
                                     
                                     # Set flags to exit all loops and move to next item
@@ -3316,9 +3638,15 @@ def perform_csv_import():
                             scanner_idx = int(scanner_choice) - 1
                             if 0 <= scanner_idx < len(scanner_matches):
                                 selected_match = scanner_matches[scanner_idx]
-                                clean_title = selected_match.get('title', clean_title)
-                                year = selected_match.get('year', year)
-                                tmdb_id = selected_match.get('tmdb_id', tmdb_id)
+                                # Handle both dictionary and string formats
+                                if isinstance(selected_match, dict):
+                                    clean_title = selected_match.get('title', clean_title)
+                                    year = selected_match.get('year', year)
+                                    tmdb_id = selected_match.get('tmdb_id', tmdb_id)
+                                else:
+                                    # If match is a string, use it as the title
+                                    clean_title = str(selected_match)
+                                    # Keep existing year and tmdb_id
                                 print(f"\n✅ Selected: {clean_title} ({year}) {{tmdb-{tmdb_id}}}")
                             else:
                                 print("Invalid selection.")
@@ -3345,9 +3673,15 @@ def perform_csv_import():
                         scanner_idx = int(scanner_choice) - 1
                         if 0 <= scanner_idx < len(scanner_matches):
                             selected_match = scanner_matches[scanner_idx]
-                            clean_title = selected_match.get('title', clean_title)
-                            year = selected_match.get('year', year)
-                            tmdb_id = selected_match.get('tmdb_id', tmdb_id)
+                            # Handle both dictionary and string formats
+                            if isinstance(selected_match, dict):
+                                clean_title = selected_match.get('title', clean_title)
+                                year = selected_match.get('year', year)
+                                tmdb_id = selected_match.get('tmdb_id', tmdb_id)
+                            else:
+                                # If match is a string, use it as the title
+                                clean_title = str(selected_match)
+                                # Keep existing year and tmdb_id
                             print(f"\n✅ Selected: {clean_title} ({year}) {{tmdb-{tmdb_id}}}")
                         else:
                             print("Invalid selection.")
