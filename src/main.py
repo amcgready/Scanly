@@ -807,6 +807,62 @@ class DirectoryProcessor:
         
         return is_tv, is_anime, is_wrestling
 
+    def _prompt_for_season_episode_info(self, is_tv=False, is_anime=False, is_wrestling=False):
+        """Helper method to prompt user for season and episode information when manual processing is enabled."""
+        if is_wrestling or not is_tv:
+            return None, None, None  # No season/episode info for non-TV content
+        
+        # Check if manual processing is enabled
+        manual_season = os.environ.get('MANUAL_SEASON_PROCESSING', 'false').lower() == 'true'
+        manual_episode = os.environ.get('MANUAL_EPISODE_PROCESSING', 'false').lower() == 'true'
+        
+        if not manual_season and not manual_episode:
+            return None, None, None  # Both disabled, use automatic detection
+        
+        clear_screen()
+        display_ascii_art()
+        print("=" * 84)
+        content_type = "Anime Series" if is_anime else "TV Series"
+        print(f"MANUAL {content_type.upper()} PROCESSING".center(84))
+        print("=" * 84)
+        
+        season_number = None
+        episode_number = None
+        episode_name = None
+        
+        if manual_season:
+            print("\nSeason Information:")
+            while True:
+                season_input = input("Enter season number (1, 2, 3...) or press Enter to skip: ").strip()
+                if not season_input:
+                    season_number = None
+                    break
+                try:
+                    season_number = int(season_input)
+                    if season_number > 0:
+                        break
+                    else:
+                        print("Please enter a positive number.")
+                except ValueError:
+                    print("Please enter a valid number.")
+        
+        if manual_episode:
+            print("\nEpisode Information:")
+            episode_input = input("Enter episode number/identifier (1, 2, S01, Extra, etc.) or press Enter to skip: ").strip()
+            if episode_input:
+                # Try to parse as integer first, otherwise keep as string for special episodes
+                try:
+                    episode_number = int(episode_input)
+                except ValueError:
+                    episode_number = episode_input  # Keep as string for special episodes
+            
+            # Optional episode name
+            episode_name_input = input("Enter episode name (optional) or press Enter to skip: ").strip()
+            if episode_name_input:
+                episode_name = episode_name_input
+        
+        return season_number, episode_number, episode_name
+
     def _create_symlinks(self, subfolder_path, title, year, is_tv=False, is_anime=False, is_wrestling=False, tmdb_id=None, season_number=None, episode_number=None, episode_name=None):
         """
         Create symlinks from the source directory to the destination directory.
@@ -1230,9 +1286,32 @@ class DirectoryProcessor:
         processed_paths = self.processed_paths
 
         try:
-            # Get all subdirectories
-            all_subdirs = [d for d in os.listdir(self.directory_path) 
-                          if os.path.isdir(os.path.join(self.directory_path, d))]
+            # Get allowed extensions from environment
+            allowed_extensions = os.environ.get('ALLOWED_EXTENSIONS', '.mp4,.mkv,.srt,.avi,.mov,.divx').lower().split(',')
+            allowed_extensions = [ext.strip() for ext in allowed_extensions if ext.strip()]
+            
+            # Get all subdirectories that contain valid media files
+            all_subdirs = []
+            for d in os.listdir(self.directory_path):
+                dir_path = os.path.join(self.directory_path, d)
+                if os.path.isdir(dir_path):
+                    # Check if directory contains any valid media files
+                    has_media = False
+                    try:
+                        for file in os.listdir(dir_path):
+                            if os.path.isfile(os.path.join(dir_path, file)):
+                                file_ext = os.path.splitext(file)[1].lower()
+                                if file_ext in allowed_extensions and file_ext != '.srt':  # Exclude subtitle files
+                                    has_media = True
+                                    break
+                    except Exception as e:
+                        self.logger.warning(f"Error checking directory {d}: {e}")
+                        continue
+                    
+                    if has_media:
+                        all_subdirs.append(d)
+                    else:
+                        self.logger.info(f"Skipping directory {d} - no valid media files found (allowed: {allowed_extensions})")
             
             if not all_subdirs:
                 print("\nNo subdirectories found to process.")
@@ -1471,6 +1550,11 @@ class DirectoryProcessor:
                 is_anime = self._detect_if_anime(subfolder_name)
                 is_wrestling = False
                 tmdb_id = None
+                
+                # Initialize season/episode variables
+                season_number = None
+                episode_number = None
+                episode_name = None
 
                 # --- NEW: Skip the skip prompt and always continue
                 # (No input, just proceed to scanner list check)
@@ -1829,6 +1913,12 @@ class DirectoryProcessor:
                             else:
                                 print("Invalid type. Returning to previous menu.")
                                 continue
+                            
+                            # Prompt for season/episode info if TV content and manual processing is enabled
+                            if is_tv and not is_wrestling:
+                                season_number, episode_number, episode_name = self._prompt_for_season_episode_info(is_tv, is_anime, is_wrestling)
+                            else:
+                                season_number, episode_number, episode_name = None, None, None
                             continue  # <--- THIS LINE ENSURES THE LOOP RESTARTS WITH NEW CONTENT TYPE
                         elif (tmdb_choices and action_choice == "5") or (not tmdb_choices and action_choice == "4"):
                             # Manual TMDB ID
@@ -1847,7 +1937,7 @@ class DirectoryProcessor:
                                         year = (details.get('release_date') or str(year or ""))[:4]
                                     print(f"\nTMDB lookup successful: {title} ({year}) {{tmdb-{tmdb_id}}}")
                                     # Proceed to symlink creation or next step
-                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                                    if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
                                         processed += 1
                                         append_to_scan_history(subfolder_path)
                                         trigger_plex_refresh()
@@ -1918,7 +2008,7 @@ class DirectoryProcessor:
                         continue
 
                     if choice == "1":
-                        if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id):
+                        if self._create_symlinks(subfolder_path, title, year, is_tv, is_anime, is_wrestling, tmdb_id, season_number, episode_number, episode_name):
                             processed += 1
                             append_to_scan_history(subfolder_path)
                             trigger_plex_refresh()
@@ -2052,6 +2142,13 @@ class DirectoryProcessor:
                         else:
                             print("Invalid type. Returning to previous menu.")
                             continue
+                        
+                        # Prompt for season/episode info if TV content and manual processing is enabled
+                        if is_tv and not is_wrestling:
+                            season_number, episode_number, episode_name = self._prompt_for_season_episode_info(is_tv, is_anime, is_wrestling)
+                        else:
+                            season_number, episode_number, episode_name = None, None, None
+                        
                         continue  # <--- THIS LINE ENSURES THE LOOP RESTARTS WITH NEW CONTENT TYPE
                     elif choice == "4":
                         new_tmdb_id = input(f"Enter TMDB ID [{tmdb_id if tmdb_id else ''}]: ").strip()
